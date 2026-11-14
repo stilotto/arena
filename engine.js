@@ -750,7 +750,7 @@ const healerCanRaise = S => S.raisedDay !== S.day && S.heroes.some(h => !h.dead 
 function raise(h) { h.dead = false; h.hp = 1; delete h.diedDay; }
 // Initiative for the party mode: everyone rolls each round and acts in that order.
 function rollInit(b) {
-  b.order = b.units.filter(u => u.hp > 0 && !u.illusion).map(u => ({ u, i: ri(10) + (u.h ? dexAC(u.h.dex) : u.mv > 5 ? 1 : 0) + rnd() * .5 })).sort((a, c) => c.i - a.i).map(x => x.u);
+  b.order = b.units.filter(u => u.hp > 0 && !u.illusion).map(u => ({ u, i: ri(10) + (u.h ? Math.floor((u.h.dex - 10) / 2) + (u.cls === 'thief' || u.cls === 'monk' ? 2 : u.cls === 'assassin' ? 1 : 0) : u.mv > 5 ? 1 : 0) + rnd() * .5 })).sort((a, c) => c.i - a.i).map(x => x.u);
   b.turn = 0;
 }
 

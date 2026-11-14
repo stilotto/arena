@@ -252,6 +252,8 @@ function pickUnit(u) {
 }
 function refresh() {
   if (!B) return;
+  // The Six: the turn belongs to whoever is next in initiative. If the selection was lost, take it back.
+  if (B.six && B.order && !B.over && !busy && B.phase !== 'deploy' && !(sel && sel.hp > 0 && !sel.acted)) { const u = B.order[B.turn]; if (u && u.side === 'H' && u.hp > 0 && !u.acted && !u.illusion) pickUnit(u); }
   const hs = B.units.filter(u => u.side === 'H' && u.hp > 0 && !u.illusion), es = B.units.filter(u => u.side === 'E' && u.hp > 0);
   $('bbar').innerHTML = `<b class="cz gold">Day ${roman(B.day)}</b><span>Round ${B.round}</span><span>${B.six ? 'Party' : 'Legion'} <b>${hs.length}</b></span><span>Foes <b>${es.length}</b></span><span class="sp"></span><span class="mute small">${B.bl.title}</span>`;
   $('chips').innerHTML = B.six ? initStrip() : B.cis.map(ci => { const n = hs.filter(u => u.ci === ci).length, co = S.cohorts[ci]; return `<button class="chip ${csel === ci ? 'on' : ''}" onclick="pickCohort(${ci})"><b>${roman(ci + 1)}</b>${mini(ci)} ${n} · ${co.order}</button>`; }).join('');
@@ -315,7 +317,7 @@ function tap(x, y) {
   }
   if (B.six) { if (t && t !== u) { insp = t; if (t.side === 'H' || !u) return refresh(); } else insp = null; }
   else if (t && t.side === 'H' && !t.illusion) { if (t === u) drop(); else pickUnit(t); return refresh(); }
-  if (!u || u.acted || u.hp <= 0 || stuck(u)) { if (t && t.side === 'E') { insp = t; sel = null; reach = null; refresh(); } return; }
+  if (!u || u.acted || u.hp <= 0 || stuck(u)) { if (t && t.side === 'E') { insp = t; if (!B.six) sel = null; reach = null; refresh(); } return; }
   if (t && t.side === 'E') {
     const d = dist(u, t);
     if (d === 1) return act(() => heroAttack(B, u, t, false));
@@ -334,7 +336,7 @@ cv.addEventListener('click', e => { const r = cv.getBoundingClientRect(); tap(Ma
 
 async function endTurn() {
   if (busy || !B || B.over) return;
-  if (B.six) { if (B.phase === 'deploy') { B.phase = null; drop(); rollInit(B); return sixLoop(); } if (sel) { sel.acted = true; sixNext(); } return; }
+  if (B.six) { if (B.phase === 'deploy') { B.phase = null; drop(); rollInit(B); return sixLoop(); } const u = B.order && B.order[B.turn]; if (u && u.side === 'H') { sel = u; u.acted = true; sixNext(); } return; }
   if (B.phase === 'deploy') { B.phase = null; drop(); refresh(); if (!auto) return; }
   busy = true; sel = null; mode = null; reach = null; note = ''; refresh();
   const b = B, n = b.units.length, delay = fast || RM ? 0 : clamp(1400 / n, 5, 55);
@@ -420,7 +422,7 @@ function playFly(ms, intro) {
   flyRaf = requestAnimationFrame(frame);
 }
 $('fly').onclick = () => flyEnd && flyEnd();
-window.addEventListener('keydown', e => { if (!flyEnd && e.key === 'Escape' && B && sel && !busy) { drop(); refresh(); }
+window.addEventListener('keydown', e => { if (!flyEnd && e.key === 'Escape' && B && sel && !busy) { if (B.six) { mode = null; note = ''; } else drop(); refresh(); }
   if (flyEnd && (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); flyEnd(); } });
 
 // the title screen shows the full hundred from a slow orbiting camera
