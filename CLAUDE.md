@@ -22,11 +22,14 @@ the Iron Plane who is forging a new legion.
 ## How we work
 
 - Plain HTML/CSS/JS, no build step. `engine.js` is the rules (no DOM, runs in
-  Node); `ui.js` is screens, canvas and input; `index.html` holds the CSS.
-- Bump the `?v=` on both script tags in `index.html` with every change so
+  Node); `ui.js` is screens, canvas and input; `arena3d.js` is the skycam (a
+  software 3D view on a 2D canvas, no libraries); `index.html` holds the CSS.
+- Bump the `?v=` on all three script tags in `index.html` with every change so
   phones get the new code.
 - Balance check: `node tools/sim.js [runs] [days]` plays the campaign on
   standing orders and prints deaths per day.
+- Developer hook: `?day=20` opens a levelled, equipped legion on that day
+  (never saved). Add `&lvl=6`, `&gear=3`, `&dead=30` or `&fight=1`.
 - Original rules and names only. Use folklore monsters; never use the name,
   text or signature creatures of any published tabletop game.
 - Must work at phone width and honor prefers-reduced-motion.

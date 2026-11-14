@@ -25,8 +25,8 @@ button.sm{padding:2px 8px;font-size:15px}
 .mute{color:var(--mute)} .gold{color:var(--gold)} .small{font-size:14px}
 
 #title{text-align:center;padding-top:10px}
-#title svg{width:100%;max-width:560px;height:auto;display:block;margin:0 auto}
-#title h1{font-size:clamp(34px,9vw,64px);color:var(--gold);margin-top:-6px}
+#hero{width:100%;max-width:720px;aspect-ratio:100/42;display:block;margin:0 auto;border-radius:6px;border:1px solid var(--line)}
+#title h1{font-size:clamp(34px,9vw,64px);color:var(--gold);margin-top:4px;text-shadow:0 2px 0 #3a1a10}
 #title .tag{font-style:italic;color:var(--mute);margin:2px 0 10px}
 #title .story{max-width:560px;margin:0 auto 12px;text-align:left}
 #title .btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:10px 0}
@@ -53,7 +53,7 @@ button.sm{padding:2px 8px;font-size:15px}
 #battle{padding:4px 6px;max-width:1100px}
 #bbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:15px;margin-bottom:3px}
 #bbar .sp{flex:1}
-#cv{display:block;margin:0 auto;border:5px solid #6a5a48;border-radius:3px;background:var(--sand);touch-action:manipulation;cursor:pointer}
+#cv{display:block;margin:0 auto;border:6px solid #6a5a48;border-radius:4px;box-shadow:0 0 0 2px #2a1f18,0 0 0 5px #8e2a22,0 0 0 7px #2a1f18,0 8px 24px rgba(0,0,0,.6);margin-top:8px;margin-bottom:10px;background:var(--sand);touch-action:manipulation;cursor:pointer}
 #chips{display:flex;gap:4px;flex-wrap:wrap;margin:4px 0}
 .chip{display:flex;align-items:center;gap:4px;padding:1px 7px 1px 2px;font-size:14px}
 .chip .badge{width:20px;height:20px;font-size:11px;border-width:1px}
@@ -71,26 +71,21 @@ button.sm{padding:2px 8px;font-size:15px}
 #mbox .line{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:4px 0;border-top:1px solid var(--line)}
 #mbox .line .sp{flex:1}
 #mbox .end{display:flex;justify-content:flex-end;gap:6px;margin-top:10px}
-@media (prefers-reduced-motion:no-preference){button{transition:border-color .15s}}
+#fly{position:fixed;inset:0;z-index:9;background:#15100d;cursor:pointer}
+#fly.out{opacity:0;pointer-events:none}
+#flyc{width:100%;height:100%;display:block}
+#lower{position:absolute;left:0;bottom:12%;max-width:min(92vw,620px);background:linear-gradient(90deg,rgba(142,42,34,.95),rgba(142,42,34,.8) 70%,rgba(142,42,34,0));border-left:6px solid var(--gold);padding:8px 60px 8px 14px}
+#lowA{font-family:'Cinzel',serif;font-weight:700;font-size:clamp(17px,3.2vw,26px);color:#fff;letter-spacing:.05em}
+#lowB{font-size:clamp(14px,2.2vw,18px);color:#f3e6c8}
+#fly .bug{position:absolute;top:10px;left:12px;font-family:'Cinzel',serif;font-size:13px;letter-spacing:.2em;color:var(--gold);background:rgba(20,14,10,.7);padding:3px 9px;border:1px solid var(--gold)}
+#fly .skip{position:absolute;top:10px;right:12px;font-size:14px;color:var(--ink);background:rgba(20,14,10,.7);padding:3px 9px;border-radius:4px}
+@media (prefers-reduced-motion:no-preference){button{transition:border-color .15s}#fly{transition:opacity .45s}}
 </style>
 </head>
 <body>
 
 <div id="title" class="screen">
-  <svg viewBox="0 0 560 210" role="img" aria-label="An arena under a dark sun">
-    <defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a0f0d"/><stop offset=".7" stop-color="#8e2a22"/><stop offset="1" stop-color="#d2793a"/></linearGradient></defs>
-    <rect width="560" height="210" fill="url(#sky)"/>
-    <circle cx="280" cy="78" r="46" fill="#120b09"/><circle cx="280" cy="78" r="46" fill="none" stroke="#f0c56a" stroke-width="2"/>
-    <ellipse cx="280" cy="78" rx="9" ry="24" fill="#f0c56a"/>
-    <g fill="#17120f">
-      <path d="M0 210V120q280-60 560 0v90z"/>
-    </g>
-    <g fill="#8e2a22" opacity=".9">
-      <path d="M22 210v-52a14 14 0 0 1 28 0v52zM70 210v-60a14 14 0 0 1 28 0v60zM118 210v-66a14 14 0 0 1 28 0v66zM166 210v-71a14 14 0 0 1 28 0v71zM214 210v-74a14 14 0 0 1 28 0v74zM318 210v-74a14 14 0 0 1 28 0v74zM366 210v-71a14 14 0 0 1 28 0v71zM414 210v-66a14 14 0 0 1 28 0v66zM462 210v-60a14 14 0 0 1 28 0v60zM510 210v-52a14 14 0 0 1 28 0v52z"/>
-    </g>
-    <path d="M258 210v-80a22 22 0 0 1 44 0v80z" fill="#d8c08c"/>
-    <g fill="#17120f"><circle cx="280" cy="170" r="5"/><path d="M274 177h12l3 33h-18z"/><path d="M290 160l2 50h-2z"/></g>
-  </svg>
+  <canvas id="hero" role="img" aria-label="The arena seen from a circling camera"></canvas>
   <h1>The Hundred</h1>
   <p class="tag">Ten of every calling. One arena between the planes.</p>
   <div class="story card">
@@ -117,14 +112,18 @@ button.sm{padding:2px 8px;font-size:15px}
     <button id="bAuto">Auto: off</button>
     <button id="bSpeed">Speed: normal</button>
     <span style="flex:1"></span>
+    <button id="bCam" class="sm">Skycam</button>
     <button id="bYield" class="sm">Plead for mercy</button>
   </div>
   <div id="log"></div>
 </div>
 
+<div id="fly" class="hidden"><canvas id="flyc"></canvas><div class="bug">SKYCAM</div><div class="skip">Tap to skip</div><div id="lower"><div id="lowA"></div><div id="lowB"></div></div></div>
+
 <div id="modal" class="hidden"><div id="mbox"></div></div>
 
-<script src="engine.js?v=1"></script>
-<script src="ui.js?v=1"></script>
+<script src="engine.js?v=2"></script>
+<script src="arena3d.js?v=2"></script>
+<script src="ui.js?v=2"></script>
 </body>
 </html>

@@ -6,9 +6,9 @@ const KEY = 'the-hundred-v1';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let S = null, B = null, sel = null, csel = null, mode = null, reach = null, busy = false, auto = false, fast = false, openCi = -1, note = '';
 
-function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } }
+function save() { if (S && S.dev) return; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } }
 function load() { try { const s = JSON.parse(localStorage.getItem(KEY)); return s && s.v === 1 ? s : null; } catch (e) { return null; } }
-function show(id) { for (const s of ['title', 'camp', 'battle']) $(s).classList.toggle('hidden', s !== id); window.scrollTo(0, 0); }
+function show(id) { for (const s of ['title', 'camp', 'battle']) $(s).classList.toggle('hidden', s !== id); window.scrollTo(0, 0); titleLoop(id === 'title'); }
 function modal(html) { $('mbox').innerHTML = html; $('modal').classList.remove('hidden'); }
 function closeModal() { $('modal').classList.add('hidden'); }
 const badge = cls => `<span class="badge" style="background:${CL[cls].col}">${CL[cls].g}</span>`;
@@ -35,7 +35,7 @@ function camp() {
   S.pick = S.pick.filter(ci => living(S, ci).length).slice(0, cap);
   save();
   const ready = alive.filter(canTrain).length;
-  let h = `<div class="bar"><h2>Day ${roman(S.day)}</h2><span>Legion <b>${alive.length}</b>/100</span><span class="gold">${S.gold} gp</span><span>Potions ${S.potions}</span><span class="sp"></span><button class="sm" onclick="help()">?</button></div>
+  let h = `<div class="bar"><h2>Day ${roman(S.day)}</h2><span>Legion <b>${alive.length}</b>/100</span><span class="gold">${S.gold} gp</span><span>Potions ${S.potions}</span>${S.dev ? '<span class="gold small">DEV, not saved</span>' : ''}<span class="sp"></span><button class="sm ${S.fly === false ? '' : 'on'}" onclick="S.fly=S.fly===false;camp()">Skycam: ${S.fly === false ? 'off' : 'on'}</button><button class="sm" onclick="help()">?</button></div>
   <div class="card"><h3>Today's games: ${bl.title}</h3>${billingText(bl)}.<br><span class="mute">The gate admits <b>${cap}</b> cohort${cap > 1 ? 's' : ''}. Purse: ${bl.purse} gp. Chosen: ${S.pick.length}/${cap}.</span></div>`;
   S.cohorts.forEach((co, ci) => {
     const c = CL[co.cls], l = living(S, ci), hp = l.reduce((s, x) => s + x.hp, 0), mx = l.reduce((s, x) => s + x.max, 0);
@@ -95,10 +95,11 @@ function doTrain(ci) {
 
 /* ---------- battle ---------- */
 const cv = $('cv'), g = cv.getContext('2d');
-let cell = 20, raf = 0;
+let cell = 20, raf = 0, sand = null;
 function toSands() {
   B = startBattle(S, S.pick); sel = null; csel = S.pick[0]; mode = null; reach = null; busy = false; auto = false; note = '';
   show('battle'); size(); refresh();
+  if (S.fly !== false) playFly(9000);
 }
 function size() {
   if (!B) return;
@@ -107,28 +108,37 @@ function size() {
   const dpr = window.devicePixelRatio || 1;
   cv.style.width = B.w * cell + 'px'; cv.style.height = B.h * cell + 'px';
   cv.width = B.w * cell * dpr; cv.height = B.h * cell * dpr; g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  sand = document.createElement('canvas'); sand.width = cv.width; sand.height = cv.height;
+  const sg = sand.getContext('2d'); sg.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const c = cell, W2 = B.w * c, H2 = B.h * c, gr = sg.createRadialGradient(W2 / 2, H2 / 2, H2 * .2, W2 / 2, H2 / 2, W2 * .7);
+  gr.addColorStop(0, '#dcc592'); gr.addColorStop(1, '#c7ab74'); sg.fillStyle = gr; sg.fillRect(0, 0, W2, H2);
+  let sd = 5; const rr = () => (sd = (sd * 1664525 + 1013904223) >>> 0) / 4294967296;
+  for (let i = 0; i < B.w * B.h * 14; i++) { sg.fillStyle = rr() < .5 ? 'rgba(90,60,20,.10)' : 'rgba(255,240,200,.14)'; sg.fillRect(rr() * W2, rr() * H2, 1 + rr() * 1.5, 1); }
+  sg.strokeStyle = 'rgba(90,60,20,.13)'; sg.lineWidth = 1; sg.beginPath();
+  for (let x = 1; x < B.w; x++) { sg.moveTo(x * c + .5, 0); sg.lineTo(x * c + .5, H2); } for (let y = 1; y < B.h; y++) { sg.moveTo(0, y * c + .5); sg.lineTo(W2, y * c + .5); } sg.stroke();
   draw();
 }
 function draw() {
   if (!B) return;
   const c = cell, now = Date.now();
-  g.fillStyle = '#d8c08c'; g.fillRect(0, 0, B.w * c, B.h * c);
-  g.fillStyle = 'rgba(120,90,40,.09)';
-  for (let y = 0; y < B.h; y++) for (let x = (y & 1); x < B.w; x += 2) g.fillRect(x * c, y * c, c, c);
+  if (sand) g.drawImage(sand, 0, 0, B.w * c, B.h * c); else { g.fillStyle = '#d8c08c'; g.fillRect(0, 0, B.w * c, B.h * c); }
   if (sel && reach && !mode) { g.fillStyle = 'rgba(60,110,200,.28)'; for (let i = 0; i < reach.d.length; i++) if (reach.d[i] > 0 && reach.d[i] <= sel.mv && !B.grid[i]) g.fillRect((i % B.w) * c + 1, Math.floor(i / B.w) * c + 1, c - 2, c - 2); }
   if (sel && mode && SPELLS[mode] && SPELLS[mode].range) { const r = SPELLS[mode].range; g.fillStyle = 'rgba(160,80,200,.16)'; g.fillRect(Math.max(0, sel.x - r) * c, Math.max(0, sel.y - r) * c, (Math.min(B.w - 1, sel.x + r) - Math.max(0, sel.x - r) + 1) * c, (Math.min(B.h - 1, sel.y + r) - Math.max(0, sel.y - r) + 1) * c); }
   g.textAlign = 'center'; g.textBaseline = 'middle';
   for (const u of B.units) {
     if (u.hp <= 0) continue;
     const x = u.x * c + c / 2, y = u.y * c + c / 2;
+    g.fillStyle = 'rgba(40,20,0,.28)'; g.beginPath(); g.ellipse(x + c * .04, y + c * .14, c * .42, c * .36, 0, 0, 7); g.fill();
     if (u.side === 'H') {
       g.globalAlpha = u.illusion ? .5 : (u.acted && !busy ? .55 : 1);
       g.beginPath(); g.arc(x, y, c * .42, 0, 7); g.fillStyle = u.col; g.fill();
       g.lineWidth = csel === u.ci ? 2 : 1; g.strokeStyle = csel === u.ci ? '#fff' : '#1a1410'; g.stroke();
+      g.fillStyle = 'rgba(255,255,255,.3)'; g.beginPath(); g.arc(x - c * .13, y - c * .15, c * .15, 0, 7); g.fill();
       if (c >= 15 && u.g) { g.fillStyle = '#1a1410'; g.font = `700 ${Math.floor(c * .5)}px Cinzel,Georgia,serif`; g.fillText(u.g, x, y + 1); }
     } else {
       const s = c * (u.boss ? .47 : .4); g.globalAlpha = 1;
       g.fillStyle = u.f.includes('u') ? '#45503f' : '#7a1f1a'; g.fillRect(x - s, y - s, s * 2, s * 2);
+      g.fillStyle = 'rgba(255,255,255,.13)'; g.fillRect(x - s, y - s, s * 2, s * .7);
       g.lineWidth = u.boss ? 2.5 : 1; g.strokeStyle = u.boss ? '#f0c56a' : '#1a1410'; g.strokeRect(x - s, y - s, s * 2, s * 2);
       if (c >= 15) { g.fillStyle = '#f3e6c8'; g.font = `700 ${Math.floor(c * .5)}px Georgia,serif`; g.fillText(u.g, x, y + 1); }
     }
@@ -267,8 +277,67 @@ $('bEnd').onclick = endTurn;
 $('bAuto').onclick = () => { auto = !auto; refresh(); if (auto) endTurn(); };
 $('bSpeed').onclick = () => { fast = !fast; refresh(); };
 $('bYield').onclick = yieldDay;
+$('bCam').onclick = () => { if (!busy && B && !B.over) playFly(6500); };
+
+/* ---------- skycam ---------- */
+const flyc = $('flyc'), fg = flyc.getContext('2d');
+let flyRaf = 0, flyEnd = null;
+const camUnits = b => b.units.filter(u => u.hp > 0).map(u => ({ x: u.x, y: u.y, side: u.side, col: u.col, hd: u.hd || 1, boss: u.boss, und: u.side === 'E' && u.f.includes('u'), illusion: u.illusion }));
+function fitCanvas(cnv, ctx, W, H) { const d = Math.min(1.5, window.devicePixelRatio || 1); cnv.width = W * d; cnv.height = H * d; ctx.setTransform(d, 0, 0, d, 0, 0); }
+function playFly(ms) {
+  if (RM || !B) return;
+  const el = $('fly'), W = window.innerWidth, H = window.innerHeight, t0 = performance.now(), units = camUnits(B), bl = B.bl;
+  A3.build(B.w, B.h); fitCanvas(flyc, fg, W, H);
+  el.classList.remove('hidden', 'out');
+  $('lowA').textContent = 'Day ' + roman(B.day) + ' \u00b7 ' + bl.title; $('lowB').textContent = billingText(bl);
+  const stop = () => { if (!flyEnd) return; cancelAnimationFrame(flyRaf); flyEnd = null; el.classList.add('out'); setTimeout(() => el.classList.add('hidden'), 450); };
+  flyEnd = stop;
+  const frame = now => {
+    const k = Math.max(0, Math.min(1, (now - t0) / ms));
+    A3.render(fg, W, H, A3.fly(k, W / H), now / 1000, units);
+    $('lower').style.opacity = k < .04 ? k / .04 : k > .72 ? Math.max(0, 1 - (k - .72) / .1) : 1;
+    if (k >= 1) return stop();
+    flyRaf = requestAnimationFrame(frame);
+  };
+  flyRaf = requestAnimationFrame(frame);
+}
+$('fly').onclick = () => flyEnd && flyEnd();
+window.addEventListener('keydown', e => { if (flyEnd && (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); flyEnd(); } });
+
+// the title screen shows the full hundred from a slow orbiting camera
+const hero = $('hero'), hg = hero.getContext('2d');
+let demo = null, heroRaf = 0, heroLast = 0;
+function titleLoop(on) {
+  cancelAnimationFrame(heroRaf); if (!on) return;
+  if (!demo) { const d = startBattle(Object.assign(newCampaign(), { day: 12 }), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]); demo = { w: d.w, h: d.h, units: camUnits(d) }; }
+  const W = hero.clientWidth || 560, H = Math.round(W * .42);
+  fitCanvas(hero, hg, W, H); A3.build(demo.w, demo.h);
+  const frame = now => {
+    if (now - heroLast > 32) { heroLast = now; A3.render(hg, W, H, A3.orbit(RM ? 0 : now / 1000), RM ? 0 : now / 1000, demo.units); }
+    if (!RM) heroRaf = requestAnimationFrame(frame);
+  };
+  heroRaf = requestAnimationFrame(frame);
+}
+
+/* ---------- developer hook ----------
+   ?day=20            jump to that day with a levelled, equipped legion (never saved)
+   &lvl=6 &gear=3     override hero level and gear tier (0-3)
+   &dead=30           kill that many heroes at random
+   &fight=1           go straight to the sands */
+function devCampaign(q) {
+  const d = clamp(+q.get('day') || 1, 1, 99), s = newCampaign(); s.dev = true; s.day = d;
+  const lvl = clamp(+q.get('lvl') || 1 + Math.round(d / 4.2), 1, 14), gear = clamp(q.has('gear') ? +q.get('gear') : Math.floor(d / 6), 0, 3);
+  for (const h of s.heroes) { while (h.lvl < lvl) levelUp(h); h.hp = h.max; h.xp = xpNeed(h.lvl - 1) || 0; }
+  for (const c of s.cohorts) { c.arms = gear; c.armor = gear; }
+  for (let n = clamp(+q.get('dead') || 0, 0, 99); n > 0;) { const h = s.heroes[ri(100) - 1]; if (!h.dead) { h.dead = true; h.hp = 0; h.diedDay = ri(d); s.fallen++; n--; } }
+  s.gold = 500 + 100 * d; s.potions = 10;
+  s.pick = s.cohorts.map((c, i) => i).filter(i => living(s, i).length).slice(0, gateCap(d));
+  return s;
+}
 $('bNew').onclick = newGame;
 $('bHelp').onclick = help;
 $('bCont').onclick = () => { S = load(); camp(); };
 if (load()) { $('bCont').classList.remove('hidden'); $('bNew').classList.remove('go'); }
-window.addEventListener('resize', size);
+window.addEventListener('resize', () => { size(); if (!$('title').classList.contains('hidden')) titleLoop(true); });
+const Q = new URLSearchParams(location.search);
+if (Q.has('day')) { S = devCampaign(Q); camp(); if (Q.has('fight')) toSands(); } else titleLoop(true);
