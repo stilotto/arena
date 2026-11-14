@@ -52,7 +52,7 @@ const A3 = (() => {
     return o;
   }
 
-  // units: [{x, y, side, col, hd, boss, und, illusion}] in grid coordinates. time in seconds (0 for a still).
+  // units: [{x, y, side, key, boss, illusion}] in grid coordinates. time in seconds (0 for a still).
   function render(g, W, H, cam, time, units) {
     const s = sc, f = norm(sub(cam.tgt, cam.pos)), r = norm(cross(f, cam.up || [0, 1, 0])), u = cross(r, f);
     const F = .5 * Math.min(H, W * .8) / Math.tan((cam.fov || 55) * Math.PI / 360);
@@ -111,18 +111,10 @@ const A3 = (() => {
       } else {
         const un = it.un, x = X(it.v), y = Y(it.v), k = F / it.v[2];
         g.fillStyle = 'rgba(0,0,0,.28)'; g.beginPath(); g.ellipse(x, y, k * .36, k * .12, 0, 0, TAU); g.fill();
-        if (un.side === 'H') {
-          g.globalAlpha = un.illusion ? .5 : 1;
-          g.fillStyle = un.col; g.beginPath(); g.moveTo(x - k * .24, y); g.lineTo(x + k * .24, y); g.lineTo(x + k * .17, y - k * .64); g.lineTo(x - k * .17, y - k * .64); g.closePath(); g.fill();
-          if (k > 7) { g.strokeStyle = '#1a1410'; g.lineWidth = 1; g.stroke(); }
-          g.fillStyle = '#e2c29a'; g.beginPath(); g.arc(x, y - k * .8, k * .15, 0, TAU); g.fill();
-          g.globalAlpha = 1;
-        } else {
-          const hgt = Math.max(.7, Math.min(2.4, .75 + un.hd * .14)) * (un.boss ? 1.35 : 1) * k, wd = hgt * .34 + k * .08;
-          g.fillStyle = un.und ? '#56634e' : '#7a1f1a'; g.beginPath(); g.moveTo(x - wd, y); g.lineTo(x + wd, y); g.lineTo(x + wd * .8, y - hgt * .78); g.lineTo(x, y - hgt); g.lineTo(x - wd * .8, y - hgt * .78); g.closePath(); g.fill();
-          g.strokeStyle = un.boss ? '#f0c56a' : '#1a1410'; g.lineWidth = un.boss ? 2 : 1; if (k > 7 || un.boss) g.stroke();
-          if (k > 9) { g.fillStyle = '#ffd86a'; const e = Math.max(1, hgt * .06); g.fillRect(x - wd * .4 - e / 2, y - hgt * .7, e, e); g.fillRect(x + wd * .4 - e / 2, y - hgt * .7, e, e); }
-        }
+        if (un.boss) { g.strokeStyle = '#f0c56a'; g.lineWidth = Math.max(1, k * .05); g.beginPath(); g.ellipse(x, y, k * .6, k * .2, 0, 0, TAU); g.stroke(); }
+        if (un.illusion) g.globalAlpha = .5;
+        FIG.draw(g, un.key, x, y, k * (un.boss ? 1.35 : 1), (un.side === 'H' ? 1 : -1) * (r[0] < 0 ? -1 : 1));
+        g.globalAlpha = 1;
       }
     }
   }

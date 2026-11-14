@@ -37,7 +37,9 @@ button.sm{padding:2px 8px;font-size:15px}
 .bar h2{font-size:21px;color:var(--gold)} .bar .sp{flex:1}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:7px 9px;margin-bottom:6px}
 .card h3{font-size:15px;color:var(--gold)}
-.co{display:grid;grid-template-columns:30px 1fr auto;gap:8px;align-items:center;padding:4px 6px;border:1px solid var(--line);border-radius:4px;margin-bottom:3px;background:var(--panel);cursor:pointer}
+.fig{vertical-align:middle;margin-right:6px}
+.bf{display:flex;align-items:center;gap:2px}.bf .fig{margin:0;width:36px;object-fit:contain}
+.co{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:4px 6px;border:1px solid var(--line);border-radius:4px;margin-bottom:3px;background:var(--panel);cursor:pointer}
 .co.pick{border-color:var(--gold);background:#30251b}
 .co.gone{opacity:.4;cursor:default}
 .badge{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-family:'Cinzel',serif;font-weight:700;color:#1a1410;border:2px solid #1a1410}
@@ -122,8 +124,9 @@ button.sm{padding:2px 8px;font-size:15px}
 
 <div id="modal" class="hidden"><div id="mbox"></div></div>
 
-<script src="engine.js?v=2"></script>
-<script src="arena3d.js?v=2"></script>
-<script src="ui.js?v=2"></script>
+<script src="engine.js?v=3"></script>
+<script src="figures.js?v=3"></script>
+<script src="arena3d.js?v=3"></script>
+<script src="ui.js?v=3"></script>
 </body>
 </html>

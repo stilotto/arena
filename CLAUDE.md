@@ -23,11 +23,14 @@ the Iron Plane who is forging a new legion.
 
 - Plain HTML/CSS/JS, no build step. `engine.js` is the rules (no DOM, runs in
   Node); `ui.js` is screens, canvas and input; `arena3d.js` is the skycam (a
-  software 3D view on a 2D canvas, no libraries); `index.html` holds the CSS.
-- Bump the `?v=` on all three script tags in `index.html` with every change so
+  software 3D view on a 2D canvas, no libraries); `figures.js` draws one
+  sprite per calling and per foe; `index.html` holds the CSS.
+- Bump the `?v=` on all four script tags in `index.html` with every change so
   phones get the new code.
 - Balance check: `node tools/sim.js [runs] [days]` plays the campaign on
   standing orders and prints deaths per day.
+- `TODO.md` is the owner's running list of ideas. Add to it when asked; do
+  not build an item until the owner says to.
 - Developer hook: `?day=20` opens a levelled, equipped legion on that day
   (never saved). Add `&lvl=6`, `&gear=3`, `&dead=30` or `&fight=1`.
 - Original rules and names only. Use folklore monsters; never use the name,

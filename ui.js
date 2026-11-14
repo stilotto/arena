@@ -4,13 +4,14 @@ const $ = id => document.getElementById(id);
 const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const KEY = 'the-hundred-v1';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-let S = null, B = null, sel = null, csel = null, mode = null, reach = null, busy = false, auto = false, fast = false, openCi = -1, note = '';
+let S = null, B = null, sel = null, csel = null, mode = null, reach = null, busy = false, auto = false, fast = false, openCi = -1, note = '', insp = null;
 
 function save() { if (S && S.dev) return; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } }
 function load() { try { const s = JSON.parse(localStorage.getItem(KEY)); return s && s.v === 1 ? s : null; } catch (e) { return null; } }
 function show(id) { for (const s of ['title', 'camp', 'battle']) $(s).classList.toggle('hidden', s !== id); window.scrollTo(0, 0); titleLoop(id === 'title'); }
 function modal(html) { $('mbox').innerHTML = html; $('modal').classList.remove('hidden'); }
 function closeModal() { $('modal').classList.add('hidden'); }
+const fig = (key, h) => `<img class="fig" src="${FIG.url(key)}" style="height:${h}px" alt="">`;
 const badge = cls => `<span class="badge" style="background:${CL[cls].col}">${CL[cls].g}</span>`;
 const cname = ci => roman(ci + 1) + ' · ' + CL[S.cohorts[ci].cls].pl;
 
@@ -40,7 +41,7 @@ function camp() {
   S.cohorts.forEach((co, ci) => {
     const c = CL[co.cls], l = living(S, ci), hp = l.reduce((s, x) => s + x.hp, 0), mx = l.reduce((s, x) => s + x.max, 0);
     const lv = l.length ? (l.reduce((s, x) => s + x.lvl, 0) / l.length).toFixed(1) : '-', rd = l.filter(canTrain).length;
-    h += `<div class="co ${S.pick.includes(ci) ? 'pick' : ''} ${l.length ? '' : 'gone'}" onclick="togglePick(${ci})">${badge(co.cls)}
+    h += `<div class="co ${S.pick.includes(ci) ? 'pick' : ''} ${l.length ? '' : 'gone'}" onclick="togglePick(${ci})"><span class="bf">${badge(co.cls)}${fig(co.cls, 38)}</span>
       <div><span class="nm">${cname(ci)}</span> <span class="meta">${l.length}/10 · level ${lv}${rd ? ` · <span class="gold">${rd} ready to train</span>` : ''}</span>
       <div class="hpb"><i style="width:${mx ? 100 * hp / mx : 0}%"></i></div></div>
       <button class="sm" onclick="event.stopPropagation();openCi=openCi===${ci}?-1:${ci};camp()">${openCi === ci ? 'Hide' : 'Roster'}</button></div>`;
@@ -97,7 +98,7 @@ function doTrain(ci) {
 const cv = $('cv'), g = cv.getContext('2d');
 let cell = 20, raf = 0, sand = null;
 function toSands() {
-  B = startBattle(S, S.pick); sel = null; csel = S.pick[0]; mode = null; reach = null; busy = false; auto = false; note = '';
+  B = startBattle(S, S.pick); sel = null; insp = null; csel = S.pick[0]; mode = null; reach = null; busy = false; auto = false; note = '';
   show('battle'); size(); refresh();
   if (S.fly !== false) playFly(9000);
 }
@@ -160,7 +161,7 @@ function draw() {
 }
 const stuck = u => u.st.sleep || u.st.stun;
 function pickUnit(u) {
-  sel = u; csel = u.ci; mode = null; note = '';
+  sel = u; csel = u.ci; mode = null; note = ''; insp = null;
   reach = (!u.acted && !u.moved && !u.st.root && !stuck(u)) ? flood(B, u) : null;
 }
 function refresh() {
@@ -171,7 +172,7 @@ function refresh() {
   let h = '';
   if (sel && sel.hp > 0) {
     const u = sel, st = [u.st.sleep && 'asleep', u.st.stun && 'held', u.st.root && 'rooted', u.acted && 'has acted'].filter(Boolean).join(', ');
-    h += `<div><b>${u.name}</b> · ${CL[u.cls].n} ${u.lvl} · HP ${u.hp}/${u.max} · AC ${u.ac} · THAC0 ${u.thac0}${st ? ' · <span class="mute">' + st + '</span>' : ''}</div>`;
+    h += `<div>${fig(u.cls, 40)}<b>${u.name}</b> · ${CL[u.cls].n} ${u.lvl} · HP ${u.hp}/${u.max} · AC ${u.ac} · THAC0 ${u.thac0}${st ? ' · <span class="mute">' + st + '</span>' : ''}</div>`;
     if (!u.acted && !stuck(u) && !busy) {
       h += '<div class="row">';
       for (const k in u.sp) if (u.sp[k] > 0) h += `<button class="sm ${mode === k ? 'on' : ''}" onclick="setMode('${k}')">${SPELLS[k].n} ×${u.sp[k]}</button>`;
@@ -179,6 +180,10 @@ function refresh() {
       if (S.potions > 0 && u.hp < u.max) h += `<button class="sm" onclick="act(()=>drink(B,sel,S))">Potion (${S.potions})</button>`;
       h += `<button class="sm" onclick="act(()=>{sel.acted=true})">Wait</button></div>`;
     }
+  }
+  if (insp && insp.hp > 0 && !(sel && sel.hp > 0)) {
+    const t = insp, tr = [t.boss && 'champion', t.f.includes('u') && 'undead', t.f.includes('par') && 'paralysing touch', t.f.includes('poi') && 'poison', t.f.includes('reg') && 'regenerates', t.m.breath && 'breathes fire', t.range && 'ranged', t.st.sleep && 'asleep', t.st.stun && 'held', t.st.root && 'rooted'].filter(Boolean).join(', ');
+    h += `<div>${fig(t.mid, 40)}<b>${t.name}</b> · ${t.hd} HD · HP ${t.hp}/${t.max} · AC ${t.ac} · THAC0 ${t.thac0}${tr ? ' · <span class="mute">' + tr + '</span>' : ''}</div>`;
   }
   if (csel != null && B.cis.includes(csel)) {
     const co = S.cohorts[csel];
@@ -214,7 +219,7 @@ function tap(x, y) {
     const m = mode; let ok = false; act(() => { ok = cast(B, u, m, x, y); }); if (!ok) { note = 'Not a valid target.'; refresh(); } return;
   }
   if (t && t.side === 'H' && !t.illusion) { pickUnit(t); return refresh(); }
-  if (!u || u.acted || u.hp <= 0 || stuck(u)) return;
+  if (!u || u.acted || u.hp <= 0 || stuck(u)) { if (t && t.side === 'E') { insp = t; sel = null; reach = null; refresh(); } return; }
   if (t && t.side === 'E') {
     const d = dist(u, t);
     if (d === 1) return act(() => heroAttack(B, u, t, false));
@@ -282,7 +287,7 @@ $('bCam').onclick = () => { if (!busy && B && !B.over) playFly(6500); };
 /* ---------- skycam ---------- */
 const flyc = $('flyc'), fg = flyc.getContext('2d');
 let flyRaf = 0, flyEnd = null;
-const camUnits = b => b.units.filter(u => u.hp > 0).map(u => ({ x: u.x, y: u.y, side: u.side, col: u.col, hd: u.hd || 1, boss: u.boss, und: u.side === 'E' && u.f.includes('u'), illusion: u.illusion }));
+const camUnits = b => b.units.filter(u => u.hp > 0).map(u => ({ x: u.x, y: u.y, side: u.side, key: u.side === 'H' ? (u.illusion ? 'fighter' : u.cls) : u.mid, boss: u.boss, illusion: u.illusion }));
 function fitCanvas(cnv, ctx, W, H) { const d = Math.min(1.5, window.devicePixelRatio || 1); cnv.width = W * d; cnv.height = H * d; ctx.setTransform(d, 0, 0, d, 0, 0); }
 function playFly(ms) {
   if (RM || !B) return;
