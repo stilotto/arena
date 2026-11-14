@@ -56,3 +56,24 @@ Same arena, same Vhorax, same rules engine, its own save slot.
 - **Items and loot.** Each hero owns individual gear. The shop sells single
   items and foes drop loot, including magic items.
 - The Hundred keeps its simpler cohort gear tiers.
+
+### Side quests for The Six
+
+Between arena days the party can leave the arena. These are billed as side
+quests: a way to build up before the next arena battle.
+
+- **Places.** A dungeon, a tower, a narrow slum street, and more in that vein.
+- **Sense of place.** Each should feel like we are there, as far as the game
+  can manage: its own map shape, scenery, colours and skycam treatment (tight
+  corridors and doors in the dungeon, stacked floors in the tower, a long thin
+  street with alleys and rooftops in the slum).
+- **Enemies.** A good variety, suited to each place, not just the arena roster.
+- **Reward.** Experience, gold and loot that carry back into the arena.
+
+Open questions to settle before building:
+
+- How the party leaves, given Vhorax holds them captive (his leave, a bribed
+  gaoler, a secret way out).
+- Whether a quest is one fight or a chain of rooms with rest in between.
+- Whether quests cost time, so the next arena day arrives regardless.
+- Whether heroes killed on a quest can still be raised.
