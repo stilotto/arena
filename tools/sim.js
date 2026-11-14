@@ -17,6 +17,27 @@ function pick(S) {
   return S.cohorts.map((c, ci) => ci).filter(ci => E.living(S, ci).length)
     .sort((a, b) => { const r = ci => { const l = E.living(S, ci); return l.reduce((s, h) => s + h.hp / h.max, 0) / 10; }; return r(b) - r(a); }).slice(0, cap);
 }
+if (process.argv[4] === 'six') { // node tools/sim.js 5 31 six : a party on quick fight, buying the best body armour and weapon it can
+  const res = [];
+  for (let r = 0; r < runs; r++) {
+    const used = {}, S = E.newParty(['fighter', 'paladin', 'cleric', 'mage', 'thief', 'ranger'].map(cls => Object.assign({ cls, name: E.randomName(used) }, E.rollStats(cls))));
+    const line = []; let wipes = 0;
+    while (S.day <= days && wipes < 25) {
+      for (const h of S.heroes) if (!h.dead && E.canTrain(h) && S.gold >= E.trainCost(h)) { S.gold -= E.trainCost(h); E.levelUp(h); }
+      for (const h of S.heroes) if (h.dead && S.gold >= E.raiseCost(h)) { S.gold -= E.raiseCost(h); E.raise(h); h.hp = h.max; }
+      for (const h of S.heroes) if (!h.dead) for (const id of S.inv.slice()) { const i = E.ITEMS[id], cur = E.ITEMS[h.eq[i.slot === 'ring' ? 'ring1' : i.slot]]; if (i.use.includes(h.cls === 'mage' ? 'M' : h.cls[0].toUpperCase()) && i.slot !== 'weapon' && (!cur || (i.ac || 0) > (cur.ac || 0))) E.equip(S, h, id); }
+      const st = E.shopStock(S.day);
+      for (const h of S.heroes) if (!h.dead) for (const id of st.plain.concat(st.magic)) { const i = E.ITEMS[id], cur = E.ITEMS[h.eq.body]; if (i.slot === 'body' && i.use.includes(h.cls === 'mage' ? 'M' : h.cls[0].toUpperCase()) && S.gold >= i.cost && (i.ac || 0) > ((cur && cur.ac) || 0)) { S.gold -= i.cost; S.inv.push(id); E.equip(S, h, id); } }
+      if (!E.living(S).length) { wipes = 9; break; }
+      const d = S.day, before = E.living(S).length, b = E.startBattle(S, [0]); b.nofx = true;
+      while (!E.checkOver(b)) E.autoRound(b, S);
+      const out = E.finishBattle(S, b); if (!out.win) wipes++;
+      line.push(`${d}${out.win ? '' : 'x'}:${before - E.living(S).length}d/f${b.units.filter(u => u.side === 'E').length}/L${Math.max(...S.heroes.map(h => h.lvl))}`);
+    }
+    res.push(`party ${r + 1}: reached day ${S.day}, alive ${E.living(S).length}, gold ${S.gold}\n  ` + line.join(' '));
+  }
+  console.log(res.join('\n')); process.exit(0);
+}
 const rows = [];
 for (let r = 0; r < runs; r++) {
   const S = E.newCampaign(); let losses = 0; const line = [];

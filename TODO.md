@@ -24,30 +24,27 @@ Ideas from the owner. Nothing here is built until the owner says go.
 - The foes' march through the doors only shows in the skycam, not on the
   tactical board.
 
-## The Six: a party mode (after everything above)
+## The Six: built
 
-A second mode in the same game, chosen on the title screen beside The Hundred.
-Same arena, same Vhorax, same rules engine, its own save slot.
+The party mode is in: party creation, hand control in initiative order, a
+spellbook with daily memorising, individual gear with a paper doll, loot, a
+daily quartermaster, raising the dead, figures on the board, and a quick-fight
+button. Choices made where the notes were open:
 
-- **Hand control.** Six heroes, each acting by hand in initiative order, as in
-  the gold-box games. No cohorts or standing orders. An optional "quick fight"
-  button stands in for auto-battle.
-- **Scale.** Smaller grid and a daily billing budgeted for six, so day 1 is
-  still a few kobolds.
-- **Party creation.** Pick six from the ten callings, name them, roll and
-  reroll their stats.
-- **Death.** Raisable for a price at the temple, and by the party's own healer
-  once they reach a high enough level.
-- **Spells.** Chosen each day from a spellbook and memorised, as in the
-  gold-box games, instead of being automatic by level.
-- **Figures on the board.** The tactical board shows the drawn figures instead
-  of lettered tokens.
-- **Paper doll.** A character sheet with about eight slots: weapon, off hand,
-  head, body, cloak, boots and two rings. Equipping an item changes the figure
-  on the doll, on the board and in the skycam.
-- **Items and loot.** Each hero owns individual gear. The shop sells single
-  items and foes drop loot, including magic items.
-- The Hundred keeps its simpler cohort gear tiers.
+- A hero cut down is only "down" unless the blow takes them to ten below
+  nothing; the downed get up after the fight. The truly dead need raising.
+- The temple raises for 60 gp plus 60 per level. A cleric of 9th level raises
+  one hero a day for free. Being raised costs the hero nothing.
+- Losing a day forfeits half the gold; the downed are spared.
+- A party meets at most two gates, never three or four.
+- Casters memorise 1 + level spells a day. New spells: Web, Bless, Hold Person.
+
+Still open for The Six:
+
+- Balance is from the headless sim only. On quick fight it clears days 1 to 19
+  and then stalls on the wyrm (day 25) and Vhorax (day 31).
+- Only the first ring slot fills automatically; no drag and drop on the doll.
+- No initiative modifiers from gear, and no ranged-attack penalty in melee.
 
 ### Side quests for The Six
 

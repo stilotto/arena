@@ -154,7 +154,7 @@ const FIG = (() => {
     beast({ len: 1.35, h: .9, col: '#c79a4e', dark: '#8f6c34', mane: '#7a4a22', tail: 1, tailUp: 1, tuft: '#7a4a22', ear: 'round', eye: '255,210,60', fangs: 1, leg: .1 });
   }
 
-  const H = (s, o) => ({ w: .8 * s * (o.wide || 1), h: (o.tall || 1.34) * s, draw() { g.scale(s, s); human(o); } });
+  const H = (s, o) => ({ o, w: .8 * s * (o.wide || 1), h: (o.tall || 1.34) * s, draw() { g.scale(s, s); human(o); } });
   const B = (s, o) => ({ w: (o.len * .5 + o.h * .55 + .1) * s, h: o.h * 1.32 * s, draw() { g.scale(s, s); beast(o); } });
   const gob = { skin: '#7da04a', head: 'ears', armour: 'leather', top: '#5a4632', legs: '#3a3024', w: .95 };
   const DEF = {
@@ -200,6 +200,14 @@ const FIG = (() => {
   const cache = {};
   function sprite(key) {
     if (cache[key]) return cache[key];
+    if (!DEF[key] && key.includes('|')) { // a calling dressed in particular gear: "fighter|{...look}"
+      const cut = key.indexOf('|'), base = (DEF[key.slice(0, cut)] || DEF.fighter).o, ov = JSON.parse(key.slice(cut + 1));
+      if (ov.cloak) ov.cloak = base.cloak || '#5a4632';
+      if (ov.helm === 'hoodup') ov.hood = base.hood || base.top;
+      if (ov.helm === 'hat') ov.hat = base.hat || base.top;
+      if (ov.weapon === 'staff' && base.orb) ov.orb = base.orb;
+      DEF[key] = H(1, Object.assign({}, base, ov));
+    }
     const d = DEF[key] || DEF.fighter, uw = d.w * 2, uh = d.h + .12, ppu = Math.min(130, 440 / uh);
     const cv = document.createElement('canvas'); cv.width = Math.ceil(uw * ppu); cv.height = Math.ceil(uh * ppu);
     g = cv.getContext('2d'); g.translate(cv.width / 2, (uh - .06) * ppu); g.scale(ppu, ppu); g.lineWidth = .022; g.lineJoin = 'round';

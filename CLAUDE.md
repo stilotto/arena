@@ -24,8 +24,9 @@ the Iron Plane who is forging a new legion.
 - Plain HTML/CSS/JS, no build step. `engine.js` is the rules (no DOM, runs in
   Node); `ui.js` is screens, canvas and input; `arena3d.js` is the skycam (a
   software 3D view on a 2D canvas, no libraries); `figures.js` draws one
-  sprite per calling and per foe; `index.html` holds the CSS.
-- Bump the `?v=` on all four script tags in `index.html` with every change so
+  sprite per calling and per foe; `six.js` is the screens for the party mode
+  (The Six); `index.html` holds the CSS.
+- Bump the `?v=` on all five script tags in `index.html` with every change so
   phones get the new code.
 - Balance check: `node tools/sim.js [runs] [days]` plays the campaign on
   standing orders and prints deaths per day.
@@ -34,6 +35,10 @@ the Iron Plane who is forging a new legion.
 - Day 31 is Vhorax (`FINAL` in `engine.js`); later days repeat days 21 to 30.
 - Developer hook: `?day=20` opens a levelled, equipped legion on that day
   (never saved). Add `&lvl=6`, `&gear=3`, `&dead=30` or `&fight=1`.
+  `?six=1&day=12` does the same for the party mode.
+- Two modes share one engine: The Hundred (`S.mode` unset) and The Six
+  (`S.mode === 'six'`, heroes carry `eq` and `mem`). Each has its own save.
+  `node tools/sim.js 5 31 six` plays a party on quick fight.
 - Original rules and names only. Use folklore monsters; never use the name,
   text or signature creatures of any published tabletop game.
 - Must work at phone width and honor prefers-reduced-motion.

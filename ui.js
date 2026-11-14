@@ -2,12 +2,12 @@
 /* The Hundred: screens, canvas and input. Rules live in engine.js. */
 const $ = id => document.getElementById(id);
 const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const KEY = 'the-hundred-v1';
+const KEY = 'the-hundred-v1', KEY6 = 'the-six-v1';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let S = null, B = null, sel = null, csel = null, mode = null, reach = null, busy = false, auto = false, fast = false, openCi = -1, note = '', insp = null;
 
-function save() { if (S && S.dev) return; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } }
-function load() { try { const s = JSON.parse(localStorage.getItem(KEY)); return s && (s.v === 1 || s.v === 2) ? migrate(s) : null; } catch (e) { return null; } }
+function save() { if (S && S.dev) return; try { localStorage.setItem(S.mode === 'six' ? KEY6 : KEY, JSON.stringify(S)); } catch (e) { } }
+function load(six) { try { const s = JSON.parse(localStorage.getItem(six ? KEY6 : KEY)); return s && (s.v === 1 || s.v === 2) ? migrate(s) : null; } catch (e) { return null; } }
 function show(id) { for (const s of ['title', 'camp', 'battle']) $(s).classList.toggle('hidden', s !== id); window.scrollTo(0, 0); titleLoop(id === 'title'); }
 function modal(html) { $('mbox').classList.remove('wide'); $('mbox').innerHTML = html; $('modal').classList.remove('hidden'); }
 function closeModal() { $('modal').classList.add('hidden'); }
@@ -27,7 +27,8 @@ function help() {
   <p><b>Holding the line.</b> A square next to an enemy is in its zone of control: stepping into one ends the move, and walking away from an enemy gives it a free blow. Foes obey the same rule, so a front rank protects the ranks behind it. Thieves and assassins slip away untouched, and flying foes ignore the rule. Before the first turn you may place your heroes by hand.</p>
   <p><b>Sieges.</b> Some days the foes come through two, three or all four gates, and the legion starts in a ring at the centre with its toughest callings outermost.</p>
   <p><b>After the games</b> healers spend their unused spells, everyone rests, and spells return. Spend your purse at the quartermaster on arms, armour and potions. Heroes with enough experience must pay to train before they gain a level.</p>
-  <p class="mute">The dead do not come back. If a day goes badly you may plead for mercy: the survivors live, half your gold is forfeit, and the same foes wait tomorrow.</p>
+  <p><b>The Six</b> is the same arena with a party of six. Every hero acts by hand in initiative order, carries their own gear, and casters choose their spells each day. A hero cut down is only out of the fight unless the blow was terrible; the truly dead can be raised for a price.</p>
+  <p class="mute">In the legion the dead do not come back. If a day goes badly you may plead for mercy: the survivors live, half your gold is forfeit, and the same foes wait tomorrow.</p>
   <div class="end"><button onclick="closeModal()">Close</button></div>`);
 }
 function newGame() {
@@ -37,6 +38,7 @@ function newGame() {
 
 /* ---------- camp ---------- */
 function camp() {
+  if (S.mode === 'six') return camp6();
   B = null; show('camp');
   const cap = gateCap(S.day), bl = billing(S.day), alive = living(S);
   S.pick = S.pick.filter(ci => living(S, ci).length).slice(0, cap);
@@ -48,6 +50,7 @@ function camp() {
   <div class="card"><h3>Today's games: ${bl.title}</h3>${fin ? '<p style="margin:2px 0 6px">The Editor of the Games comes down from his box. "You are what I built this place to make. Kneel, and march with me to take back the Iron Plane. Or refuse, and I will start again with another hundred."</p>' : ''}${billingText(bl)}.<br>
   <span class="mute">${bl.sides > 1 ? `<b class="gold">Siege:</b> they come through ${['', '', 'two', 'three', 'all four'][bl.sides]} gates and the legion starts ringed at the centre. ` : ''}The gate admits <b>${cap}</b> cohort${cap > 1 ? 's' : ''}. Purse: ${bl.purse} gp. Chosen: ${S.pick.length}/${cap}.</span>
   ${fin ? '<div class="row" style="margin-top:6px"><button onclick="kneel()">Kneel to Vhorax</button><span class="mute small">or send the legion to the sands to defy him.</span></div>' : ''}</div>`;
+  if (living(S, -1).length) h += `<div class="card gold">${living(S, -1).length} heroes are in reserve and will not fight. Assembly puts them back in a cohort.</div>`;
   S.cohorts.forEach((co, ci) => {
     const l = living(S, ci), cm = comp(ci), hp = l.reduce((s, x) => s + x.hp, 0), mx = l.reduce((s, x) => s + x.max, 0);
     const lv = l.length ? (l.reduce((s, x) => s + x.lvl, 0) / l.length).toFixed(1) : '-', rd = l.filter(canTrain).length;
@@ -110,22 +113,29 @@ function doTrain(ci) {
 /* ---------- assembly: move heroes between cohorts ---------- */
 let asel = new Set();
 function assembly() {
-  let h = `<h2>Assembly</h2><p class="mute" style="margin:0 0 6px">Tap heroes to choose them, then tap a cohort's heading to move them there. With a mouse you can also drag. A cohort holds ten.</p>
+  let h = `<h2>Assembly</h2><p class="mute" style="margin:0 0 6px">Tap heroes to choose them, then tap a cohort's heading to move them there. To trade places, choose one hero and tap another in a different cohort. With a mouse you can also drag. A cohort holds ten; the reserve holds any number but does not fight.</p>
   <div class="row" style="margin-bottom:6px"><span class="mute small">Choose all:</span>${ORDER.map(c => `<button class="sm" onclick="aClass('${c}')">${badge(c)}</button>`).join('')}<button class="sm" onclick="asel.clear();assembly()">None</button></div><div class="cgrid">`;
   S.cohorts.forEach((co, ci) => {
     const l = living(S, ci);
     h += `<div class="cbox" ondragover="event.preventDefault()" ondrop="aMove(${ci})"><button class="chead ${asel.size && l.length < 10 ? 'on' : ''}" onclick="aMove(${ci})">${cname(ci)} · ${l.length}/10${asel.size && l.length < 10 ? ' · move here' : ''}</button><div class="chips">`;
-    for (const x of l.sort((a, b) => CL[a.cls].front - CL[b.cls].front || b.lvl - a.lvl)) { const i = S.heroes.indexOf(x); h += `<button class="hchip ${asel.has(i) ? 'sel' : ''}" draggable="true" ondragstart="aDrag(${i})" onclick="aTap(${i})" style="background:${CL[x.cls].col}" title="${CL[x.cls].n}, level ${x.lvl}, ${x.hp}/${x.max} hp">${CL[x.cls].g} ${x.name} ${x.lvl}</button>`; }
+    for (const x of l.sort((a, b) => CL[a.cls].front - CL[b.cls].front || b.lvl - a.lvl)) { const i = S.heroes.indexOf(x); h += `<button class="hchip ${asel.has(i) ? 'sel' : ''}" draggable="true" ondragstart="aDrag(${i})" ondrop="event.stopPropagation();aTap(${i})" onclick="aTap(${i})" style="background:${CL[x.cls].col}" title="${CL[x.cls].n}, level ${x.lvl}, ${x.hp}/${x.max} hp">${CL[x.cls].g} ${x.name} ${x.lvl}</button>`; }
     h += '</div></div>';
   });
+  const rs = living(S, -1);
+  h += `<div class="cbox" ondragover="event.preventDefault()" ondrop="aMove(-1)"><button class="chead ${asel.size ? 'on' : ''}" onclick="aMove(-1)">Reserve · ${rs.length}${asel.size ? ' · move here' : ''}</button><div class="chips">${rs.map(x => { const i = S.heroes.indexOf(x); return `<button class="hchip ${asel.has(i) ? 'sel' : ''}" draggable="true" ondragstart="aDrag(${i})" onclick="aTap(${i})" style="background:${CL[x.cls].col}">${CL[x.cls].g} ${x.name} ${x.lvl}</button>`; }).join('')}</div></div>`;
   h += `</div><div class="end"><button onclick="aPreset(0)">Sort by calling</button><button onclick="aPreset(1)">Close ranks</button><button class="go" onclick="asel.clear();closeModal();camp()">Done</button></div>`;
   modal(h); $('mbox').classList.add('wide');
 }
-function aTap(i) { asel.has(i) ? asel.delete(i) : asel.add(i); assembly(); }
+function aTap(i) {
+  const j = asel.size === 1 ? [...asel][0] : -1;
+  if (j >= 0 && j !== i && S.heroes[j].ci !== S.heroes[i].ci) { const t = S.heroes[j].ci; S.heroes[j].ci = S.heroes[i].ci; S.heroes[i].ci = t; asel.clear(); save(); } // trade places
+  else asel.has(i) ? asel.delete(i) : asel.add(i);
+  assembly();
+}
 function aDrag(i) { if (!asel.has(i)) { asel.clear(); asel.add(i); } }
 function aClass(c) { S.heroes.forEach((x, i) => { if (!x.dead && x.cls === c) asel.add(i); }); assembly(); }
 function aMove(ci) {
-  let room = 10 - living(S, ci).length;
+  let room = ci < 0 ? 999 : 10 - living(S, ci).length;
   for (const i of [...asel]) { const x = S.heroes[i]; if (x.ci === ci) { asel.delete(i); continue; } if (room <= 0) break; x.ci = ci; room--; asel.delete(i); }
   save(); assembly();
 }
@@ -146,8 +156,8 @@ function kneel() {
 }
 function freeEnding() {
   const n = living(S).length, c = champion();
-  return `<h2>The gates stand open</h2><p>Vhorax falls on his own sand, and the eye above the arena goes dark. The crowd of the planes is silent, then gone. Behind the great doors there is only a road, and at the end of it a morning the Hundred remember.</p>
-  <p>Of one hundred taken, <b>${n}</b> walk out. ${c ? c.name + ' the ' + CL[c.cls].n + ' leads them, ' + c.kills + ' kills to the name.' : ''} ${S.fallen} stay behind under the sand.</p>
+  return `<h2>The gates stand open</h2><p>Vhorax falls on his own sand, and the eye above the arena goes dark. The crowd of the planes is silent, then gone. Behind the great doors there is only a road, and at the end of it a morning they remember.</p>
+  <p>Of ${S.heroes.length === 6 ? 'six' : 'one hundred'} taken, <b>${n}</b> walk out. ${c ? c.name + ' the ' + CL[c.cls].n + ' leads them, ' + c.kills + ' kills to the name.' : ''} ${S.fallen} stay behind under the sand.</p>
   <p class="mute">The arena still stands. The games go on for any who choose to stay.</p>`;
 }
 
@@ -155,7 +165,8 @@ function freeEnding() {
 const cv = $('cv'), g = cv.getContext('2d');
 let cell = 20, raf = 0, sand = null;
 function toSands() {
-  B = startBattle(S, S.pick); sel = null; insp = null; csel = S.pick[0]; mode = null; reach = null; busy = false; auto = false; note = '';
+  if (S.mode === 'six') S.pick = [0];
+  B = startBattle(S, S.pick); quick = false; sel = null; insp = null; csel = S.pick[0]; mode = null; reach = null; busy = false; auto = false; note = '';
   B.phase = 'deploy';
   show('battle'); size(); refresh();
   if (S.fly !== false) playFly(9000, true);
@@ -191,9 +202,19 @@ function draw() {
   if (sel && reach && !mode) { g.fillStyle = 'rgba(60,110,200,.28)'; for (let i = 0; i < reach.d.length; i++) if (reach.d[i] > 0 && reach.d[i] <= sel.mv && !B.grid[i]) g.fillRect((i % B.w) * c + 1, Math.floor(i / B.w) * c + 1, c - 2, c - 2); }
   if (sel && mode && SPELLS[mode] && SPELLS[mode].range) { const r = SPELLS[mode].range; g.fillStyle = 'rgba(160,80,200,.16)'; g.fillRect(Math.max(0, sel.x - r) * c, Math.max(0, sel.y - r) * c, (Math.min(B.w - 1, sel.x + r) - Math.max(0, sel.x - r) + 1) * c, (Math.min(B.h - 1, sel.y + r) - Math.max(0, sel.y - r) + 1) * c); }
   g.textAlign = 'center'; g.textBaseline = 'middle';
-  for (const u of B.units) {
+  for (const u of B.six ? B.units.slice().sort((a, b) => a.y - b.y) : B.units) {
     if (u.hp <= 0) continue;
     const x = u.x * c + c / 2, y = u.y * c + c / 2;
+    if (B.six) { // the party mode shows the figures themselves
+      g.fillStyle = 'rgba(40,20,0,.3)'; g.beginPath(); g.ellipse(x, y + c * .36, c * .34, c * .12, 0, 0, 7); g.fill();
+      if (u === sel || u.boss) { g.strokeStyle = u === sel ? '#ffe9a0' : '#f0c56a'; g.lineWidth = 2.5; g.beginPath(); g.ellipse(x, y + c * .36, c * .42, c * .16, 0, 0, 7); g.stroke(); }
+      if (u.illusion) g.globalAlpha = .5;
+      FIG.draw(g, u.side === 'H' ? u.key || u.cls || 'fighter' : u.mid, x, y + c * .38, c * .7 * (u.boss ? 1.25 : 1), u.side === 'H' ? 1 : -1);
+      g.globalAlpha = 1;
+      g.fillStyle = '#2a1a14'; g.fillRect(u.x * c + 4, u.y * c + c - 5, c - 8, 4); g.fillStyle = u.side === 'H' ? '#6fd06a' : '#ffb14a'; g.fillRect(u.x * c + 4, u.y * c + c - 5, (c - 8) * u.hp / u.max, 4);
+      if (u.st.sleep || u.st.stun || u.st.root) { g.fillStyle = u.st.root && !u.st.sleep && !u.st.stun ? '#2f8f3a' : '#fff'; g.font = `700 ${Math.floor(c * .4)}px Georgia,serif`; g.fillText(u.st.sleep ? 'z' : u.st.stun ? '✶' : '#', x + c * .34, y - c * .3); }
+      continue;
+    }
     g.fillStyle = 'rgba(40,20,0,.28)'; g.beginPath(); g.ellipse(x + c * .04, y + c * .14, c * .42, c * .36, 0, 0, 7); g.fill();
     if (u.side === 'H') {
       g.globalAlpha = u.illusion ? .5 : (u.acted && !busy ? .55 : 1);
@@ -212,7 +233,7 @@ function draw() {
     if (u.hp < u.max) { g.fillStyle = '#2a1a14'; g.fillRect(u.x * c + 2, u.y * c + c - 4, c - 4, 3); g.fillStyle = u.side === 'H' ? '#6fd06a' : '#ffb14a'; g.fillRect(u.x * c + 2, u.y * c + c - 4, (c - 4) * u.hp / u.max, 3); }
     if (u.st.sleep || u.st.stun || u.st.root) { g.fillStyle = u.st.root && !u.st.sleep && !u.st.stun ? '#2f8f3a' : '#fff'; g.font = `700 ${Math.floor(c * .45)}px Georgia,serif`; g.fillText(u.st.sleep ? 'z' : u.st.stun ? '✶' : '#', x + c * .3, y - c * .3); }
   }
-  if (sel && sel.hp > 0) { g.strokeStyle = '#ffe9a0'; g.lineWidth = 2.5; g.beginPath(); g.arc(sel.x * c + c / 2, sel.y * c + c / 2, c * .47, 0, 7); g.stroke(); }
+  if (sel && sel.hp > 0 && !B.six) { g.strokeStyle = '#ffe9a0'; g.lineWidth = 2.5; g.beginPath(); g.arc(sel.x * c + c / 2, sel.y * c + c / 2, c * .47, 0, 7); g.stroke(); }
   let live = false;
   for (const f of B.fx) {
     const a = now - f.t; if (a > 520) continue; live = true;
@@ -232,25 +253,26 @@ function pickUnit(u) {
 function refresh() {
   if (!B) return;
   const hs = B.units.filter(u => u.side === 'H' && u.hp > 0 && !u.illusion), es = B.units.filter(u => u.side === 'E' && u.hp > 0);
-  $('bbar').innerHTML = `<b class="cz gold">Day ${roman(B.day)}</b><span>Round ${B.round}</span><span>Legion <b>${hs.length}</b></span><span>Foes <b>${es.length}</b></span><span class="sp"></span><span class="mute small">${B.bl.title}</span>`;
-  $('chips').innerHTML = B.cis.map(ci => { const n = hs.filter(u => u.ci === ci).length, co = S.cohorts[ci]; return `<button class="chip ${csel === ci ? 'on' : ''}" onclick="pickCohort(${ci})"><b>${roman(ci + 1)}</b>${mini(ci)} ${n} · ${co.order}</button>`; }).join('');
+  $('bbar').innerHTML = `<b class="cz gold">Day ${roman(B.day)}</b><span>Round ${B.round}</span><span>${B.six ? 'Party' : 'Legion'} <b>${hs.length}</b></span><span>Foes <b>${es.length}</b></span><span class="sp"></span><span class="mute small">${B.bl.title}</span>`;
+  $('chips').innerHTML = B.six ? initStrip() : B.cis.map(ci => { const n = hs.filter(u => u.ci === ci).length, co = S.cohorts[ci]; return `<button class="chip ${csel === ci ? 'on' : ''}" onclick="pickCohort(${ci})"><b>${roman(ci + 1)}</b>${mini(ci)} ${n} · ${co.order}</button>`; }).join('');
   let h = '';
   if (sel && sel.hp > 0) {
     const u = sel, st = [u.st.sleep && 'asleep', u.st.stun && 'held', u.st.root && 'rooted', u.acted && 'has acted'].filter(Boolean).join(', ');
-    h += `<div>${fig(u.cls, 40)}<b>${u.name}</b> · ${CL[u.cls].n} ${u.lvl} · HP ${u.hp}/${u.max} · AC ${u.ac} · THAC0 ${u.thac0}${st ? ' · <span class="mute">' + st + '</span>' : ''}</div>`;
+    h += `<div>${fig(u.key || u.cls, 40)}<b>${u.name}</b> · ${CL[u.cls].n} ${u.lvl} · HP ${u.hp}/${u.max} · AC ${u.ac} · THAC0 ${u.thac0}${st ? ' · <span class="mute">' + st + '</span>' : ''}</div>`;
     if (B.phase !== 'deploy' && !u.acted && !stuck(u) && !busy) {
       h += '<div class="row">';
       for (const k in u.sp) if (u.sp[k] > 0) h += `<button class="sm ${mode === k ? 'on' : ''}" onclick="setMode('${k}')">${SPELLS[k].n} ×${u.sp[k]}</button>`;
       if (u.kill) h += `<button class="sm ${mode === 'kill' ? 'on' : ''}" onclick="setMode('kill')">Assassinate</button>`;
       if (S.potions > 0 && u.hp < u.max) h += `<button class="sm" onclick="act(()=>drink(B,sel,S))">Potion (${S.potions})</button>`;
-      h += `<button class="sm" onclick="act(()=>{sel.acted=true})">Wait</button><button class="sm" onclick="drop();refresh()">Deselect</button></div>`;
+      h += `<button class="sm" onclick="act(()=>{sel.acted=true})">${B.six ? 'Pass' : 'Wait'}</button>${B.six ? '' : '<button class="sm" onclick="drop();refresh()">Deselect</button>'}</div>`;
     }
   }
-  if (insp && insp.hp > 0 && !(sel && sel.hp > 0)) {
+  if (insp && insp.hp > 0 && insp.side === 'H') h += `<div>${fig(insp.key || insp.cls, 40)}<b>${insp.name}</b> · ${CL[insp.cls].n} ${insp.lvl} · HP ${insp.hp}/${insp.max} · AC ${insp.ac}</div>`;
+  else if (insp && insp.hp > 0 && (B.six || !(sel && sel.hp > 0))) {
     const t = insp, tr = [t.boss && 'champion', t.f.includes('u') && 'undead', t.f.includes('par') && 'paralysing touch', t.f.includes('poi') && 'poison', t.f.includes('reg') && 'regenerates', t.m.breath && 'breathes fire', t.range && 'ranged', t.st.sleep && 'asleep', t.st.stun && 'held', t.st.root && 'rooted'].filter(Boolean).join(', ');
     h += `<div>${fig(t.mid, 40)}<b>${t.name}</b> · ${t.hd} HD · HP ${t.hp}/${t.max} · AC ${t.ac} · THAC0 ${t.thac0}${tr ? ' · <span class="mute">' + tr + '</span>' : ''}</div>`;
   }
-  if (csel != null && B.cis.includes(csel)) {
+  if (csel != null && B.cis.includes(csel) && !B.six) {
     const co = S.cohorts[csel];
     h += `<div class="row"><span class="mute">${cname(csel)} orders:</span>` + ['attack', 'hold', 'withdraw'].map(o => `<button class="sm ${co.order === o ? 'on' : ''}" onclick="setOrder('${o}')">${o[0].toUpperCase() + o.slice(1)}</button>`).join('') +
       `<button class="sm ${co.spells ? 'on' : ''}" onclick="S.cohorts[csel].spells=!S.cohorts[csel].spells;refresh()">Spells: ${co.spells ? 'on' : 'off'}</button></div>`;
@@ -258,7 +280,7 @@ function refresh() {
   if (B.phase === 'deploy') h = `<div class="gold">Deployment. Tap a hero, then a lit square to place them, or another hero to swap. Set orders, then begin.</div>` + h;
   if (note) h += `<div class="gold small">${note}</div>`;
   $('panel').innerHTML = h || '<span class="mute">Tap a hero to command them by hand, a foe to inspect it, or a cohort to change its orders. End turn carries out all standing orders.</span>';
-  $('bEnd').disabled = busy; $('bEnd').textContent = B.phase === 'deploy' ? 'Begin battle' : 'End turn'; $('bAuto').textContent = 'Auto: ' + (auto ? 'on' : 'off'); $('bAuto').classList.toggle('on', auto);
+  $('bEnd').disabled = busy; $('bEnd').textContent = B.phase === 'deploy' ? 'Begin battle' : 'End turn'; $('bAuto').textContent = B.six ? 'Quick fight: ' + (quick ? 'on' : 'off') : 'Auto: ' + (auto ? 'on' : 'off'); $('bAuto').classList.toggle('on', B.six ? quick : auto);
   $('bSpeed').textContent = 'Speed: ' + (fast ? 'fast' : 'normal'); $('bYield').disabled = busy;
   $('log').innerHTML = B.log.slice(-3).map(s => `<div>${s}</div>`).join('');
   draw();
@@ -275,6 +297,7 @@ function act(fn) {
   if (busy || !sel) return;
   fn(); mode = null; note = '';
   if (checkOver(B)) return result();
+  if (B.six && (sel.acted || sel.hp <= 0)) return sixNext();
   if (sel.hp <= 0) sel = null; else pickUnit(sel);
   refresh();
 }
@@ -290,7 +313,8 @@ function tap(x, y) {
     if (mode === 'kill') { if (t && t.side === 'E' && dist(u, t) === 1) return act(() => { if (!assassinate(B, u, t)) heroAttack(B, u, t, false); }); note = 'The blade needs an adjacent foe.'; mode = null; return refresh(); }
     const m = mode; let ok = false; act(() => { ok = cast(B, u, m, x, y); }); if (!ok) { note = 'Not a valid target.'; refresh(); } return;
   }
-  if (t && t.side === 'H' && !t.illusion) { if (t === u) drop(); else pickUnit(t); return refresh(); }
+  if (B.six) { if (t && t !== u) { insp = t; if (t.side === 'H' || !u) return refresh(); } else insp = null; }
+  else if (t && t.side === 'H' && !t.illusion) { if (t === u) drop(); else pickUnit(t); return refresh(); }
   if (!u || u.acted || u.hp <= 0 || stuck(u)) { if (t && t.side === 'E') { insp = t; sel = null; reach = null; refresh(); } return; }
   if (t && t.side === 'E') {
     const d = dist(u, t);
@@ -304,12 +328,13 @@ function tap(x, y) {
     note = 'Out of reach.'; return refresh();
   }
   if (!t && reach) { const i = idx(B, x, y); if (reach.d[i] > 0 && reach.d[i] <= u.mv) return act(() => moveTo(B, u, x, y)); }
-  if (!t) { drop(); refresh(); }
+  if (!t && !B.six) { drop(); refresh(); }
 }
 cv.addEventListener('click', e => { const r = cv.getBoundingClientRect(); tap(Math.floor((e.clientX - r.left - cv.clientLeft) / cell), Math.floor((e.clientY - r.top - cv.clientTop) / cell)); });
 
 async function endTurn() {
   if (busy || !B || B.over) return;
+  if (B.six) { if (B.phase === 'deploy') { B.phase = null; drop(); rollInit(B); return sixLoop(); } if (sel) { sel.acted = true; sixNext(); } return; }
   if (B.phase === 'deploy') { B.phase = null; drop(); refresh(); if (!auto) return; }
   busy = true; sel = null; mode = null; reach = null; note = ''; refresh();
   const b = B, n = b.units.length, delay = fast || RM ? 0 : clamp(1400 / n, 5, 55);
@@ -338,6 +363,7 @@ function result(yielded) {
   auto = false; busy = false; sel = null; refresh();
   const r = finishBattle(S, B, yielded); save();
   const left = living(S).length;
+  if (S.mode === 'six') return result6(r, left, yielded);
   if (r.final) return modal(freeEnding() + `<div class="end"><button class="go" onclick="afterResult(${left})">Onward</button></div>`);
   let h = `<h2>${r.win ? 'Victory' : yielded ? 'Mercy is granted' : r.draw ? 'A draw' : 'The cohort is lost'}</h2>`;
   if (r.win) h += `<p>The crowd of the planes roars. Purse and plunder: <b class="gold">${r.gold} gp</b>. Each survivor earns <b>${r.xp}</b> experience.</p>`;
@@ -352,10 +378,10 @@ function result(yielded) {
   h += `<div class="end"><button class="go" onclick="afterResult(${left})">${left ? 'Back to the cells' : 'Muster a new hundred'}</button></div>`;
   modal(h);
 }
-function afterResult(left) { closeModal(); if (!left) { S = newCampaign(); save(); } camp(); }
+function afterResult(left) { closeModal(); if (!left && S.mode === 'six') { try { localStorage.removeItem(KEY6); } catch (e) { } draft = null; return create6(); } if (!left) { S = newCampaign(); save(); } camp(); }
 
 $('bEnd').onclick = endTurn;
-$('bAuto').onclick = () => { auto = !auto; refresh(); if (auto) endTurn(); };
+$('bAuto').onclick = () => { if (B && B.six) { quick = !quick; refresh(); if (quick && !busy) { if (B.phase === 'deploy') endTurn(); else sixLoop(); } return; } auto = !auto; refresh(); if (auto) endTurn(); };
 $('bSpeed').onclick = () => { fast = !fast; refresh(); };
 $('bYield').onclick = yieldDay;
 $('bCam').onclick = () => { if (!busy && B && !B.over) playFly(6500); };
@@ -363,7 +389,7 @@ $('bCam').onclick = () => { if (!busy && B && !B.over) playFly(6500); };
 /* ---------- skycam ---------- */
 const flyc = $('flyc'), fg = flyc.getContext('2d');
 let flyRaf = 0, flyEnd = null;
-const camUnits = b => b.units.filter(u => u.hp > 0).map(u => ({ x: u.x, y: u.y, side: u.side, door: u.door, key: u.side === 'H' ? (u.illusion ? 'fighter' : u.cls) : u.mid, boss: u.boss, illusion: u.illusion }));
+const camUnits = b => b.units.filter(u => u.hp > 0).map(u => ({ x: u.x, y: u.y, side: u.side, door: u.door, key: u.side === 'H' ? (u.illusion ? 'fighter' : u.key || u.cls) : u.mid, boss: u.boss, illusion: u.illusion }));
 function fitCanvas(cnv, ctx, W, H) { const d = Math.min(1.5, window.devicePixelRatio || 1); cnv.width = W * d; cnv.height = H * d; ctx.setTransform(d, 0, 0, d, 0, 0); }
 function playFly(ms, intro) {
   if (RM || !B) return;
@@ -416,7 +442,8 @@ function titleLoop(on) {
    ?day=20            jump to that day with a levelled, equipped legion (never saved)
    &lvl=6 &gear=3     override hero level and gear tier (0-3)
    &dead=30           kill that many heroes at random
-   &fight=1           go straight to the sands */
+   &fight=1           go straight to the sands
+   ?six=1&day=12      the same for the party mode: a levelled, kitted party of six */
 function devCampaign(q) {
   const d = clamp(+q.get('day') || 1, 1, 99), s = newCampaign(); s.dev = true; s.day = d;
   const lvl = clamp(+q.get('lvl') || 1 + Math.round(d / 4.2), 1, 14), gear = clamp(q.has('gear') ? +q.get('gear') : Math.floor(d / 6), 0, 3);
@@ -430,7 +457,10 @@ function devCampaign(q) {
 $('bNew').onclick = newGame;
 $('bHelp').onclick = help;
 $('bCont').onclick = () => { S = load(); camp(); };
+$('bNew6').onclick = () => { if (load(true) && !confirm('Abandon the current party and gather a new six?')) return; draft = null; create6(); };
+$('bCont6').onclick = () => { S = load(true); camp(); };
 if (load()) { $('bCont').classList.remove('hidden'); $('bNew').classList.remove('go'); }
+if (load(true)) { $('bCont6').classList.remove('hidden'); $('bNew6').classList.remove('go'); }
 window.addEventListener('resize', () => { size(); if (!$('title').classList.contains('hidden')) titleLoop(true); });
 const Q = new URLSearchParams(location.search);
-if (Q.has('day')) { S = devCampaign(Q); camp(); if (Q.has('fight')) toSands(); } else titleLoop(true);
+if (Q.has('six')) { S = devParty(Q); camp(); if (Q.has('fight')) toSands(); } else if (Q.has('day')) { S = devCampaign(Q); camp(); if (Q.has('fight')) toSands(); } else titleLoop(true);

@@ -35,7 +35,10 @@ const SPELLS = {
   turn:      { n: 'Turn Undead',       tg: 'self' },
   entangle:  { n: 'Entangle',          range: 8,  rad: 1, tg: 'cell' },
   lightning: { n: 'Call Lightning',    range: 8,  rad: 1, tg: 'cell' },
-  loh:       { n: 'Lay on Hands',      range: 1,  tg: 'ally' }
+  loh:       { n: 'Lay on Hands',      range: 1,  tg: 'ally' },
+  web:       { n: 'Web',               range: 8,  rad: 1, tg: 'cell' },
+  bless:     { n: 'Bless',             tg: 'self' },
+  hold:      { n: 'Hold Person',       range: 6,  tg: 'foe' }
 };
 
 function spellsFor(h) {
@@ -115,18 +118,19 @@ const SCHED = [
   { t: 'Vhorax, Editor of the Games', s: 4, final: true, m: [['legionary', .6], ['warfiend', .4]], boss: 'vhorax', bn: 'Vhorax' }
 ];
 
-const TUNE = { budA: 30, budP: 1.6, vetDay: 14, vet: .18, xp: 4, purseA: 30, purseB: 20, bossHp: 2.5 };
+const TUNE = { budA: 30, budP: 1.6, vetDay: 14, vet: .18, xp: 4, purseA: 30, purseB: 20, bossHp: 2.5, six: .7, bossHp6: 1 };
 function budget(d) { return Math.round(TUNE.budA * Math.pow(d, TUNE.budP)); }
 // Past the middle days the foes stop multiplying and start getting tougher instead.
 function veteran(d) { return 1 + Math.max(0, d - TUNE.vetDay) * TUNE.vet; }
 function gateCap(d) { return Math.min(10, 1 + Math.floor(d / 2)); }
 const FINAL = 31;
-function billing(d) {
+function billing(d, six) {
   const s = SCHED[d <= FINAL ? d - 1 : 20 + (d - FINAL - 1) % 10];
   let B = budget(d); const foes = [];
+  if (six) B = B * 6 / (10 * gateCap(d)) * TUNE.six; // the same odds per head as the legion faces
   if (s.boss) B = Math.max(B * .4, B - MON[s.boss].cost * 3);
   for (const [id, w] of s.m) foes.push({ id, count: Math.max(1, Math.round(B * w / MON[id].cost)) });
-  return { title: s.t, foes, boss: s.boss, bn: s.bn, purse: TUNE.purseA + TUNE.purseB * d, sides: s.s || 1, final: !!s.final && d === FINAL, vet: veteran(d) };
+  return { title: s.t, foes, boss: s.boss, bn: s.bn, purse: Math.round((TUNE.purseA + TUNE.purseB * d) * (six ? .6 : 1)), sides: six ? Math.min(2, s.s || 1) : s.s || 1, six: !!six, final: !!s.final && d === FINAL, vet: six ? 1 + (veteran(d) - 1) * .4 : veteran(d) };
 }
 function billingText(bl) {
   const p = bl.foes.map(f => f.count + ' ' + (f.count === 1 ? MON[f.id].n : MON[f.id].pl));
@@ -168,12 +172,13 @@ function migrate(S) {
 }
 function heroAC(h, gr) { return CL[h.cls].ac - gr.armor - dexAC(h.dex) - (h.cls === 'monk' ? h.lvl - 1 : 0); }
 function heroThac0(h, gr) { return 20 - Math.floor((h.lvl - 1) * CL[h.cls].thr) - gr.arms - strHit(h.str); }
-const trainCost = h => 10 * (h.lvl + 1);
+const trainCost = h => (h.eq ? 40 : 10) * (h.lvl + 1);
 const canTrain = h => !h.dead && h.xp >= xpNeed(h.lvl);
 function levelUp(h) {
   const c = CL[h.cls]; h.lvl++;
   const g = Math.max(Math.ceil(c.hd / 2), ri(c.hd)) + conHP(h.con);
   h.max += g; h.hp += g;
+  if (h.mem) fillMem(h);
 }
 const TIER = ['Arena issue', 'Fine', 'Masterwork', 'Enchanted'], TIERCOST = [0, 60, 200, 600];
 
@@ -190,7 +195,7 @@ function place(b, u, x, y) { u.x = x; u.y = y; b.grid[idx(b, x, y)] = u; }
 function moveTo(b, u, x, y) {
   if (!u.fly && u.cls !== 'thief' && u.cls !== 'assassin') for (const e of b.units) { // free blows from foes left behind
     if (e.hp <= 0 || e.side === u.side || e.illusion || e.opp || helpless(e) || dist(e, u) !== 1 || Math.max(Math.abs(e.x - x), Math.abs(e.y - y)) <= 1) continue;
-    e.opp = true; strike(b, e, u, e.side === 'H' ? CL[e.cls].dmg : e.m.dmg, { bonus: 2 });
+    e.opp = true; strike(b, e, u, e.side === 'H' ? e.wd || CL[e.cls].dmg : e.m.dmg, { bonus: 2 });
     if (u.hp <= 0) return false;
   }
   b.grid[idx(b, u.x, u.y)] = null; fx(b, { k: 'move', a: [u.x, u.y], b: [x, y] }); place(b, u, x, y); u.moved = true; return true;
@@ -207,12 +212,16 @@ function deploy(b, list, side) {
 }
 function heroUnit(S, h, id) {
   const c = CL[h.cls], gr = S.gear[h.cls];
+  if (h.eq) { // The Six: everything comes from what the hero carries
+    const k = kit(h), w = k.w, fist = h.cls === 'monk' ? [1, 6, 0] : [1, 2, 0];
+    return { id, side: 'H', h, cls: h.cls, ci: 0, name: h.name, lvl: h.lvl, hp: h.hp, max: h.max, ac: sixAC(h, k), thac0: sixThac0(h, k), db: k.dmg + strDmg(h.str), mv: c.mv + k.mv, wd: w ? w.dice : fist, rd: w && w.rdice, range: (w && w.range) || 0, fire: w && w.fire, bane: w && w.bane, regen: k.regen, fly: k.fly, st: {}, sp: Object.assign({}, h.mem, abilities(h)), kill: h.cls === 'assassin' ? 1 : 0, col: c.col, g: c.g, key: figKey(h) };
+  }
   return { id, side: 'H', h, cls: h.cls, ci: h.ci, name: h.name, lvl: h.lvl, hp: h.hp, max: h.max, ac: heroAC(h, gr), thac0: heroThac0(h, gr), db: gr.arms + strDmg(h.str), mv: c.mv, range: c.range || 0, st: {}, sp: spellsFor(h), kill: h.cls === 'assassin' ? 1 : 0, col: c.col, g: c.g };
 }
-function foeUnit(mid, id, boss, bn, vet) {
+function foeUnit(mid, id, boss, bn, vet, bhp) {
   const m = MON[mid];
   let hp = m.hd < 1 ? ri(4) : 0; for (let i = 0; i < Math.floor(m.hd); i++) hp += ri(8); if (m.hd % 1 && m.hd > 1) hp += ri(4);
-  if (boss) hp = Math.round(Math.max(hp, m.hd * 4.5) * TUNE.bossHp);
+  if (boss) hp = Math.round(Math.max(hp, m.hd * 4.5) * (bhp || TUNE.bossHp));
   vet = vet || 1; hp = Math.round(hp * vet); const vb = Math.floor((vet - 1) * 2);
   return { id, side: 'E', m, mid, name: boss ? bn : m.n, hd: m.hd, hp, max: hp, ac: m.ac - (boss ? 1 : 0), thac0: 20 - Math.floor(m.hd) - (boss ? 2 : 0) - vb, db: (boss ? 2 : 0) + vb, fly: (m.f || '').includes('fly'), mv: m.mv, range: m.range || 0, st: {}, boss: !!boss, cd: 0, g: m.g, f: m.f || '' };
 }
@@ -229,7 +238,8 @@ function deployNS(b, list, top) { // ranks along the north or south wall, front 
 // The door a group of foes comes through, as a point just outside the grid.
 function doorAt(b, dir) { return dir === 'E' ? [b.w + 1, b.h / 2 - .5] : dir === 'W' ? [-2, b.h / 2 - .5] : dir === 'N' ? [b.w / 2 - .5, -2] : [b.w / 2 - .5, b.h + 1]; }
 function startBattle(S, cis) {
-  const bl = billing(S.day), b = { day: S.day, bl, units: [], round: 1, log: [], fx: [], over: null, xp: 0, gold: 0, dead: [], cis: cis.slice() };
+  const six = S.mode === 'six', bhp = six ? TUNE.bossHp6 : 0;
+  const bl = billing(S.day, six), b = { six, day: S.day, bl, units: [], round: 1, log: [], fx: [], over: null, xp: 0, gold: 0, dead: [], cis: cis.slice() };
   let id = 1;
   const hs = S.heroes.filter(h => !h.dead && cis.includes(h.ci)).map(h => heroUnit(S, h, id++));
   hs.sort((a, c) => CL[a.cls].front - CL[c.cls].front);
@@ -239,7 +249,7 @@ function startBattle(S, cis) {
   const sides = Math.min(bl.sides, Math.max(1, es.length)), n = hs.length;
   b.doors = DIRS.slice(0, sides); b.nid = 0;
   if (sides === 1) { // one gate: the legion forms line on the west sand
-    if (bl.boss) es.splice(Math.floor(es.filter(e => !e.range).length / 2), 0, foeUnit(bl.boss, id++, true, bl.bn, bl.vet));
+    if (bl.boss) es.splice(Math.floor(es.filter(e => !e.range).length / 2), 0, foeUnit(bl.boss, id++, true, bl.bn, bl.vet, bhp));
     b.h = clamp(Math.round(Math.sqrt(n + es.length) * 1.1) + 4, 9, 20);
     const rows = b.h - 2, hc = Math.ceil(n / rows);
     b.w = Math.max(14, hc + Math.ceil(es.length / rows) + 8, Math.round(b.h * 1.5));
@@ -250,11 +260,12 @@ function startBattle(S, cis) {
   } else { // besieged: the legion circles the wagons in the centre, tough callings outermost
     const groups = b.doors.map(() => []);
     es.forEach((e, i) => groups[i % sides].push(e));
-    if (bl.boss) groups[0].unshift(foeUnit(bl.boss, id++, true, bl.bn, bl.vet));
+    if (bl.boss) groups[0].unshift(foeUnit(bl.boss, id++, true, bl.bn, bl.vet, bhp));
     const g = groups[0].length, bh = Math.max(2, Math.round(Math.sqrt(n / 1.5))), bw = Math.ceil(n / bh);
     b.h = clamp(bh + 12, 13, 26);
     b.w = Math.max(18, bw + 12 + 2 * Math.ceil(g / (b.h - 2)));
     if (sides > 2) b.h = clamp(bh + 10 + 2 * Math.ceil(g / (b.w - 2)), 13, 28);
+    if (b.six) { b.w = 15; b.h = 11; } // a party needs a small floor so the figures read
     b.grid = new Array(b.w * b.h).fill(null);
     const x0 = Math.floor((b.w - bw) / 2), y0 = Math.floor((b.h - bh) / 2), cells = [];
     for (let y = 0; y < bh; y++) for (let x = 0; x < bw; x++) cells.push({ x: x0 + x, y: y0 + y, d: Math.min(x, bw - 1 - x, y, bh - 1 - y) });
@@ -339,9 +350,11 @@ function flee(b, u) {
 }
 
 function kill(b, t, src) {
-  t.hp = 0; b.grid[idx(b, t.x, t.y)] = null;
+  const was = t.hp; t.hp = 0; b.grid[idx(b, t.x, t.y)] = null;
   if (t.illusion) return;
-  if (t.side === 'H') { b.dead.push(t); say(b, '† ' + t.name + ' the ' + CL[t.cls].n + ' falls' + (src && src.name ? ' to ' + (src.boss ? src.name : 'a ' + src.name) : '') + '.'); }
+  // The Six: a hero cut down is only out of the fight unless the blow was a terrible one. Win, and they get up again.
+  if (t.side === 'H' && b.six && was > -10) { t.down = true; say(b, t.name + ' is down.'); }
+  else if (t.side === 'H') { b.dead.push(t); say(b, '† ' + t.name + ' the ' + CL[t.cls].n + ' falls' + (src && src.name ? ' to ' + (src.boss ? src.name : 'a ' + src.name) : '') + '.'); }
   else { b.xp += Math.round(t.m.cost * TUNE.xp * (t.boss ? 3 : 1)); b.gold += Math.ceil(t.m.cost / 4) * (t.boss ? 4 : 1); if (src && src.h) src.h.kills++; if (t.boss) say(b, t.name + ' is slain by ' + (src ? src.name : 'the legion') + '!'); }
 }
 function hurt(b, t, dm, src, col) {
@@ -353,7 +366,7 @@ function heal(b, t, n) { n = Math.min(n, t.max - t.hp); t.hp += n; fx(b, { k: 't
 function strike(b, a, t, dmg, o) {
   o = o || {}; fx(b, { k: 'line', a: [a.x, a.y], b: [t.x, t.y], c: o.ranged ? '#f5e9c0' : a.side === 'H' ? '#ffffff' : '#ff8a70' });
   if (t.illusion) { if (ri(20) >= 12) { kill(b, t); fx(b, { k: 'txt', a: [t.x, t.y], s: 'poof', c: '#c77be0' }); } return false; }
-  const roll = ri(20), need = a.thac0 - t.ac - (t.st.stun ? 4 : 0) - (o.bonus || 0);
+  const roll = ri(20), need = a.thac0 - t.ac - (t.st.stun ? 4 : 0) - (o.bonus || 0) - (a.st.bless ? 1 : 0);
   if (!(t.st.sleep || roll === 20 || (roll !== 1 && roll >= need))) return false;
   let dm = (dice(dmg) + (a.db || 0) + (o.plus || 0)) * (o.mult || 1); if (t.st.sleep) dm *= 2;
   hurt(b, t, dm, a); return true;
@@ -369,11 +382,13 @@ function heroAttack(b, u, t, ranged) {
   if (u.cls === 'ranger' && t.f && t.f.includes('g')) o.plus = L;
   if (u.cls === 'monk') o.plus = Math.floor(L / 2);
   if (!ranged && (u.cls === 'thief' || u.cls === 'assassin') && flanked(b, t, u)) o.mult = L < 5 ? 2 : L < 9 ? 3 : 4;
+  if (u.bane && t.f && t.f.includes(u.bane)) o.mult = (o.mult || 1) * 2;
   for (let i = 0; i < n; i++) {
     if (t.hp <= 0) { // a fighter's sweep carries on to the next weak foe in reach
       t = foesOf(b, u).find(x => dist(u, x) === 1 && (u.cls !== 'fighter' || x.hd < 1 || i === 0)); if (!t) break;
     }
-    const hit = strike(b, u, t, ranged ? c.rdmg : c.dmg, o);
+    if (u.fire) o.plus = (o.plus || 0) + dice(u.fire);
+    const hit = strike(b, u, t, ranged ? u.rd || c.rdmg : u.wd || c.dmg, o);
     if (hit && u.cls === 'monk' && t.hp > 0 && !t.boss && t.hd <= L + 3 && ri(100) <= 20) { t.st.stun = 1; fx(b, { k: 'txt', a: [t.x, t.y], s: 'stun', c: '#e07b3a' }); }
   }
   u.acted = true;
@@ -421,6 +436,9 @@ function cast(b, u, id, x, y) {
       for (const f of inRad(b, u.x, u.y, 4, 'E')) if (f.f.includes('u')) { const r = ri(20) + 2 * L - 2 * f.hd; if (f.boss ? r >= 22 : r >= 18) { if (f.boss) f.st.stun = 2; else { kill(b, f, u); dn++; } } else if (!f.boss && r >= 10) { f.st.stun = 3; n++; } }
       say(b, u.name + ' presents the holy symbol: ' + dn + ' destroyed, ' + n + ' turned.'); break;
     }
+    case 'web': { burst(b, x, y, 1, '#e8e8f0'); for (const f of inRad(b, x, y, 1, 'E')) f.st.root = f.boss ? 1 : ri(3) + 2; say(b, u.name + ' casts Web.'); break; }
+    case 'bless': { burst(b, u.x, u.y, 2, '#fffbe0'); for (const a of inRad(b, u.x, u.y, 2, 'H')) a.st.bless = 1; say(b, u.name + ' blesses the party.'); break; }
+    case 'hold': { fx(b, { k: 'line', a: [u.x, u.y], b: [x, y], c: '#fffbe0' }); if (!t.boss && t.hd <= L + 3 && !t.f.includes('u')) { t.st.stun = ri(4) + 1; fx(b, { k: 'txt', a: [x, y], s: 'held', c: '#fffbe0' }); say(b, u.name + ' holds a ' + t.name + ' fast.'); } else say(b, 'The ' + t.name + ' shrugs off the spell.'); break; }
     case 'entangle': { burst(b, x, y, 1, '#5fbf6a'); for (const f of inRad(b, x, y, 1, 'E')) f.st.root = f.boss ? 1 : ri(3) + 2; say(b, u.name + ' casts Entangle.'); break; }
     case 'lightning': { burst(b, x, y, 1, '#e8f6ff'); for (const f of inRad(b, x, y, 1, 'E')) { let dm = dice([3, 8, L]); if (ri(20) + f.hd >= 16) dm /= 2; hurt(b, f, dm, u, '#cfeaff'); } say(b, u.name + ' calls down lightning.'); break; }
   }
@@ -445,6 +463,7 @@ function autoCast(b, u, fs) {
   switch (u.cls) {
     case 'mage':
       if (sp.fireball > 0 && (c = bestCell(b, u, 'fireball', () => true)) && c.s >= 3) return cast(b, u, 'fireball', c.x, c.y);
+      if (sp.web > 0 && (c = bestCell(b, u, 'web', f => !f.st.root && !f.st.sleep)) && c.s >= 2) return cast(b, u, 'web', c.x, c.y);
       if (sp.sleep > 0 && (c = bestCell(b, u, 'sleep', sleepOK)) && (c.s >= 2 || fs.length <= 3)) return cast(b, u, 'sleep', c.x, c.y);
       if (sp.missile > 0) { const t = fs.filter(f => dist(u, f) <= 10 && !f.st.sleep && !f.illusion).sort((a, c2) => a.hp - c2.hp)[0]; if (t) return cast(b, u, 'missile', t.x, t.y); }
       break;
@@ -460,6 +479,8 @@ function autoCast(b, u, fs) {
       }
       break;
     case 'cleric':
+      if (sp.bless > 0 && !u.st.bless && alliesOf(b, u).filter(a => dist(u, a) <= 2).length >= 2 && dist(u, nearest(u, fs)) <= 8) return cast(b, u, 'bless');
+      if (sp.hold > 0) { const t = fs.filter(f => dist(u, f) <= 6 && !f.boss && !f.st.stun && !f.st.sleep && f.hd >= 2 && f.hd <= L + 3 && !f.f.includes('u')).sort((a, c2) => c2.hp - a.hp)[0]; if (t) return cast(b, u, 'hold', t.x, t.y); }
       if (sp.turn > 0 && fs.some(f => f.f && f.f.includes('u') && !f.st.stun && dist(u, f) <= 4)) return cast(b, u, 'turn');
       if (sp.cure > 0 && (c = hurtAlly(6, .5))) return cast(b, u, 'cure', c.x, c.y);
       break;
@@ -474,7 +495,7 @@ function autoCast(b, u, fs) {
   }
   return false;
 }
-const castReach = u => { const s = u.sp; return s.fireball > 0 || s.missile > 0 ? 10 : s.sleep > 0 || s.entangle > 0 || s.lightning > 0 ? 8 : s.colours > 0 ? 4 : 0; };
+const castReach = u => { const s = u.sp; return s.fireball > 0 || s.missile > 0 ? 10 : s.sleep > 0 || s.entangle > 0 || s.lightning > 0 || s.web > 0 ? 8 : s.colours > 0 ? 4 : 0; };
 function skipTurn(b, u) {
   if (u.st.sleep) { if (!--u.st.sleep) delete u.st.sleep; return true; }
   if (u.st.stun) { if (!--u.st.stun) delete u.st.stun; return true; }
@@ -522,7 +543,7 @@ function foeAct(b, e) {
     for (const h of hs) { if (dist(e, h) > 6) continue; const n = inRad(b, h.x, h.y, 1, 'H').length; if (n > bs) { bs = n; best = h; } }
     if (best) {
       e.cd = 3; burst(b, best.x, best.y, 1, '#ff7a2a'); say(b, e.name + ' breathes fire!');
-      for (const h of inRad(b, best.x, best.y, 1, 'H')) { if (h.illusion) { kill(b, h); continue; } let dm = dice(m.breath); if (ri(20) + h.lvl >= 14) dm /= 2; hurt(b, h, dm, e, '#ff9a3a'); }
+      for (const h of inRad(b, best.x, best.y, 1, 'H')) { if (h.illusion) { kill(b, h); continue; } let dm = dice(m.breath) * (b.six ? .6 : 1); if (ri(20) + h.lvl >= 14) dm /= 2; hurt(b, h, dm, e, '#ff9a3a'); }
       return;
     }
   }
@@ -561,6 +582,7 @@ function endRound(b) {
     if (u.hp <= 0) continue;
     u.acted = false; u.moved = false; u.opp = false;
     if (u.illusion) { u.acted = true; if (--u.fade <= 0) kill(b, u); continue; }
+    if (u.regen && u.hp < u.max) u.hp = Math.min(u.max, u.hp + u.regen);
     if (u.side === 'E') { if (u.cd > 0) u.cd--; if (u.f.includes('reg') && u.hp < u.max) u.hp = Math.min(u.max, u.hp + 3); }
   }
   if (b.round > 80 && !b.over) { b.over = 'draw'; say(b, 'The heralds call the day a draw.'); }
@@ -573,23 +595,163 @@ function autoRound(b, S) {
 
 // Settle the day: the dead stay dead, survivors share experience, healers tend the wounded, everyone rests.
 function finishBattle(S, b, yielded) {
-  const res = { final: b.over === 'win' && b.bl.final, win: b.over === 'win', yielded: !!yielded, draw: b.over === 'draw', dead: b.dead.map(u => u.name + ' the ' + CL[u.cls].n), xp: 0, gold: 0, tended: 0, ready: 0, day: b.day };
+  const res = { final: b.over === 'win' && b.bl.final, win: b.over === 'win', yielded: !!yielded, draw: b.over === 'draw', dead: b.dead.map(u => u.name + ' the ' + CL[u.cls].n), xp: 0, gold: 0, tended: 0, ready: 0, day: b.day, down: [] };
   const surv = [];
-  for (const u of b.units) { if (u.side !== 'H' || u.illusion) continue; if (u.hp <= 0) { u.h.dead = true; u.h.hp = 0; u.h.diedDay = b.day; S.fallen++; } else { u.h.hp = u.hp; surv.push(u); } }
+  for (const u of b.units) { if (u.side !== 'H' || u.illusion) continue; if (u.hp <= 0 && u.down) { u.h.hp = 1; res.down.push(u.name); } else if (u.hp <= 0) { if (u.down) res.dead.push(u.name + ' the ' + CL[u.cls].n); u.h.dead = true; u.h.hp = 0; u.h.diedDay = b.day; S.fallen++; } else { u.h.hp = u.hp; surv.push(u); } }
   if (res.win) {
     res.gold = b.gold + b.bl.purse; S.gold += res.gold;
     res.xp = surv.length ? Math.floor(b.xp / surv.length) : 0; for (const u of surv) u.h.xp += res.xp;
     S.day++; S.best = Math.max(S.best, S.day - 1); if (res.final) S.ending = 'free';
-  } else if (yielded) { res.fine = Math.floor(S.gold / 2); S.gold -= res.fine; }
+  } else if (yielded || (b.six && res.down.length)) { res.fine = Math.floor(S.gold / 2); S.gold -= res.fine; res.spared = !yielded; }
   const alive = living(S);
   for (const u of surv) { // unspent healing goes to the worst wounded
     let n = (u.sp.cure || 0) + (u.sp.loh || 0);
     while (n-- > 0) { const t = alive.filter(h => h.hp < h.max).sort((a, c) => a.hp / a.max - c.hp / c.max)[0]; if (!t) break; const k = Math.min(t.max - t.hp, dice([1, 8, u.lvl])); t.hp += k; res.tended += k; }
   }
-  for (const h of alive) h.hp = Math.min(h.max, h.hp + Math.max(2, Math.ceil(h.max * (b.cis.includes(h.ci) ? .25 : .5))));
+  for (const h of alive) h.hp = Math.min(h.max, h.hp + Math.max(2, Math.ceil(h.max * (b.six ? 1 : b.cis.includes(h.ci) ? .25 : .5))));
+  if (b.six && res.win) { res.loot = rollLoot(S, b); S.inv.push(...res.loot); }
   res.ready = alive.filter(canTrain).length;
   S.pick = S.pick.filter(ci => living(S, ci).length);
   return res;
 }
 
-if (typeof module !== 'undefined') module.exports = { CL, ORDER, MON, SCHED, SPELLS, TUNE, TIER, TIERCOST, FINAL, migrate, redeploy, inZone, veteran, newCampaign, startBattle, autoRound, finishBattle, billing, billingText, budget, gateCap, living, canTrain, trainCost, levelUp, checkOver, xpNeed, roman };
+/* ---------- The Six: a party of six, hand-controlled, with real equipment ---------- */
+const LET = { fighter: 'F', paladin: 'P', ranger: 'R', cleric: 'C', druid: 'D', mage: 'M', illusionist: 'I', thief: 'T', assassin: 'A', monk: 'K' };
+const SLOTS = [['weapon', 'Weapon'], ['off', 'Off hand'], ['head', 'Head'], ['body', 'Body'], ['cloak', 'Cloak'], ['boots', 'Boots'], ['ring1', 'Ring'], ['ring2', 'Ring']];
+const ITEMS = {};
+// use = the callings that may carry it. tier 0 is ordinary gear; 1 to 3 are magic and can drop as loot.
+const it = (id, n, slot, cost, use, o) => { ITEMS[id] = Object.assign({ id, n, slot, cost, use, tier: 0 }, o); };
+it('dagger', 'Dagger', 'weapon', 5, 'FPRDMITAK', { dice: [1, 4, 0], look: 'dagger' });
+it('darts', 'Throwing Darts', 'weapon', 8, 'FRMITA', { dice: [1, 4, 0], rdice: [1, 3, 0], range: 4, look: 'dagger' });
+it('staff', 'Quarterstaff', 'weapon', 4, 'FPRCDMITAK', { dice: [1, 6, 0], two: 1, look: 'staff' });
+it('mace', 'Mace', 'weapon', 12, 'FPRCA', { dice: [1, 6, 1], look: 'mace' });
+it('short', 'Short Sword', 'weapon', 12, 'FPRTA', { dice: [1, 6, 0], look: 'sword' });
+it('scimitar', 'Scimitar', 'weapon', 18, 'FPRDA', { dice: [1, 8, 0], look: 'scimitar' });
+it('sword', 'Long Sword', 'weapon', 20, 'FPRTA', { dice: [1, 8, 0], look: 'sword' });
+it('axe', 'Battle Axe', 'weapon', 24, 'FPRA', { dice: [1, 8, 1], look: 'axe' });
+it('great', 'Great Sword', 'weapon', 50, 'FPR', { dice: [1, 10, 1], two: 1, look: 'gsword' });
+it('bow', 'Long Bow', 'weapon', 40, 'FPRTA', { dice: [1, 4, 0], rdice: [1, 6, 0], range: 8, two: 1, look: 'bow' });
+for (const b of ['dagger', 'staff', 'mace', 'scimitar', 'sword', 'axe', 'great', 'bow']) for (let n = 1; n <= 3; n++) { const o = ITEMS[b]; it(b + n, o.n + ' +' + n, 'weapon', o.cost + [0, 280, 750, 1900][n], o.use, Object.assign({}, o, { hit: n, dmg: n, tier: n, steel: ['', '#bfe0ff', '#ffe08a', '#ff9ad0'][n] })); }
+it('flame', 'Emberbrand', 'weapon', 1100, 'FPRTA', { dice: [1, 8, 0], hit: 1, dmg: 1, fire: [1, 6, 0], tier: 2, look: 'sword', steel: '#ffb060', note: 'Long sword +1. Burns for an extra d6.' });
+it('bane', 'Gravebane', 'weapon', 950, 'FPRCA', { dice: [1, 6, 1], hit: 1, dmg: 1, bane: 'u', tier: 2, look: 'mace', note: 'Mace +1. Double damage to the undead.' });
+it('robes', 'Robes', 'body', 3, 'FPRCDMITAK', { look: 'robe' });
+it('leather', 'Leather Armour', 'body', 15, 'FPRCDTA', { ac: 2, look: 'leather' });
+it('studded', 'Studded Leather', 'body', 35, 'FPRCTA', { ac: 3, look: 'leather' });
+it('chain', 'Chain Mail', 'body', 90, 'FPRC', { ac: 5, look: 'chain' });
+it('plate', 'Plate Armour', 'body', 420, 'FPC', { ac: 7, look: 'plate' });
+for (const b of ['leather', 'chain', 'plate']) for (let n = 1; n <= 2; n++) { const o = ITEMS[b]; it(b + n, o.n + ' +' + n, 'body', o.cost + [0, 350, 900][n], o.use, Object.assign({}, o, { ac: o.ac + n, tier: n })); }
+it('ward', 'Robe of Warding', 'body', 500, 'MIK', { ac: 3, tier: 1, look: 'robe' });
+it('ward2', 'Robe of the Magus', 'body', 1500, 'MI', { ac: 5, slots: 1, tier: 3, look: 'robe', note: 'Armour class 5 and one more spell a day.' });
+it('shield', 'Shield', 'off', 12, 'FPRCDA', { ac: 1 });
+it('shield1', 'Shield +1', 'off', 320, 'FPRCDA', { ac: 2, tier: 1 });
+it('shield2', 'Shield +2', 'off', 800, 'FPRCDA', { ac: 3, tier: 2 });
+it('cap', 'Leather Cap', 'head', 3, 'FPRCDTA', { look: 'cap' });
+it('helm', 'Helm', 'head', 25, 'FPRC', { ac: 1, look: 'full' });
+it('crest', 'Crested Helm', 'head', 30, 'FP', { ac: 1, look: 'crest' });
+it('hat', 'Pointed Hat', 'head', 4, 'MI', { look: 'hat' });
+it('hood', 'Hood', 'head', 3, 'RDITAMK', { look: 'hoodup' });
+it('circlet', 'Circlet of Focus', 'head', 700, 'MICD', { slots: 1, tier: 2, look: 'crown', note: 'One more spell a day.' });
+it('sentinel', 'Helm of the Sentinel', 'head', 650, 'FPRC', { ac: 2, tier: 2, look: 'full' });
+it('cloak', 'Travelling Cloak', 'cloak', 5, 'FPRCDMITAK', {});
+it('cloak1', 'Cloak of Protection +1', 'cloak', 320, 'FPRCDMITAK', { ac: 1, tier: 1 });
+it('cloak2', 'Cloak of Protection +2', 'cloak', 1000, 'FPRCDMITAK', { ac: 2, tier: 3 });
+it('boots', 'Boots', 'boots', 4, 'FPRCDMITAK', {});
+it('stride', 'Boots of Striding', 'boots', 260, 'FPRCDMITAK', { mv: 1, tier: 1, note: 'Move one square further.' });
+it('wing', 'Winged Boots', 'boots', 950, 'FPRCDMITAK', { mv: 1, fly: 1, tier: 3, note: 'Move one square further and ignore zones of control.' });
+it('rprot', 'Ring of Protection', 'ring', 300, 'FPRCDMITAK', { ac: 1, tier: 1 });
+it('rmight', 'Ring of Might', 'ring', 300, 'FPRCDMITAK', { dmg: 1, tier: 1, note: '+1 damage.' });
+it('raim', 'Ring of Accuracy', 'ring', 300, 'FPRCDMITAK', { hit: 1, tier: 1, note: '+1 to hit.' });
+it('rvit', 'Ring of Vitality', 'ring', 600, 'FPRCDMITAK', { hp: 8, tier: 2, note: '+8 hit points.' });
+it('rmagus', 'Ring of the Magus', 'ring', 750, 'MICD', { slots: 1, tier: 2, note: 'One more spell a day.' });
+it('rregen', 'Ring of Regeneration', 'ring', 1300, 'FPRCDMITAK', { regen: 1, tier: 3, note: 'Heals 1 hit point each round.' });
+const START = {
+  fighter: { weapon: 'sword', off: 'shield', body: 'chain', head: 'crest' }, paladin: { weapon: 'sword', off: 'shield', body: 'chain', head: 'helm', cloak: 'cloak' },
+  ranger: { weapon: 'bow', body: 'studded', head: 'hood', cloak: 'cloak' }, cleric: { weapon: 'mace', off: 'shield', body: 'chain', head: 'cap' },
+  druid: { weapon: 'scimitar', off: 'shield', body: 'leather' }, mage: { weapon: 'staff', body: 'robes', head: 'hat' }, illusionist: { weapon: 'dagger', body: 'robes', head: 'hood' },
+  thief: { weapon: 'short', body: 'leather', head: 'hood' }, assassin: { weapon: 'dagger', off: 'shield', body: 'leather', head: 'hood', cloak: 'cloak' }, monk: { body: 'robes' }
+};
+const slotOf = s => s === 'ring1' || s === 'ring2' ? 'ring' : s;
+const canUse = (h, id) => ITEMS[id].use.includes(LET[h.cls]);
+function kit(h) {
+  const k = { ac: 0, hit: 0, dmg: 0, mv: 0, regen: 0, slots: 0, fly: false, w: ITEMS[h.eq.weapon] || null };
+  for (const s in h.eq) { const i = ITEMS[h.eq[s]]; if (!i) continue; k.ac += i.ac || 0; k.hit += i.hit || 0; k.dmg += i.dmg || 0; k.mv += i.mv || 0; k.regen += i.regen || 0; k.slots += i.slots || 0; if (i.fly) k.fly = true; }
+  return k;
+}
+const sixAC = (h, k) => 10 - (k || kit(h)).ac - dexAC(h.dex) - (h.cls === 'monk' ? h.lvl - 1 : 0);
+const sixThac0 = (h, k) => 20 - Math.floor((h.lvl - 1) * CL[h.cls].thr) - (k || kit(h)).hit - strHit(h.str);
+// Put an item from the stash on a hero. Whatever it replaces goes back to the stash. Returns an error string or ''.
+function equip(S, h, id, slot) {
+  const i = ITEMS[id], at = S.inv.indexOf(id); if (at < 0) return 'Not in the stash.';
+  if (!canUse(h, id)) return CL[h.cls].pl + ' cannot use that.';
+  if (i.slot === 'ring') slot = slot && slotOf(slot) === 'ring' ? slot : !h.eq.ring1 ? 'ring1' : !h.eq.ring2 ? 'ring2' : 'ring1'; else slot = i.slot;
+  S.inv.splice(at, 1);
+  if (i.two) unequip(S, h, 'off');
+  if (slot === 'off' && h.eq.weapon && ITEMS[h.eq.weapon].two) unequip(S, h, 'weapon');
+  unequip(S, h, slot); h.eq[slot] = id;
+  if (i.hp) { h.max += i.hp; h.hp += i.hp; }
+  fillMem(h); return '';
+}
+function unequip(S, h, slot) {
+  const id = h.eq[slot]; if (!id) return;
+  const i = ITEMS[id]; delete h.eq[slot]; S.inv.push(id);
+  if (i.hp) { h.max -= i.hp; h.hp = Math.max(1, Math.min(h.hp, h.max)); }
+  fillMem(h);
+}
+// How the figure should be drawn for what the hero is wearing.
+function lookOf(h) {
+  const e = h.eq, g = s => ITEMS[e[s]], w = g('weapon'), b = g('body'), hd = g('head');
+  const o = { weapon: w ? w.look : null, weapon2: null, quiver: w && w.look === 'bow' ? 1 : null, hand: w && w.look === 'bow' ? [.3, -.58] : null, steel: w && w.steel || null,
+    shield: e.off ? { k: h.cls === 'fighter' ? 'scutum' : h.cls === 'paladin' ? 'kite' : 'round', c: h.cls === 'fighter' ? '#b3312a' : h.cls === 'paladin' || h.cls === 'cleric' ? '#f2f2f7' : '#7a5632' } : null,
+    armour: b && b.look !== 'robe' ? b.look : null, robe: !b || b.look === 'robe' ? 1 : null, helm: hd ? hd.look : null, cloak: e.cloak ? 1 : null };
+  if (h.cls === 'monk' && !w) o.hand = [.34, -.66];
+  return o;
+}
+const figKey = h => h.cls + '|' + JSON.stringify(lookOf(h));
+
+// Spellbooks: [spell, level at which it is learned]. A caster memorises 1 + level spells a day, in any mix.
+const BOOK = {
+  mage: [['sleep', 1], ['missile', 1], ['web', 3], ['fireball', 5]], illusionist: [['colours', 1], ['phantom', 2]],
+  cleric: [['cure', 1], ['bless', 1], ['hold', 3]], druid: [['entangle', 1], ['cure', 2], ['lightning', 5]]
+};
+const known = h => (BOOK[h.cls] || []).filter(x => h.lvl >= x[1]).map(x => x[0]);
+const slotsFor = h => BOOK[h.cls] ? 1 + h.lvl + kit(h).slots : 0;
+const memCount = h => Object.values(h.mem || {}).reduce((a, b) => a + b, 0);
+const abilities = h => h.cls === 'cleric' ? { turn: 3 } : h.cls === 'paladin' ? { loh: 1 } : {};
+function fillMem(h) { // top up unused slots, newest spells first; drop any excess
+  if (!BOOK[h.cls]) { h.mem = {}; return; }
+  const k = known(h).reverse(), n = slotsFor(h); h.mem = h.mem || {};
+  for (const id in h.mem) if (!k.includes(id)) delete h.mem[id];
+  for (let i = 0; memCount(h) > n; i++) { const id = k[i % k.length]; if (h.mem[id] > 0) h.mem[id]--; }
+  for (let i = 0; memCount(h) < n; i++) { const id = k[i % k.length]; h.mem[id] = (h.mem[id] || 0) + 1; }
+}
+function newParty(spec) { // spec: six of { cls, name, str, dex, con }
+  const heroes = spec.map(p => { const c = CL[p.cls], h = { name: p.name, cls: p.cls, ci: 0, lvl: 1, xp: 0, str: p.str, dex: p.dex, con: p.con, kills: 0, eq: Object.assign({}, START[p.cls]) }; h.max = (c.hd1 || 1) * c.hd + conHP(h.con); h.hp = h.max; fillMem(h); return h; });
+  const gear = {}; ORDER.forEach(c => gear[c] = { arms: 0, armor: 0 });
+  return { v: 2, mode: 'six', day: 1, gold: 60, potions: 1, heroes, cohorts: [{ order: 'attack', spells: true }], gear, inv: [], pick: [0], fallen: 0, best: 0 };
+}
+function rollStats(cls) { const c = CL[cls], h = { str: roll4(), dex: roll4(), con: roll4() }; if (c.prime) h[c.prime] = Math.max(h[c.prime], roll4(), 12); return h; }
+function randomName(used) { let n; do { n = N1[ri(N1.length) - 1] + N2[ri(N2.length) - 1]; } while (used && used[n]); return n; }
+// Loot: a champion always carries something; otherwise now and then. Better things turn up on later days.
+function rollLoot(S, b) {
+  const out = [], top = clamp(1 + Math.floor(b.day / 8), 1, 3), pool = Object.values(ITEMS).filter(i => i.tier > 0 && i.tier <= top);
+  let n = (b.bl.boss ? 1 : 0) + (ri(100) <= 30 ? 1 : 0);
+  while (n-- > 0) out.push(pool[ri(pool.length) - 1].id);
+  return out;
+}
+// What the quartermaster has today: all ordinary gear, and a few magic pieces that change daily.
+function shopStock(day) {
+  let s = day * 7919 + 17; const r = () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296;
+  const top = clamp(1 + Math.floor(day / 8), 1, 3), pool = Object.values(ITEMS).filter(i => i.tier > 0 && i.tier <= top), magic = [];
+  while (magic.length < 5 && magic.length < pool.length) { const i = pool[Math.floor(r() * pool.length)].id; if (!magic.includes(i)) magic.push(i); }
+  return { plain: Object.values(ITEMS).filter(i => !i.tier).map(i => i.id), magic };
+}
+const raiseCost = h => 60 + 60 * h.lvl;
+const healerCanRaise = S => S.raisedDay !== S.day && S.heroes.some(h => !h.dead && h.cls === 'cleric' && h.lvl >= 9);
+function raise(h) { h.dead = false; h.hp = 1; delete h.diedDay; }
+// Initiative for the party mode: everyone rolls each round and acts in that order.
+function rollInit(b) {
+  b.order = b.units.filter(u => u.hp > 0 && !u.illusion).map(u => ({ u, i: ri(10) + (u.h ? dexAC(u.h.dex) : u.mv > 5 ? 1 : 0) + rnd() * .5 })).sort((a, c) => c.i - a.i).map(x => x.u);
+  b.turn = 0;
+}
+
+if (typeof module !== 'undefined') module.exports = { CL, ORDER, MON, SCHED, SPELLS, TUNE, TIER, TIERCOST, FINAL, ITEMS, SLOTS, BOOK, migrate, redeploy, inZone, veteran, newParty, rollStats, randomName, equip, unequip, kit, sixAC, fillMem, slotsFor, rollInit, foeAct, heroAct, endRound, shopStock, raise, raiseCost, newCampaign, startBattle, autoRound, finishBattle, billing, billingText, budget, gateCap, living, canTrain, trainCost, levelUp, checkOver, xpNeed, roman };

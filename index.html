@@ -30,7 +30,9 @@ button.sm{padding:2px 8px;font-size:15px}
 #title .tag{font-style:italic;color:var(--mute);margin:2px 0 10px}
 #title .story{max-width:560px;margin:0 auto 12px;text-align:left}
 #title .btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:10px 0}
-#title .btns button{font-size:19px;padding:8px 18px}
+#title .btns button{font-size:17px;padding:7px 14px}
+.modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px;max-width:560px;margin:0 auto}
+.modes .card{margin:0;text-align:center}.modes p{margin:2px 0 4px}.modes .btns{margin:6px 0 2px!important}
 .more{font-size:13px;margin-top:14px}
 
 .bar{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:5px;margin-bottom:6px}
@@ -47,6 +49,16 @@ button.sm{padding:2px 8px;font-size:15px}
 .hchip{color:#1a1410;font-size:13px;padding:1px 6px;border:1px solid #1a1410;border-radius:10px;cursor:grab}
 .hchip.sel{outline:2px solid #fff;box-shadow:0 0 0 4px var(--red)}
 .row{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+select,input[type=text]{font:inherit;color:var(--ink);background:#1c1512;border:1px solid var(--line);border-radius:4px;padding:4px 6px}
+.prow{display:grid;grid-template-columns:64px 1fr auto;gap:8px;align-items:center;padding:5px 8px;border:1px solid var(--line);border-radius:4px;margin-bottom:4px;background:var(--panel)}
+.prow.dead{opacity:.6}.prow .fig{margin:0;justify-self:center}
+.sheet{display:grid;grid-template-columns:220px 1fr;gap:10px}
+@media(max-width:620px){.sheet{grid-template-columns:1fr}}
+#doll{width:220px;height:280px;background:radial-gradient(circle at 50% 70%,#4a3a2c,#1c1512);border:1px solid var(--gold);border-radius:6px;display:block;margin:0 auto}
+.slotb{display:flex;width:100%;justify-content:space-between;gap:8px;text-align:left;padding:3px 8px;margin-bottom:3px;font-size:15px}
+.slotb span:first-child{color:var(--mute)}
+.items{max-height:230px;overflow:auto;border-top:1px solid var(--line);margin-top:4px}
+.strip{display:flex;gap:2px;align-items:flex-end;flex-wrap:wrap;min-height:38px}.strip .fig{margin:0;opacity:.75}.strip .now{opacity:1;border-bottom:3px solid var(--gold)}
 .bf{display:flex;align-items:center;min-width:60px}.bf .fig{margin:0 -8px 0 0;width:34px;object-fit:contain}
 .co{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:4px 6px;border:1px solid var(--line);border-radius:4px;margin-bottom:3px;background:var(--panel);cursor:pointer}
 .co.pick{border-color:var(--gold);background:#30251b}
@@ -103,11 +115,11 @@ button.sm{padding:2px 8px;font-size:15px}
     <p style="margin:0 0 6px">Vhorax, Editor of the Games, was a warlord of the Iron Plane until he lost his army and his throne with it. He cannot go home without a legion, so he has built a forge for one.</p>
     <p style="margin:0">One hundred heroes were taken from the mortal world in a single night. Each day the gates open on something worse. Whoever is still standing at the end will be worth leading. The dead stay dead.</p>
   </div>
-  <div class="btns">
-    <button id="bCont" class="go hidden">Continue</button>
-    <button id="bNew" class="go">Muster the Hundred</button>
-    <button id="bHelp">How to play</button>
+  <div class="modes">
+    <div class="card"><h3>The Hundred</h3><p class="small mute">Command a legion: ten cohorts, standing orders, sieges.</p><div class="btns"><button id="bCont" class="go hidden">Continue</button><button id="bNew" class="go">Muster the Hundred</button></div></div>
+    <div class="card"><h3>The Six</h3><p class="small mute">Lead a party by hand, hero by hero, with their own gear and spellbooks.</p><div class="btns"><button id="bCont6" class="go hidden">Continue</button><button id="bNew6" class="go">Gather the Six</button></div></div>
   </div>
+  <div class="btns"><button id="bHelp">How to play</button></div>
   <p class="more"><a href="https://stilotto.github.io/">More games from Stilotto</a></p>
 </div>
 
@@ -133,9 +145,10 @@ button.sm{padding:2px 8px;font-size:15px}
 
 <div id="modal" class="hidden"><div id="mbox"></div></div>
 
-<script src="engine.js?v=5"></script>
-<script src="figures.js?v=5"></script>
-<script src="arena3d.js?v=5"></script>
-<script src="ui.js?v=5"></script>
+<script src="engine.js?v=6"></script>
+<script src="figures.js?v=6"></script>
+<script src="arena3d.js?v=6"></script>
+<script src="six.js?v=6"></script>
+<script src="ui.js?v=6"></script>
 </body>
 </html>
