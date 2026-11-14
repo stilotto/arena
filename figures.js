@@ -187,6 +187,8 @@ const FIG = (() => {
     firegiant: H(2.8, { skin: '#2a2224', top: '#2a2224', armour: 'plate', metal: '#4a3a3a', skirt: '#8e2a22', helm: 'flame', beard: '#ff8a2a', eyes: '255,170,60', weapon: 'gsword', steel: '#ffb060', w: 1.3, wide: 1.25, legs: '#2a2224', headR: .9, tall: 1.5 }),
     warfiend: H(1.9, { skin: '#5a1418', top: '#2a1a1e', armour: 'plate', metal: '#3a3038', skirt: '#1a1014', horns: '#1a1014', eyes: '255,200,60', wings: '#3a1014', wings2: '#2a0c10', weapon: 'glaive', steel: '#c8c0d0', tail: '#5a1418', legs: '#2a1a1e', w: 1.1, wide: 1.5, tall: 1.45 }),
 
+    vhorax: H(2.3, { skin: '#1a1416', top: '#1a1416', armour: 'plate', metal: '#2e262a', skirt: '#8e2a22', helm: 'full', plume: '#8e2a22', horns: '#d2aa52', eyes: '240,197,106', cloak: '#8e2a22', weapon: 'gsword', steel: '#f0c56a', legs: '#1a1416', w: 1.25, wide: 1.35, tall: 1.5 }),
+
     rat: B(1, { len: .7, h: .34, col: '#7a6a5a', dark: '#5a4c40', tail: 1, tailCol: '#c9a08a', tailW: .025, ear: 'round', leg: .045, eye: '255,80,60' }),
     wolf: B(1, { len: 1.15, h: .68, col: '#5a5a64', dark: '#3e3e46', tail: 1, tailW: .09, fangs: 1, eye: '255,220,90', leg: .08 }),
     spider: { w: .8, h: .8, draw: spider },

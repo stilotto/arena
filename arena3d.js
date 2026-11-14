@@ -9,6 +9,7 @@ const A3 = (() => {
   const norm = a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
   const CROWD = ['#c9b08a', '#8e2a22', '#d2aa52', '#5a4a8c', '#e8dcc0', '#3a2c22', '#7a3a7c', '#b0522e', '#40506a'];
   const rgb = (c, k) => `rgb(${Math.round(c[0] * k)},${Math.round(c[1] * k)},${Math.round(c[2] * k)})`;
+  const DTH = { E: 0, S: TAU / 4, W: TAU / 2, N: TAU * .75 };
   let sc = null;
 
   function build(w, h) {
@@ -53,8 +54,8 @@ const A3 = (() => {
   }
 
   // units: [{x, y, side, key, boss, illusion}] in grid coordinates. time in seconds (0 for a still).
-  function render(g, W, H, cam, time, units) {
-    const s = sc, f = norm(sub(cam.tgt, cam.pos)), r = norm(cross(f, cam.up || [0, 1, 0])), u = cross(r, f);
+  function render(g, W, H, cam, time, units, opt) {
+    const s = sc, doors = (opt && opt.doors) || {}, f = norm(sub(cam.tgt, cam.pos)), r = norm(cross(f, cam.up || [0, 1, 0])), u = cross(r, f);
     const F = .5 * Math.min(H, W * .8) / Math.tan((cam.fov || 55) * Math.PI / 360);
     const V = p => { const d = sub(p, cam.pos); return [dot(d, r), dot(d, u), dot(d, f)]; };
     const D = d => [dot(d, r), dot(d, u), dot(d, f)];
@@ -84,6 +85,14 @@ const A3 = (() => {
     for (const p of s.polys) { const vs = p.p.map(V); let d = 0, front = 0; for (const v of vs) { d += v[2]; if (v[2] >= NEAR) front++; } if (front) items.push({ d: d / vs.length - (p.bias || 0), p, vs, all: front === vs.length }); }
     for (const fl of s.flags) { const va = V(fl.a), vb = V(fl.b), vc = V(fl.c); if (va[2] > NEAR && vb[2] > NEAR && vc[2] > NEAR) items.push({ d: va[2] - .5, fl: [va, vb, vc] }); }
     if (units) for (const un of units) { const v = V([un.x - hw + .5, 0, un.y - hh + .5]); if (v[2] > NEAR + .2) items.push({ d: v[2], un, v }); }
+    for (const dir in doors) { // the great bronze doors, swinging open
+      const th = DTH[dir], rad = dir === 'E' || dir === 'W' ? s.a : s.b, dl = 1.9 / rad, op = doors[dir], DH = 3.7;
+      const P = (t, d, y) => V([Math.cos(t) * (s.a + d), y, Math.sin(t) * (s.b + d)]);
+      const quad = (t0, t1, d, y1, f, edge, bias) => { const vs = [P(t0, d, 0), P(t1, d, 0), P(t1, d, y1), P(t0, d, y1)]; let z = 0, fr = 0; for (const v of vs) { z += v[2]; if (v[2] >= NEAR) fr++; } if (fr) items.push({ d: z / 4 - bias, p: { f, edge }, vs, all: false }); };
+      quad(th - dl * 1.3, th + dl * 1.3, -.1, DH + .6, '#4a3a2c', '#2a1f18', 1.2);
+      quad(th - dl, th + dl, -.16, DH, '#0c0806', null, 1.6);
+      if (op < .98) { quad(th - dl, th - dl * op, -.22, DH, '#8a5a2a', '#d2aa52', 2); quad(th + dl * op, th + dl, -.22, DH, '#8a5a2a', '#d2aa52', 2); }
+    }
     const ev = V(s.eye); if (ev[2] > NEAR) items.push({ d: ev[2] - 1, eye: ev });
     items.sort((p, q) => q.d - p.d);
     for (const it of items) {
@@ -126,11 +135,17 @@ const A3 = (() => {
     return o;
   }
   // The flyover: in over the rim, down across the legion, along the sand to the foes, then up to the overhead view.
-  function fly(k, aspect) {
+  // where a door stands, in grid coordinates (it is outside the grid, in the podium wall)
+  function door(dir) { const s = sc, t = DTH[dir]; return [s.w / 2 - .5 + Math.cos(t) * (s.a - .6), s.h / 2 - .5 + Math.sin(t) * (s.b - .6)]; }
+  function fly(k, aspect, sides) {
     const s = sc, a = s.a, b = s.b, ax = a + s.out, bz = b + s.out, fov = 55;
     const tn = Math.tan(fov * Math.PI / 360), top = Math.max(s.h / 2 / .8, s.w / 2 / .8 / Math.max(.5, aspect) * (aspect < 1.25 ? 1.25 / 1 : 1)) / tn;
     const pos = [[-ax * 1.45, 15, bz * 1.7], [-ax * .8, 11.5, bz * .95], [-a * .6, 4.6, b * .8], [a * .05, 3, b * .62], [a * .3, 4.2, b * .42], [0, top * .55, b * .55], [0, top, .05]];
     const tgt = [[0, 4, 0], [0, 2.5, -b * .5], [-s.w * .1, 1, -b * .25], [s.w * .4, 1, 0], [s.w * .46, .8, 0], [0, 0, 0], [0, 0, 0]];
+    if (sides > 1) { // a siege: swing round the ring of heroes instead of running at one gate
+      pos.splice(2, 3, [-a * .72, 5, b * .82], [0, 3.6, b * .88], [a * .72, 5, b * .78]);
+      tgt.splice(1, 4, [a * .6, 2, 0], [a * .85, 1.6, 0], [0, 1, -b * .35], [-a * .5, 1, 0]);
+    }
     const e = k * k * (3 - 2 * k), t = (k * .55 + e * .45) * (pos.length - 1);
     const q = Math.max(0, Math.min(1, (k - .8) / .2)), qq = q * q * (3 - 2 * q);
     return { pos: spline(pos, t), tgt: spline(tgt, t), up: norm([0, 1 - qq, -qq]), fov };
@@ -139,6 +154,6 @@ const A3 = (() => {
     const s = sc, ph = time * .08 + 1.9;
     return { pos: [Math.cos(ph) * (s.a + s.out) * 1.2, 12.5 + Math.sin(time * .11) * 2, Math.sin(ph) * (s.b + s.out) * 1.35], tgt: [0, 2.5, 0], fov: 50 };
   }
-  return { build, render, fly, orbit };
+  return { build, render, fly, orbit, door };
 })();
 if (typeof module !== 'undefined') module.exports = A3;

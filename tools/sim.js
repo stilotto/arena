@@ -1,7 +1,7 @@
 // Headless balance check: plays the campaign on standing orders only.
 //   node tools/sim.js [runs] [days]
 const E = require('../engine.js');
-const runs = +process.argv[2] || 5, days = +process.argv[3] || 30;
+const runs = +process.argv[2] || 5, days = +process.argv[3] || 31;
 
 function spend(S) {
   // train whoever is ready, then buy gear for the cohorts, cheapest first
@@ -9,7 +9,7 @@ function spend(S) {
   let bought = true;
   while (bought) {
     bought = false;
-    for (const co of S.cohorts) for (const k of ['armor', 'arms']) { const c = E.TIERCOST[co[k] + 1]; if (c && S.gold >= c) { S.gold -= c; co[k]++; bought = true; } }
+    for (const cls of E.ORDER) for (const k of ['armor', 'arms']) { const gr = S.gear[cls], c = E.TIERCOST[gr[k] + 1]; if (c && S.gold >= c) { S.gold -= c; gr[k]++; bought = true; } }
   }
 }
 function pick(S) {
@@ -27,7 +27,7 @@ for (let r = 0; r < runs; r++) {
     const res = E.finishBattle(S, b);
     if (!res.win) losses++;
     const L = E.living(S), avg = L.length ? (L.reduce((s, h) => s + h.lvl, 0) / L.length).toFixed(1) : 0;
-    line.push(`${d}${res.win ? '' : 'x'}:${before - L.length}d/${L.length}/L${avg}/r${b.round}`);
+    line.push(`${d}${res.win ? '' : 'x'}${b.doors.length > 1 ? '*' + b.doors.length : ''}:${before - L.length}d/${L.length}/L${avg}/r${b.round}/f${b.units.filter(u => u.side === 'E').length}`);
     if (losses > 12) break;
   }
   rows.push(`run ${r + 1}: reached day ${S.day}, alive ${E.living(S).length}, gold ${S.gold}, lost battles ${losses}\n  ` + line.join(' '));

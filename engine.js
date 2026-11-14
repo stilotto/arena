@@ -41,7 +41,7 @@ const SPELLS = {
 function spellsFor(h) {
   const L = h.lvl, s = {};
   switch (h.cls) {
-    case 'mage': s.sleep = 1 + (L >= 4 ? 1 : 0); if (L >= 2) s.missile = Math.floor(L / 2); if (L >= 5) s.fireball = 1 + Math.floor((L - 5) / 2); break;
+    case 'mage': s.sleep = 1 + (L >= 4 ? 1 : 0); if (L >= 2) s.missile = Math.floor(L / 2); if (L >= 5) s.fireball = 1 + Math.floor((L - 5) / 3); break;
     case 'illusionist': s.colours = 1 + Math.floor(L / 3); if (L >= 2) s.phantom = Math.floor(L / 2); break;
     case 'cleric': s.cure = 1 + Math.floor(L / 2); s.turn = 3; break;
     case 'druid': s.entangle = 1 + (L >= 4 ? 1 : 0); if (L >= 2) s.cure = Math.floor(L / 2); if (L >= 5) s.lightning = 1 + Math.floor((L - 5) / 2); break;
@@ -51,7 +51,8 @@ function spellsFor(h) {
 }
 
 /* ---------- foes ---------- */
-// f: g = goblin-kind/giant (ranger bonus), u = undead, par = paralysing touch, poi = poison, reg = regenerates
+// f: g = goblin-kind/giant (ranger bonus), u = undead, par = paralysing touch, poi = poison, reg = regenerates,
+//    fly = ignores zones of control
 const MON = {
   kobold:    { n: 'Kobold',          pl: 'Kobolds',          hd: .5, ac: 7, dmg: [1, 4, 0], mv: 4, cost: 5,   g: 'k', f: 'g' },
   rat:       { n: 'Giant Rat',       pl: 'Giant Rats',       hd: .5, ac: 7, dmg: [1, 3, 0], mv: 6, cost: 4,   g: 'r' },
@@ -71,11 +72,12 @@ const MON = {
   minotaur:  { n: 'Minotaur',        pl: 'Minotaurs',        hd: 6,  ac: 6, dmg: [1, 8, 2], att: 2, mv: 5, cost: 150, g: 'B' },
   troll:     { n: 'Troll',           pl: 'Trolls',           hd: 6,  ac: 4, dmg: [1, 6, 2], att: 3, mv: 5, cost: 220, g: 'T', f: 'g reg' },
   giant:     { n: 'Hill Giant',      pl: 'Hill Giants',      hd: 8,  ac: 4, dmg: [2, 8, 0], mv: 5, cost: 280, g: 'H', f: 'g' },
-  wyvern:    { n: 'Wyvern',          pl: 'Wyverns',          hd: 7,  ac: 3, dmg: [2, 8, 0], mv: 7, cost: 300, g: 'V', f: 'poi' },
+  wyvern:    { n: 'Wyvern',          pl: 'Wyverns',          hd: 7,  ac: 3, dmg: [2, 8, 0], mv: 7, cost: 300, g: 'V', f: 'poi fly' },
   chimera:   { n: 'Chimera',         pl: 'Chimeras',         hd: 9,  ac: 4, dmg: [1, 8, 1], att: 3, mv: 6, cost: 450, g: 'Q', breath: [3, 8, 0] },
   firegiant: { n: 'Fire Giant',      pl: 'Fire Giants',      hd: 11, ac: 3, dmg: [2, 8, 4], att: 2, mv: 5, cost: 600, g: 'J', f: 'g' },
   warfiend:  { n: 'Warfiend',        pl: 'Warfiends',        hd: 9,  ac: 0, dmg: [2, 6, 2], att: 2, mv: 6, cost: 650, g: 'Y' },
-  dragon:    { n: 'Arena Wyrm',      pl: 'Arena Wyrms',      hd: 10, ac: 1, dmg: [1, 10, 2], att: 3, mv: 7, cost: 900, g: 'Z', breath: [8, 6, 0] }
+  dragon:    { n: 'Arena Wyrm',      pl: 'Arena Wyrms',      hd: 10, ac: 1, dmg: [1, 10, 2], att: 3, mv: 7, cost: 900, g: 'Z', f: 'fly', breath: [8, 6, 0] },
+  vhorax:    { n: 'Vhorax',          pl: 'Vhorax',           hd: 16, ac: -2, dmg: [2, 10, 4], att: 3, mv: 6, cost: 1500, g: '@', gaze: 1, summon: ['legionary', 4] }
 };
 
 // The games Vhorax has billed, day by day. m = [foe, share of the budget]
@@ -83,48 +85,52 @@ const SCHED = [
   { t: 'A rabble of kobolds', m: [['kobold', 1]] },
   { t: 'Kobolds and vermin', m: [['kobold', .6], ['rat', .4]] },
   { t: 'A goblin warband', m: [['goblin', .65], ['gobarcher', .35]] },
-  { t: 'The restless dead', m: [['skeleton', .7], ['zombie', .3]] },
+  { t: 'The restless dead', s: 2, m: [['skeleton', .7], ['zombie', .3]] },
   { t: 'Gruk the Gatebreaker', m: [['orc', 1]], boss: 'ogre', bn: 'Gruk the Gatebreaker' },
-  { t: 'Orc raiders and their wolves', m: [['orc', .6], ['wolf', .4]] },
+  { t: 'Orc raiders and their wolves', s: 2, m: [['orc', .6], ['wolf', .4]] },
   { t: 'A hobgoblin maniple', m: [['hobgoblin', .7], ['gobarcher', .3]] },
-  { t: 'The ghoul pack', m: [['ghoul', .5], ['zombie', .25], ['skeleton', .25]] },
-  { t: 'The spider pits', m: [['spider', .7], ['rat', .3]] },
+  { t: 'The ghoul pack', s: 3, m: [['ghoul', .5], ['zombie', .25], ['skeleton', .25]] },
+  { t: 'The spider pits', s: 4, m: [['spider', .7], ['wolf', .3]] },
   { t: 'The Bull of the Lower Gate', m: [['hobgoblin', 1]], boss: 'minotaur', bn: 'The Bull of the Lower Gate' },
-  { t: 'Ogres and their thralls', m: [['ogre', .6], ['orc', .4]] },
-  { t: 'The Ashen Legion', m: [['legionary', 1]] },
-  { t: 'The barrow lords', m: [['wight', .5], ['ghoul', .25], ['skeleton', .25]] },
-  { t: 'Trolls from the under-river', m: [['troll', .6], ['orc', .4]] },
+  { t: 'Ogres and their thralls', s: 2, m: [['ogre', .6], ['orc', .4]] },
+  { t: 'The Ashen Legion', s: 4, m: [['legionary', 1]] },
+  { t: 'The barrow lords', s: 3, m: [['wight', .5], ['ghoul', .25], ['skeleton', .25]] },
+  { t: 'Trolls from the under-river', s: 2, m: [['troll', .6], ['orc', .4]] },
   { t: 'Old Maul, chieftain of the hills', m: [['ogre', .7], ['wolf', .3]], boss: 'giant', bn: 'Old Maul' },
-  { t: 'The labyrinth emptied', m: [['minotaur', .7], ['hobgoblin', .3]] },
-  { t: 'A flight of wyverns', m: [['wyvern', .75], ['gobarcher', .25]] },
-  { t: 'Wraiths at dusk', m: [['wraith', .5], ['wight', .3], ['zombie', .2]] },
-  { t: 'The hill giants', m: [['giant', .7], ['ogre', .3]] },
+  { t: 'The labyrinth emptied', s: 4, m: [['minotaur', .7], ['hobgoblin', .3]] },
+  { t: 'A flight of wyverns', s: 2, m: [['wyvern', .75], ['hobgoblin', .25]] },
+  { t: 'Wraiths at dusk', s: 4, m: [['wraith', .5], ['wight', .3], ['zombie', .2]] },
+  { t: 'The hill giants', s: 2, m: [['giant', .7], ['ogre', .3]] },
   { t: 'The Thing with Three Heads', m: [['legionary', 1]], boss: 'chimera', bn: 'The Thing with Three Heads' },
-  { t: 'Trolls and ogres', m: [['troll', .6], ['ogre', .4]] },
-  { t: 'The fire giants', m: [['firegiant', .7], ['hobgoblin', .3]] },
-  { t: 'Warfiends of the Iron Plane', m: [['warfiend', .5], ['legionary', .5]] },
-  { t: 'A pride of chimeras', m: [['chimera', .7], ['wolf', .3]] },
-  { t: 'Cindermaw, the Arena Wyrm', m: [['legionary', .6], ['gobarcher', .4]], boss: 'dragon', bn: 'Cindermaw' },
-  { t: 'The dead of every game so far', m: [['wraith', .4], ['wight', .3], ['ghoul', .3]] },
-  { t: 'Giants of hill and fire', m: [['firegiant', .5], ['giant', .5]] },
-  { t: 'Wyverns and warfiends', m: [['warfiend', .5], ['wyvern', .5]] },
-  { t: 'The Ashen Legion entire', m: [['legionary', .6], ['warfiend', .25], ['troll', .15]] },
-  { t: "Vhorax's Champion", m: [['legionary', .5], ['warfiend', .5]], boss: 'warfiend', bn: 'Karn, Champion of Vhorax' }
+  { t: 'Trolls and ogres', s: 3, m: [['troll', .6], ['ogre', .4]] },
+  { t: 'The fire giants', s: 2, m: [['firegiant', .7], ['ogre', .3]] },
+  { t: 'Warfiends of the Iron Plane', s: 4, m: [['warfiend', .5], ['legionary', .5]] },
+  { t: 'A pride of chimeras', s: 3, m: [['chimera', .7], ['troll', .3]] },
+  { t: 'Cindermaw, the Arena Wyrm', m: [['legionary', .6], ['wyvern', .4]], boss: 'dragon', bn: 'Cindermaw' },
+  { t: 'The dead of every game so far', s: 4, m: [['wraith', .4], ['wight', .3], ['ghoul', .3]] },
+  { t: 'Giants of hill and fire', s: 2, m: [['firegiant', .5], ['giant', .5]] },
+  { t: 'Wyverns and warfiends', s: 3, m: [['warfiend', .5], ['wyvern', .5]] },
+  { t: 'The Ashen Legion entire', s: 4, m: [['legionary', .6], ['warfiend', .25], ['troll', .15]] },
+  { t: "Vhorax's Champion", m: [['legionary', .5], ['warfiend', .5]], boss: 'warfiend', bn: 'Karn, Champion of Vhorax' },
+  { t: 'Vhorax, Editor of the Games', s: 4, final: true, m: [['legionary', .6], ['warfiend', .4]], boss: 'vhorax', bn: 'Vhorax' }
 ];
 
-const TUNE = { budA: 30, budP: 1.6, xp: 4, purseA: 30, purseB: 20, bossHp: 2.5 };
-function budget(d) { return Math.round(TUNE.budA * Math.pow(d, TUNE.budP) * (1 + Math.max(0, d - 16) * .15)); }
+const TUNE = { budA: 30, budP: 1.6, vetDay: 14, vet: .18, xp: 4, purseA: 30, purseB: 20, bossHp: 2.5 };
+function budget(d) { return Math.round(TUNE.budA * Math.pow(d, TUNE.budP)); }
+// Past the middle days the foes stop multiplying and start getting tougher instead.
+function veteran(d) { return 1 + Math.max(0, d - TUNE.vetDay) * TUNE.vet; }
 function gateCap(d) { return Math.min(10, 1 + Math.floor(d / 2)); }
+const FINAL = 31;
 function billing(d) {
-  const s = SCHED[d <= 30 ? d - 1 : 20 + (d - 31) % 10];
+  const s = SCHED[d <= FINAL ? d - 1 : 20 + (d - FINAL - 1) % 10];
   let B = budget(d); const foes = [];
   if (s.boss) B = Math.max(B * .4, B - MON[s.boss].cost * 3);
   for (const [id, w] of s.m) foes.push({ id, count: Math.max(1, Math.round(B * w / MON[id].cost)) });
-  return { title: s.t, foes, boss: s.boss, bn: s.bn, purse: TUNE.purseA + TUNE.purseB * d };
+  return { title: s.t, foes, boss: s.boss, bn: s.bn, purse: TUNE.purseA + TUNE.purseB * d, sides: s.s || 1, final: !!s.final && d === FINAL, vet: veteran(d) };
 }
 function billingText(bl) {
   const p = bl.foes.map(f => f.count + ' ' + (f.count === 1 ? MON[f.id].n : MON[f.id].pl));
-  if (bl.boss) p.unshift(bl.bn + ' (' + MON[bl.boss].n + ')');
+  if (bl.boss) p.unshift(bl.bn === MON[bl.boss].n ? bl.bn : bl.bn + ' (' + MON[bl.boss].n + ')');
   return p.join(', ');
 }
 
@@ -147,16 +153,21 @@ function newHero(cls, ci, used) {
   return h;
 }
 function newCampaign() {
-  const used = {}, heroes = [], cohorts = [];
+  const used = {}, heroes = [], cohorts = [], gear = {};
   ORDER.forEach((cls, ci) => {
-    cohorts.push({ cls, arms: 0, armor: 0, order: 'attack', spells: true });
+    cohorts.push({ order: 'attack', spells: true }); gear[cls] = { arms: 0, armor: 0 };
     for (let i = 0; i < 10; i++) heroes.push(newHero(cls, ci, used));
   });
-  return { v: 1, day: 1, gold: 40, potions: 0, heroes, cohorts, pick: [0], fallen: 0, best: 0 };
+  return { v: 2, day: 1, gold: 40, potions: 0, heroes, cohorts, gear, pick: [0], fallen: 0, best: 0 };
 }
 const living = (S, ci) => S.heroes.filter(h => !h.dead && (ci == null || h.ci === ci));
-function heroAC(h, co) { return CL[h.cls].ac - co.armor - dexAC(h.dex) - (h.cls === 'monk' ? h.lvl - 1 : 0); }
-function heroThac0(h, co) { return 20 - Math.floor((h.lvl - 1) * CL[h.cls].thr) - co.arms - strHit(h.str); }
+// Older saves kept gear on the cohort. Gear now belongs to the calling, so cohorts can be mixed freely.
+function migrate(S) {
+  if (!S.gear) { S.gear = {}; ORDER.forEach((c, i) => { const co = S.cohorts[i] || {}; S.gear[c] = { arms: co.arms || 0, armor: co.armor || 0 }; }); }
+  S.v = 2; return S;
+}
+function heroAC(h, gr) { return CL[h.cls].ac - gr.armor - dexAC(h.dex) - (h.cls === 'monk' ? h.lvl - 1 : 0); }
+function heroThac0(h, gr) { return 20 - Math.floor((h.lvl - 1) * CL[h.cls].thr) - gr.arms - strHit(h.str); }
 const trainCost = h => 10 * (h.lvl + 1);
 const canTrain = h => !h.dead && h.xp >= xpNeed(h.lvl);
 function levelUp(h) {
@@ -176,7 +187,14 @@ const alliesOf = (b, u) => b.units.filter(x => x.hp > 0 && x.side === u.side && 
 function fx(b, o) { if (b.nofx) return; o.t = Date.now(); b.fx.push(o); if (b.fx.length > 300) b.fx.splice(0, 150); }
 function say(b, s) { b.log.push(s); if (b.log.length > 200) b.log.shift(); }
 function place(b, u, x, y) { u.x = x; u.y = y; b.grid[idx(b, x, y)] = u; }
-function moveTo(b, u, x, y) { b.grid[idx(b, u.x, u.y)] = null; fx(b, { k: 'move', a: [u.x, u.y], b: [x, y] }); place(b, u, x, y); u.moved = true; }
+function moveTo(b, u, x, y) {
+  if (!u.fly && u.cls !== 'thief' && u.cls !== 'assassin') for (const e of b.units) { // free blows from foes left behind
+    if (e.hp <= 0 || e.side === u.side || e.illusion || e.opp || helpless(e) || dist(e, u) !== 1 || Math.max(Math.abs(e.x - x), Math.abs(e.y - y)) <= 1) continue;
+    e.opp = true; strike(b, e, u, e.side === 'H' ? CL[e.cls].dmg : e.m.dmg, { bonus: 2 });
+    if (u.hp <= 0) return false;
+  }
+  b.grid[idx(b, u.x, u.y)] = null; fx(b, { k: 'move', a: [u.x, u.y], b: [x, y] }); place(b, u, x, y); u.moved = true; return true;
+}
 
 function deploy(b, list, side) {
   const rows = b.h - 2, cols = Math.ceil(list.length / rows);
@@ -188,33 +206,79 @@ function deploy(b, list, side) {
   }
 }
 function heroUnit(S, h, id) {
-  const c = CL[h.cls], co = S.cohorts[h.ci];
-  return { id, side: 'H', h, cls: h.cls, ci: h.ci, name: h.name, lvl: h.lvl, hp: h.hp, max: h.max, ac: heroAC(h, co), thac0: heroThac0(h, co), db: co.arms + strDmg(h.str), mv: c.mv, range: c.range || 0, st: {}, sp: spellsFor(h), kill: h.cls === 'assassin' ? 1 : 0, col: c.col, g: c.g };
+  const c = CL[h.cls], gr = S.gear[h.cls];
+  return { id, side: 'H', h, cls: h.cls, ci: h.ci, name: h.name, lvl: h.lvl, hp: h.hp, max: h.max, ac: heroAC(h, gr), thac0: heroThac0(h, gr), db: gr.arms + strDmg(h.str), mv: c.mv, range: c.range || 0, st: {}, sp: spellsFor(h), kill: h.cls === 'assassin' ? 1 : 0, col: c.col, g: c.g };
 }
-function foeUnit(mid, id, boss, bn) {
+function foeUnit(mid, id, boss, bn, vet) {
   const m = MON[mid];
   let hp = m.hd < 1 ? ri(4) : 0; for (let i = 0; i < Math.floor(m.hd); i++) hp += ri(8); if (m.hd % 1 && m.hd > 1) hp += ri(4);
   if (boss) hp = Math.round(Math.max(hp, m.hd * 4.5) * TUNE.bossHp);
-  return { id, side: 'E', m, mid, name: boss ? bn : m.n, hd: m.hd, hp, max: hp, ac: m.ac - (boss ? 1 : 0), thac0: 20 - Math.floor(m.hd) - (boss ? 2 : 0), db: boss ? 2 : 0, mv: m.mv, range: m.range || 0, st: {}, boss: !!boss, cd: 0, g: m.g, f: m.f || '' };
+  vet = vet || 1; hp = Math.round(hp * vet); const vb = Math.floor((vet - 1) * 2);
+  return { id, side: 'E', m, mid, name: boss ? bn : m.n, hd: m.hd, hp, max: hp, ac: m.ac - (boss ? 1 : 0), thac0: 20 - Math.floor(m.hd) - (boss ? 2 : 0) - vb, db: (boss ? 2 : 0) + vb, fly: (m.f || '').includes('fly'), mv: m.mv, range: m.range || 0, st: {}, boss: !!boss, cd: 0, g: m.g, f: m.f || '' };
 }
+const DIRS = ['E', 'W', 'N', 'S'];
+function deployNS(b, list, top) { // ranks along the north or south wall, front rank nearest the centre
+  const cols = b.w - 2, rows = Math.ceil(list.length / cols);
+  let row = top ? rows - 1 : b.h - rows;
+  for (let i = 0; i < list.length; i += cols) {
+    const ch = list.slice(i, i + cols), x0 = 1 + Math.floor((cols - ch.length) / 2);
+    ch.forEach((u, k) => place(b, u, x0 + k, row));
+    row += top ? -1 : 1;
+  }
+}
+// The door a group of foes comes through, as a point just outside the grid.
+function doorAt(b, dir) { return dir === 'E' ? [b.w + 1, b.h / 2 - .5] : dir === 'W' ? [-2, b.h / 2 - .5] : dir === 'N' ? [b.w / 2 - .5, -2] : [b.w / 2 - .5, b.h + 1]; }
 function startBattle(S, cis) {
   const bl = billing(S.day), b = { day: S.day, bl, units: [], round: 1, log: [], fx: [], over: null, xp: 0, gold: 0, dead: [], cis: cis.slice() };
   let id = 1;
   const hs = S.heroes.filter(h => !h.dead && cis.includes(h.ci)).map(h => heroUnit(S, h, id++));
   hs.sort((a, c) => CL[a.cls].front - CL[c.cls].front);
   const es = [];
-  for (const f of bl.foes) for (let i = 0; i < f.count; i++) es.push(foeUnit(f.id, id++));
+  for (const f of bl.foes) for (let i = 0; i < f.count; i++) es.push(foeUnit(f.id, id++, false, null, bl.vet));
   es.sort((a, c) => (a.range ? 1 : 0) - (c.range ? 1 : 0));
-  if (bl.boss) es.splice(Math.floor(es.filter(e => !e.range).length / 2), 0, foeUnit(bl.boss, id++, true, bl.bn));
-  const n = hs.length + es.length;
-  b.h = clamp(Math.round(Math.sqrt(n) * 1.1) + 4, 9, 20);
-  const rows = b.h - 2;
-  b.w = Math.max(14, Math.ceil(hs.length / rows) + Math.ceil(es.length / rows) + 8, Math.round(b.h * 1.5));
-  b.grid = new Array(b.w * b.h).fill(null);
+  const sides = Math.min(bl.sides, Math.max(1, es.length)), n = hs.length;
+  b.doors = DIRS.slice(0, sides); b.nid = 0;
+  if (sides === 1) { // one gate: the legion forms line on the west sand
+    if (bl.boss) es.splice(Math.floor(es.filter(e => !e.range).length / 2), 0, foeUnit(bl.boss, id++, true, bl.bn, bl.vet));
+    b.h = clamp(Math.round(Math.sqrt(n + es.length) * 1.1) + 4, 9, 20);
+    const rows = b.h - 2, hc = Math.ceil(n / rows);
+    b.w = Math.max(14, hc + Math.ceil(es.length / rows) + 8, Math.round(b.h * 1.5));
+    b.grid = new Array(b.w * b.h).fill(null);
+    deploy(b, hs, 'H'); deploy(b, es, 'E');
+    for (const e of es) e.door = 'E';
+    b.zone = { x0: 0, y0: 0, x1: hc + 1, y1: b.h - 1 };
+  } else { // besieged: the legion circles the wagons in the centre, tough callings outermost
+    const groups = b.doors.map(() => []);
+    es.forEach((e, i) => groups[i % sides].push(e));
+    if (bl.boss) groups[0].unshift(foeUnit(bl.boss, id++, true, bl.bn, bl.vet));
+    const g = groups[0].length, bh = Math.max(2, Math.round(Math.sqrt(n / 1.5))), bw = Math.ceil(n / bh);
+    b.h = clamp(bh + 12, 13, 26);
+    b.w = Math.max(18, bw + 12 + 2 * Math.ceil(g / (b.h - 2)));
+    if (sides > 2) b.h = clamp(bh + 10 + 2 * Math.ceil(g / (b.w - 2)), 13, 28);
+    b.grid = new Array(b.w * b.h).fill(null);
+    const x0 = Math.floor((b.w - bw) / 2), y0 = Math.floor((b.h - bh) / 2), cells = [];
+    for (let y = 0; y < bh; y++) for (let x = 0; x < bw; x++) cells.push({ x: x0 + x, y: y0 + y, d: Math.min(x, bw - 1 - x, y, bh - 1 - y) });
+    cells.sort((a, c) => a.d - c.d);
+    hs.forEach((u, i) => place(b, u, cells[i].x, cells[i].y));
+    groups.forEach((gr, i) => {
+      const dir = b.doors[i]; for (const e of gr) e.door = dir;
+      if (dir === 'E') deploy(b, gr, 'E'); else if (dir === 'W') deploy(b, gr, 'H'); else deployNS(b, gr, dir === 'N');
+    });
+    b.zone = { x0: x0 - 2, y0: y0 - 2, x1: x0 + bw + 1, y1: y0 + bh + 1 };
+    es.length = 0; for (const gr of groups) es.push(...gr);
+  }
   b.units = hs.concat(es); b.nid = id;
-  deploy(b, hs, 'H'); deploy(b, es, 'E');
-  say(b, 'Day ' + roman(S.day) + '. The gates open: ' + billingText(bl) + '.');
+  say(b, 'Day ' + roman(S.day) + '. ' + (sides > 1 ? ['', '', 'Two', 'Three', 'All four'][sides] + ' gates open: ' : 'The gates open: ') + billingText(bl) + '.');
   return b;
+}
+// Before the first blow a hero may be placed anywhere in the deployment zone, swapping with whoever stands there.
+const inZone = (b, x, y) => inb(b, x, y) && x >= b.zone.x0 && x <= b.zone.x1 && y >= b.zone.y0 && y <= b.zone.y1;
+function redeploy(b, u, x, y) {
+  if (!inZone(b, x, y)) return false;
+  const o = at(b, x, y); if (o && (o.side !== 'H' || o === u)) return false;
+  const ux = u.x, uy = u.y; b.grid[idx(b, ux, uy)] = null;
+  if (o) place(b, o, ux, uy);
+  place(b, u, x, y); return true;
 }
 function checkOver(b) {
   if (b.over) return b.over;
@@ -223,11 +287,24 @@ function checkOver(b) {
   return b.over;
 }
 
+// Zone of control: a square next to an active enemy. Entering one ends the move, and
+// walking out of an enemy's reach gives that enemy a free blow. Fliers ignore both.
+const helpless = u => u.st.sleep || u.st.stun;
+function zocMask(b, u) {
+  const Z = new Uint8Array(b.w * b.h);
+  for (const e of b.units) {
+    if (e.hp <= 0 || e.side === u.side || helpless(e)) continue;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (inb(b, e.x + dx, e.y + dy)) Z[idx(b, e.x + dx, e.y + dy)] = 1;
+  }
+  return Z;
+}
 function flood(b, u) {
   const n = b.w * b.h, d = new Int16Array(n).fill(-1), p = new Int32Array(n).fill(-1), q = [idx(b, u.x, u.y)];
+  const Z = u.fly ? null : zocMask(b, u);
   d[q[0]] = 0;
   for (let i = 0; i < q.length; i++) {
     const c = q[i], cx = c % b.w, cy = (c - cx) / b.w;
+    if (Z && i && Z[c]) continue;
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
       if (!dx && !dy) continue;
       const x = cx + dx, y = cy + dy; if (!inb(b, x, y)) continue;
@@ -415,11 +492,13 @@ function heroAct(b, u, S) {
   if (co.spells) {
     const cr = castReach(u);
     if (cr && co.order === 'attack' && canMove() && dist(u, nearest(u, fs)) > cr) approach(b, u, cr);
+    if (u.hp <= 0) return;
     if (autoCast(b, u, fs)) return;
   }
   const reach = u.range || 1;
   if (co.order === 'withdraw') { if (canMove()) flee(b, u); }
   else if (co.order === 'attack' && canMove() && dist(u, nearest(u, fs)) > reach) approach(b, u, reach);
+  if (u.hp <= 0) return;
   fs = foesOf(b, u);
   const adj = fs.filter(f => dist(u, f) === 1);
   if (adj.length) {
@@ -448,7 +527,23 @@ function foeAct(b, e) {
     }
   }
   const reach = e.range || 1;
+  if (m.gaze && e.cd <= 0) { // the Editor's eye holds a knot of heroes where they stand; it costs him nothing
+    let best = null, bs = 1;
+    for (const h of hs) { if (dist(e, h) > 8 || h.illusion) continue; const k = inRad(b, h.x, h.y, 1, 'H').filter(x => !x.st.stun).length; if (k > bs) { bs = k; best = h; } }
+    if (best) { e.cd = 2; burst(b, best.x, best.y, 1, '#f0c56a'); say(b, e.name + ' turns his eye on the legion.'); for (const h of inRad(b, best.x, best.y, 1, 'H')) if (!h.illusion && ri(20) + h.lvl < 16) { h.st.stun = 2; fx(b, { k: 'txt', a: [h.x, h.y], s: 'held', c: '#f0c56a' }); } }
+  }
+  if (m.summon && b.round % 3 === 0 && e.sum !== b.round) { // more of his guard come through the gates
+    e.sum = b.round; let k = 0;
+    for (const dir of b.doors) for (let j = 0; j < 12 && k < m.summon[1]; j++) {
+      const o = Math.ceil(j / 2) * (j % 2 ? 1 : -1), x = dir === 'E' ? b.w - 1 : dir === 'W' ? 0 : Math.floor(b.w / 2) + o, y = dir === 'N' ? 0 : dir === 'S' ? b.h - 1 : Math.floor(b.h / 2) + o;
+      if (!inb(b, x, y) || at(b, x, y)) continue;
+      const nu = foeUnit(m.summon[0], b.nid++, false, null, b.bl.vet); nu.door = dir; b.units.push(nu); place(b, nu, x, y); burst(b, x, y, 0, '#ff7828'); k++;
+      if (k % Math.ceil(m.summon[1] / b.doors.length) === 0) break;
+    }
+    if (k) say(b, e.name + ' calls ' + k + ' more of the Ashen Legion through the gates.');
+  }
   if (!rooted && dist(e, nearest(e, hs)) > reach) approach(b, e, reach);
+  if (e.hp <= 0) return;
   for (let i = 0; i < (m.att || 1); i++) {
     hs = foesOf(b, e);
     const adj = hs.filter(h => dist(e, h) === 1); let t = adj.find(h => h.illusion) || adj[ri(adj.length) - 1], ranged = false;
@@ -464,7 +559,7 @@ function endRound(b) {
   b.round++;
   for (const u of b.units) {
     if (u.hp <= 0) continue;
-    u.acted = false; u.moved = false;
+    u.acted = false; u.moved = false; u.opp = false;
     if (u.illusion) { u.acted = true; if (--u.fade <= 0) kill(b, u); continue; }
     if (u.side === 'E') { if (u.cd > 0) u.cd--; if (u.f.includes('reg') && u.hp < u.max) u.hp = Math.min(u.max, u.hp + 3); }
   }
@@ -478,13 +573,13 @@ function autoRound(b, S) {
 
 // Settle the day: the dead stay dead, survivors share experience, healers tend the wounded, everyone rests.
 function finishBattle(S, b, yielded) {
-  const res = { win: b.over === 'win', yielded: !!yielded, draw: b.over === 'draw', dead: b.dead.map(u => u.name + ' the ' + CL[u.cls].n), xp: 0, gold: 0, tended: 0, ready: 0, day: b.day };
+  const res = { final: b.over === 'win' && b.bl.final, win: b.over === 'win', yielded: !!yielded, draw: b.over === 'draw', dead: b.dead.map(u => u.name + ' the ' + CL[u.cls].n), xp: 0, gold: 0, tended: 0, ready: 0, day: b.day };
   const surv = [];
   for (const u of b.units) { if (u.side !== 'H' || u.illusion) continue; if (u.hp <= 0) { u.h.dead = true; u.h.hp = 0; u.h.diedDay = b.day; S.fallen++; } else { u.h.hp = u.hp; surv.push(u); } }
   if (res.win) {
     res.gold = b.gold + b.bl.purse; S.gold += res.gold;
     res.xp = surv.length ? Math.floor(b.xp / surv.length) : 0; for (const u of surv) u.h.xp += res.xp;
-    S.day++; S.best = Math.max(S.best, S.day - 1);
+    S.day++; S.best = Math.max(S.best, S.day - 1); if (res.final) S.ending = 'free';
   } else if (yielded) { res.fine = Math.floor(S.gold / 2); S.gold -= res.fine; }
   const alive = living(S);
   for (const u of surv) { // unspent healing goes to the worst wounded
@@ -497,4 +592,4 @@ function finishBattle(S, b, yielded) {
   return res;
 }
 
-if (typeof module !== 'undefined') module.exports = { CL, ORDER, MON, SCHED, SPELLS, TUNE, TIER, TIERCOST, newCampaign, startBattle, autoRound, finishBattle, billing, billingText, budget, gateCap, living, canTrain, trainCost, levelUp, checkOver, xpNeed, roman };
+if (typeof module !== 'undefined') module.exports = { CL, ORDER, MON, SCHED, SPELLS, TUNE, TIER, TIERCOST, FINAL, migrate, redeploy, inZone, veteran, newCampaign, startBattle, autoRound, finishBattle, billing, billingText, budget, gateCap, living, canTrain, trainCost, levelUp, checkOver, xpNeed, roman };

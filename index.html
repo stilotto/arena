@@ -38,7 +38,16 @@ button.sm{padding:2px 8px;font-size:15px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:7px 9px;margin-bottom:6px}
 .card h3{font-size:15px;color:var(--gold)}
 .fig{vertical-align:middle;margin-right:6px}
-.bf{display:flex;align-items:center;gap:2px}.bf .fig{margin:0;width:36px;object-fit:contain}
+.mb{display:inline-block;font:700 11px/1 Georgia,serif;color:#1a1410;padding:2px 4px;border-radius:8px;margin-right:2px;border:1px solid #1a1410;vertical-align:middle}
+#mbox.wide{max-width:980px}
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px}
+.cbox{border:1px solid var(--line);border-radius:4px;background:#1c1512;padding:4px}
+.chead{width:100%;text-align:left;font-family:'Cinzel',serif;font-size:14px;padding:3px 6px;margin-bottom:4px}
+.cbox .chips{display:flex;flex-wrap:wrap;gap:3px;min-height:26px}
+.hchip{color:#1a1410;font-size:13px;padding:1px 6px;border:1px solid #1a1410;border-radius:10px;cursor:grab}
+.hchip.sel{outline:2px solid #fff;box-shadow:0 0 0 4px var(--red)}
+.row{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.bf{display:flex;align-items:center;min-width:60px}.bf .fig{margin:0 -8px 0 0;width:34px;object-fit:contain}
 .co{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:4px 6px;border:1px solid var(--line);border-radius:4px;margin-bottom:3px;background:var(--panel);cursor:pointer}
 .co.pick{border-color:var(--gold);background:#30251b}
 .co.gone{opacity:.4;cursor:default}
@@ -57,7 +66,7 @@ button.sm{padding:2px 8px;font-size:15px}
 #bbar .sp{flex:1}
 #cv{display:block;margin:0 auto;border:6px solid #6a5a48;border-radius:4px;box-shadow:0 0 0 2px #2a1f18,0 0 0 5px #8e2a22,0 0 0 7px #2a1f18,0 8px 24px rgba(0,0,0,.6);margin-top:8px;margin-bottom:10px;background:var(--sand);touch-action:manipulation;cursor:pointer}
 #chips{display:flex;gap:4px;flex-wrap:wrap;margin:4px 0}
-.chip{display:flex;align-items:center;gap:4px;padding:1px 7px 1px 2px;font-size:14px}
+.chip{display:flex;align-items:center;gap:4px;padding:2px 7px;font-size:14px}
 .chip .badge{width:20px;height:20px;font-size:11px;border-width:1px}
 #panel{background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:5px 8px;min-height:66px;font-size:15px}
 #panel .row{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-top:3px}
@@ -124,9 +133,9 @@ button.sm{padding:2px 8px;font-size:15px}
 
 <div id="modal" class="hidden"><div id="mbox"></div></div>
 
-<script src="engine.js?v=4"></script>
-<script src="figures.js?v=4"></script>
-<script src="arena3d.js?v=4"></script>
-<script src="ui.js?v=4"></script>
+<script src="engine.js?v=5"></script>
+<script src="figures.js?v=5"></script>
+<script src="arena3d.js?v=5"></script>
+<script src="ui.js?v=5"></script>
 </body>
 </html>
