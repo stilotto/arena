@@ -178,7 +178,7 @@ function refresh() {
       for (const k in u.sp) if (u.sp[k] > 0) h += `<button class="sm ${mode === k ? 'on' : ''}" onclick="setMode('${k}')">${SPELLS[k].n} ×${u.sp[k]}</button>`;
       if (u.kill) h += `<button class="sm ${mode === 'kill' ? 'on' : ''}" onclick="setMode('kill')">Assassinate</button>`;
       if (S.potions > 0 && u.hp < u.max) h += `<button class="sm" onclick="act(()=>drink(B,sel,S))">Potion (${S.potions})</button>`;
-      h += `<button class="sm" onclick="act(()=>{sel.acted=true})">Wait</button></div>`;
+      h += `<button class="sm" onclick="act(()=>{sel.acted=true})">Wait</button><button class="sm" onclick="drop();refresh()">Deselect</button></div>`;
     }
   }
   if (insp && insp.hp > 0 && !(sel && sel.hp > 0)) {
@@ -191,12 +191,13 @@ function refresh() {
       `<button class="sm ${co.spells ? 'on' : ''}" onclick="S.cohorts[csel].spells=!S.cohorts[csel].spells;refresh()">Spells: ${co.spells ? 'on' : 'off'}</button></div>`;
   }
   if (note) h += `<div class="gold small">${note}</div>`;
-  $('panel').innerHTML = h || '<span class="mute">Tap a hero to command them by hand, or a cohort to change its orders. End turn carries out all standing orders.</span>';
+  $('panel').innerHTML = h || '<span class="mute">Tap a hero to command them by hand, a foe to inspect it, or a cohort to change its orders. End turn carries out all standing orders.</span>';
   $('bEnd').disabled = busy; $('bAuto').textContent = 'Auto: ' + (auto ? 'on' : 'off'); $('bAuto').classList.toggle('on', auto);
   $('bSpeed').textContent = 'Speed: ' + (fast ? 'fast' : 'normal'); $('bYield').disabled = busy;
   $('log').innerHTML = B.log.slice(-3).map(s => `<div>${s}</div>`).join('');
   draw();
 }
+function drop() { sel = null; reach = null; mode = null; note = ''; }
 function pickCohort(ci) { csel = ci; if (sel && sel.ci !== ci) { sel = null; reach = null; mode = null; } refresh(); }
 function setOrder(o) { S.cohorts[csel].order = o; refresh(); }
 function setMode(k) {
@@ -218,7 +219,7 @@ function tap(x, y) {
     if (mode === 'kill') { if (t && t.side === 'E' && dist(u, t) === 1) return act(() => { if (!assassinate(B, u, t)) heroAttack(B, u, t, false); }); note = 'The blade needs an adjacent foe.'; mode = null; return refresh(); }
     const m = mode; let ok = false; act(() => { ok = cast(B, u, m, x, y); }); if (!ok) { note = 'Not a valid target.'; refresh(); } return;
   }
-  if (t && t.side === 'H' && !t.illusion) { pickUnit(t); return refresh(); }
+  if (t && t.side === 'H' && !t.illusion) { if (t === u) drop(); else pickUnit(t); return refresh(); }
   if (!u || u.acted || u.hp <= 0 || stuck(u)) { if (t && t.side === 'E') { insp = t; sel = null; reach = null; refresh(); } return; }
   if (t && t.side === 'E') {
     const d = dist(u, t);
@@ -232,6 +233,7 @@ function tap(x, y) {
     note = 'Out of reach.'; return refresh();
   }
   if (!t && reach) { const i = idx(B, x, y); if (reach.d[i] > 0 && reach.d[i] <= u.mv) return act(() => moveTo(B, u, x, y)); }
+  if (!t) { drop(); refresh(); }
 }
 cv.addEventListener('click', e => { const r = cv.getBoundingClientRect(); tap(Math.floor((e.clientX - r.left - cv.clientLeft) / cell), Math.floor((e.clientY - r.top - cv.clientTop) / cell)); });
 
@@ -307,7 +309,8 @@ function playFly(ms) {
   flyRaf = requestAnimationFrame(frame);
 }
 $('fly').onclick = () => flyEnd && flyEnd();
-window.addEventListener('keydown', e => { if (flyEnd && (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); flyEnd(); } });
+window.addEventListener('keydown', e => { if (!flyEnd && e.key === 'Escape' && B && sel && !busy) { drop(); refresh(); }
+  if (flyEnd && (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); flyEnd(); } });
 
 // the title screen shows the full hundred from a slow orbiting camera
 const hero = $('hero'), hg = hero.getContext('2d');
