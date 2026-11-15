@@ -48,14 +48,42 @@ Ideas from the owner. Nothing here is built until the owner says go.
   natural 20 for both sides; a crowd that only raises its voice when
   something earns it.
 
-## Sprint 2: more game (not yet built)
+## Sprint 2a: mechanics (built)
 
-- **Doors, traps and locked chests** in quest rooms, so a thief has something
-  to do outside a fight.
-- **Unaware foes and patrols.**
-- **Magic item variety.** Wands, scrolls and potions beyond healing.
-- **Monster abilities.** More foes that grab, charge or call for help, so
-  fights are not all walk up and hit.
+- **Unaware foes and patrols.** Everyone in a quest room starts unaware. A
+  foe notices a hero in plain view within six squares (two for a thief or
+  assassin, three for a ranger) and loses the round it notices in; those it
+  shouts awake lose that round too. Blows on the unwary are at +4, and a
+  thief's is a backstab. Fire, lightning and a forced lid make noise. One or
+  two foes in a room walk a beat.
+- **Traps and locked chests.** Thieves and assassins spot traps from two
+  squares, step over them, and disarm them from the next square. Anyone else
+  who walks over one sets it off: spikes, a snare, or an alarm that wakes the
+  room. A known trap is never walked through by accident; it takes a second
+  tap. Chests: a thief picks the lock quietly, others force it and the noise
+  carries; some have a needle in the lock. Chest gold joins the quest takings.
+- **Potions and wands.** Giant Strength, Speed, Stoneskin and Shadows, from
+  chests, doors and the quartermaster. Wands of Missiles, Webs, Binding and
+  Fire hold charges; only callings with a spellbook can use them. The
+  quartermaster sells one wand a day.
+- **Monster abilities.** Dire wolves, gutter hounds and minotaurs charge: a
+  run of three squares doubles the first blow, and a hero on Guard who meets
+  the charge strikes double instead. Zombies, oozes, bruisers and the clay
+  guardian grab and hold. Wolves, hounds, cutpurses, cultists and apprentices
+  call for help: they rouse the whole room, and when badly hurt may bring one
+  more (two a fight at most).
+
+Open after 2a:
+
+- None of it has been played by hand. The sims still pass, but sneaking,
+  trap damage and chest takings are first guesses.
+- Charge, grab and the wolves' call also apply in The Hundred's arena.
+- Quick fight never drinks the new potions, uses wands, or opens chests.
+- Chests and traps are not shown in the skycam.
+- Foes ignore traps altogether.
+
+## Sprint 2b and after (not yet built)
+
 - **More quest places** (a sewer, a market, a ship).
 - **Balance pass**, after hands-on play.
 - **Summoned reinforcements: done.** A master now calls at most twice
@@ -118,7 +146,5 @@ four rooms with no rest between; the last room holds its master.
 Still open:
 
 - More places (a sewer, a market, a ship).
-- Doors, traps, locked chests and anything for a thief to do outside a fight.
-- Foes start already aware; no sneaking up, no wandering patrols.
 - Quest experience is generous: a party that quests every day reaches about
   level 13 by day 30, against about level 9 without. Needs hands-on tuning.

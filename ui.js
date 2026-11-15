@@ -28,6 +28,7 @@ function help() {
   <p><b>Sieges.</b> Some days the foes come through two, three or all four gates, and the legion starts in a ring at the centre with its toughest callings outermost.</p>
   <p><b>After the games</b> healers spend their unused spells, everyone rests, and spells return. Spend your purse at the quartermaster on arms, armour and potions. Heroes with enough experience must pay to train before they gain a level.</p>
   <p><b>The Six</b> is the same arena with a party of six. Every hero acts by hand in initiative order, carries their own gear, and casters choose their spells each day. A hero cut down is only out of the fight unless the blow was terrible; the truly dead can be raised for a price.</p>
+  <p><b>On a quest</b> the foes in a room have not seen the party. A foe notices a hero who comes within six squares in plain view (two for a thief or assassin, three for a ranger), and loses that round; a blow against the unwary is at +4, and a thief's is a backstab. Noise wakes them: fire, lightning, a forced lid. Thieves and assassins spot traps in the floor from two squares off and can disarm them, and pick the locks on chests; anyone else can force a chest, loudly. Potions of strength, speed, stoneskin and shadows, and wands for those who keep a spellbook, turn up in chests and at the quartermaster.</p>
   <p class="mute">In the legion the dead do not come back. If a day goes badly you may plead for mercy: the survivors live, half your gold is forfeit, and the same foes wait tomorrow.</p>
   <div class="end"><button onclick="closeModal()">Close</button></div>`);
 }
@@ -216,6 +217,11 @@ function draw() {
   if (sel && reach && !mode) { g.fillStyle = 'rgba(60,110,200,.28)'; for (let i = 0; i < reach.d.length; i++) if (reach.d[i] > 0 && reach.d[i] <= sel.mv && !B.grid[i]) g.fillRect((i % B.w) * c + 1, Math.floor(i / B.w) * c + 1, c - 2, c - 2); }
   if (sel && mode && SPELLS[mSpell(mode)] && SPELLS[mSpell(mode)].range) { const r = SPELLS[mSpell(mode)].range; g.fillStyle = 'rgba(160,80,200,.16)'; g.fillRect(Math.max(0, sel.x - r) * c, Math.max(0, sel.y - r) * c, (Math.min(B.w - 1, sel.x + r) - Math.max(0, sel.x - r) + 1) * c, (Math.min(B.h - 1, sel.y + r) - Math.max(0, sel.y - r) + 1) * c); }
   g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (const t of B.traps || []) if (t.found) { const x = (t.x + .5) * c, y = (t.y + .5) * c; g.globalAlpha = t.gone ? .35 : 1; g.fillStyle = '#2a2622'; g.fillRect(x - c * .3, y - c * .3, c * .6, c * .6); g.strokeStyle = t.gone ? '#8a8e96' : '#ff5a4a'; g.lineWidth = 1.5; g.strokeRect(x - c * .3, y - c * .3, c * .6, c * .6);
+    g.fillStyle = t.gone ? '#8a8e96' : '#e8dcc0'; for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j += 2) { g.beginPath(); g.moveTo(x + i * c * .17 - c * .06, y + j * c * .1 + c * .08); g.lineTo(x + i * c * .17, y + j * c * .1 - c * .1); g.lineTo(x + i * c * .17 + c * .06, y + j * c * .1 + c * .08); g.fill(); } g.globalAlpha = 1; }
+  for (const k of B.chests || []) { const x = k.x * c, y = k.y * c; g.fillStyle = 'rgba(20,10,0,.4)'; g.beginPath(); g.ellipse(x + c * .5, y + c * .86, c * .4, c * .1, 0, 0, 7); g.fill();
+    g.fillStyle = '#6a4424'; g.fillRect(x + c * .16, y + c * .46, c * .68, c * .38); g.fillStyle = k.open ? '#1a120c' : '#855a30'; g.fillRect(x + c * .14, y + c * .3, c * .72, c * .18); if (k.open) { g.fillStyle = '#855a30'; g.fillRect(x + c * .14, y + c * .12, c * .72, c * .12); g.fillStyle = '#f0c56a'; g.fillRect(x + c * .3, y + c * .38, c * .4, c * .06); }
+    g.strokeStyle = '#d2aa52'; g.lineWidth = 1.5; g.strokeRect(x + c * .16, y + c * .46, c * .68, c * .38); g.strokeRect(x + c * .14, y + (k.open ? c * .12 : c * .3), c * .72, k.open ? c * .12 : c * .18); if (!k.open) { g.fillStyle = '#d2aa52'; g.fillRect(x + c * .45, y + c * .42, c * .1, c * .14); } }
   let wy = 0; // in a quest room, walls and props are laid down row by row between the figures
   for (const u of B.six ? B.units.slice().sort((a, b) => a.y - b.y) : B.units) {
     if (u.hp <= 0 && !st.ghost.has(u)) continue;
@@ -224,11 +230,12 @@ function draw() {
     if (B.six) { // the party mode shows the figures themselves
       g.fillStyle = 'rgba(40,20,0,.3)'; g.beginPath(); g.ellipse(x, y + c * .36, c * .34, c * .12, 0, 0, 7); g.fill();
       if (u === sel || u.boss) { g.strokeStyle = u === sel ? '#ffe9a0' : '#f0c56a'; g.lineWidth = 2.5; g.beginPath(); g.ellipse(x, y + c * .36, c * .42, c * .16, 0, 0, 7); g.stroke(); }
-      if (u.illusion) g.globalAlpha = .5;
+      if (u.illusion || u.st.hide) g.globalAlpha = .5;
       FIG.draw(g, u.side === 'H' ? u.key || u.cls || 'fighter' : u.mid, x, y + c * .38, c * .7 * (u.boss ? 1.25 : 1), u.side === 'H' ? 1 : -1);
       g.globalAlpha = 1;
       g.fillStyle = '#2a1a14'; g.fillRect(u.x * c + 4, u.y * c + c - 5, c - 8, 4); g.fillStyle = u.side === 'H' ? '#6fd06a' : '#ffb14a'; g.fillRect(u.x * c + 4, u.y * c + c - 5, (c - 8) * Math.max(0, u.hp) / u.max, 4);
       if (u.st.sleep || u.st.stun || u.st.root) { g.fillStyle = u.st.root && !u.st.sleep && !u.st.stun ? '#2f8f3a' : '#fff'; g.font = `700 ${Math.floor(c * .4)}px Georgia,serif`; g.fillText(u.st.sleep ? 'z' : u.st.stun ? '✶' : '#', x + c * .34, y - c * .3); }
+      if (u.una && !u.st.sleep) { g.fillStyle = '#cfd6de'; g.font = `700 ${Math.floor(c * .4)}px Georgia,serif`; g.fillText(u.pat ? '\u2026' : '?', x + c * .34, y - c * .3); }
       if (u.guard) { g.strokeStyle = '#f0c56a'; g.lineWidth = 2; g.beginPath(); g.arc(x, y + c * .36, c * .5, Math.PI * 1.15, Math.PI * 1.85); g.stroke(); }
       hitFlash(g, st, u, x, y, c);
       continue;
@@ -276,20 +283,22 @@ function refresh() {
   $('chips').innerHTML = B.six ? initStrip() : B.cis.map(ci => { const n = hs.filter(u => u.ci === ci).length, co = S.cohorts[ci]; return `<button class="chip ${csel === ci ? 'on' : ''}" onclick="pickCohort(${ci})"><b>${roman(ci + 1)}</b>${mini(ci)} ${n} · ${co.order}</button>`; }).join('');
   let h = '';
   if (sel && sel.hp > 0) {
-    const u = sel, st = [u.st.sleep && 'asleep', u.st.stun && 'held', u.st.root && 'rooted', u.acted && 'has acted'].filter(Boolean).join(', ');
+    const u = sel, st = [u.st.sleep && 'asleep', u.st.stun && 'held', u.st.root && (u.held ? 'grabbed' : 'rooted'), u.st.might && 'giant strength', u.st.haste && 'hasted', u.st.stone && 'stoneskin', u.st.hide && 'in shadow', u.acted && 'has acted'].filter(Boolean).join(', ');
     h += `<div>${fig(u.key || u.cls, 40)}<b>${u.name}</b> · ${CL[u.cls].n} ${u.lvl} · HP ${u.hp}/${u.max} · AC ${u.ac} · THAC0 ${u.thac0}${st ? ' · <span class="mute">' + st + '</span>' : ''}</div>`;
     if (B.phase !== 'deploy' && !u.acted && !stuck(u) && !busy) {
       h += '<div class="row">';
       for (const k in u.sp) if (u.sp[k] > 0) h += `<button class="sm ${mode === k ? 'on' : ''}" onclick="setMode('${k}')">${SPELLS[k].n} ×${u.sp[k]}</button>`;
       if (u.kill) h += `<button class="sm ${mode === 'kill' ? 'on' : ''}" onclick="setMode('kill')">Assassinate</button>`;
       if (S.potions > 0 && u.hp < u.max) h += `<button class="sm" onclick="act(()=>drink(B,sel,S))">Potion (${S.potions})</button>`;
+      if (B.six && S.pots) for (const id in S.pots) if (S.pots[id] > 0 && !u.st[POTS[id].st]) h += `<button class="sm" title="${POTS[id].note}" onclick="act(()=>quaff(B,sel,S,'${id}'))">${POTS[id].n.replace('Potion of ', '')} \u00d7${S.pots[id]}</button>`;
+      if (B.six && S.wands && BOOK[u.cls]) for (const id in S.wands) if (S.wands[id] > 0) h += `<button class="sm ${mode === 'scroll:' + id ? 'on' : ''}" onclick="setMode('scroll:${id}')">${WANDS[id].n} (${S.wands[id]})</button>`;
       h += `${undo && undo.u === u ? '<button class="sm on" onclick="undoMove()">Undo move</button>' : ''}${B.six && S.bag ? Object.keys(S.bag).filter(id => S.bag[id] > 0).map(id => `<button class="sm ${mode === 'scroll:' + id ? 'on' : ''}" onclick="setMode('scroll:${id}')">${SCROLLS[id].n} \u00d7${S.bag[id]}</button>`).join('') : ''}${B.six ? '<button class="sm" title="End the turn ready to strike the first foe who closes in" onclick="act(()=>{sel.guard=true;sel.acted=true})">Guard</button>' : ''}${B.six && !u.delayed && B.order ? '<button class="sm" onclick="delayTurn()">Delay</button>' : `<button class="sm" onclick="act(()=>{sel.acted=true})">${B.six ? 'End turn' : 'Wait'}</button>`}${B.six ? '' : '<button class="sm" onclick="drop();refresh()">Deselect</button>'}</div>`;
     }
   }
   if (insp && insp.hp > 0 && insp.side === 'H' && insp === sel) { /* already shown above */ }
   else if (insp && insp.hp > 0 && insp.side === 'H') h += `<div>${fig(insp.key || insp.cls, 40)}<b>${insp.name}</b> · ${CL[insp.cls].n} ${insp.lvl} · HP ${insp.hp}/${insp.max} · AC ${insp.ac}</div>`;
   else if (insp && insp.hp > 0 && (B.six || !(sel && sel.hp > 0))) {
-    const t = insp, tr = [t.boss && 'champion', t.f.includes('u') && 'undead', t.f.includes('par') && 'paralysing touch', t.f.includes('poi') && 'poison', t.f.includes('reg') && 'regenerates', t.m.breath && 'breathes fire', t.range && 'ranged', t.st.sleep && 'asleep', t.st.stun && 'held', t.st.root && 'rooted'].filter(Boolean).join(', ');
+    const t = insp, tr = [t.boss && 'champion', t.f.includes('u') && 'undead', t.f.includes('par') && 'paralysing touch', t.f.includes('poi') && 'poison', t.f.includes('reg') && 'regenerates', t.m.breath && 'breathes fire', t.range && 'ranged', t.f.includes('rsh') && 'charges', t.f.includes('clt') && 'grabs', t.f.includes('cry') && 'calls for help', t.una && (t.pat ? 'on patrol, unaware' : 'unaware'), t.st.sleep && 'asleep', t.st.stun && 'held', t.st.root && 'rooted'].filter(Boolean).join(', ');
     h += `<div>${fig(t.mid, 40)}<b>${t.name}</b> · ${t.hd} HD · HP ${t.hp}/${t.max} · AC ${t.ac} · THAC0 ${t.thac0}${tr ? ' · <span class="mute">' + tr + '</span>' : ''}</div>`;
   }
   if (cur && cur === insp && cur.side === 'E') { const tt = tipText(cur.x, cur.y).split('<br>')[1]; if (tt) h += `<div class="small">${tt} <span class="mute">(Enter to act)</span></div>`; }
@@ -307,8 +316,9 @@ function refresh() {
   $('bSnd').textContent = SND.label(); $('bLit').textContent = 'Light: ' + ['moody', 'soft', 'bright'][lightLv];
   draw(); saveBattle();
 }
-const THING = { door: 'door', shelf: 'bookshelf', sarc: 'sarcophagus' };
-const mSpell = m => m && m.startsWith('scroll:') ? SCROLLS[m.slice(7)].spell : m; // a scroll is aimed like the spell it holds
+const THING = { door: 'door', shelf: 'bookshelf', sarc: 'sarcophagus', chest: 'chest' };
+let trapTap = null;
+const mSpell = m => m && m.startsWith('scroll:') ? USE(m.slice(7)).spell : m; // a scroll is aimed like the spell it holds
 function drop() { sel = null; reach = null; mode = null; note = ''; }
 // take back a move made by hand, as long as nothing came of it
 function undoMove() { if (!undo || busy || undo.u.acted) return; const u = undo.u; B.grid[idx(B, u.x, u.y)] = null; place(B, u, undo.x, undo.y); u.moved = false; undo = null; pickUnit(u); refresh(); }
@@ -317,7 +327,7 @@ function setOrder(o) { S.cohorts[csel].order = o; refresh(); }
 function setMode(k) {
   if (busy || !sel) return;
   if (k === 'turn') return act(() => cast(B, sel, 'turn'));
-  mode = mode === k ? null : k; note = mode ? 'Choose a target for ' + (k === 'kill' ? 'the blade' : k.startsWith('scroll:') ? 'the ' + SCROLLS[k.slice(7)].n : SPELLS[k].n) + '.' : ''; refresh();
+  mode = mode === k ? null : k; note = mode ? 'Choose a target for ' + (k === 'kill' ? 'the blade' : k.startsWith('scroll:') ? 'the ' + USE(k.slice(7)).n : SPELLS[k].n) + '.' : ''; refresh();
 }
 function act(fn) {
   if (busy || !sel) return;
@@ -335,6 +345,12 @@ function tap(x, y) {
     if (!sel || sel.acted || sel.hp <= 0 || Math.max(Math.abs(sel.x - x), Math.abs(sel.y - y)) > 1) { note = 'A ' + nm + '. A hero standing next to it can try it, as their action.'; return refresh(); }
     let res = null; act(() => { res = interact(B, sel, S, x, y); }); if (res) peek(res); return;
   }
+  const tr = B.phase !== 'deploy' && !mode && sel && !sel.acted && sel.hp > 0 && trapAt(B, x, y); // a trap the party has found
+  if (tr && tr.found) {
+    if (nimble(sel) && dist(sel, tr) <= 1) return act(() => disarm(B, sel, x, y));
+    if (!nimble(sel) && !sel.fly && trapTap !== tr) { trapTap = tr; note = 'A trap. A thief or assassin beside it can disarm it. Tap again to walk onto it and set it off.'; return refresh(); }
+  }
+  trapTap = null;
   let t = at(B, x, y); if (t && t.wall) t = null;
   const u = sel;
   if (B.phase === 'deploy') {
@@ -356,11 +372,11 @@ function tap(x, y) {
     if (reach) {
       let best = -1;
       for (let i = 0; i < reach.d.length; i++) if (reach.d[i] > 0 && reach.d[i] <= u.mv && !B.grid[i] && Math.max(Math.abs(i % B.w - t.x), Math.abs(Math.floor(i / B.w) - t.y)) === 1 && (best < 0 || reach.d[i] < reach.d[best])) best = i;
-      if (best >= 0) return act(() => { if (moveTo(B, u, best % B.w, Math.floor(best / B.w))) heroAttack(B, u, t, false); });
+      if (best >= 0) return act(() => { if (moveTo(B, u, best % B.w, Math.floor(best / B.w)) && dist(u, t) === 1) heroAttack(B, u, t, false); });
     }
     note = 'Out of reach.'; return refresh();
   }
-  if (!t && reach) { const i = idx(B, x, y); if (reach.d[i] > 0 && reach.d[i] <= u.mv) { const hp0 = u.hp, ox = u.x, oy = u.y, opp0 = B.units.filter(e => e.opp).length; return act(() => { if (moveTo(B, u, x, y) && u.hp === hp0 && B.units.filter(e => e.opp).length === opp0) undo = { u, x: ox, y: oy }; }); } }
+  if (!t && reach) { const i = idx(B, x, y); if (reach.d[i] > 0 && reach.d[i] <= u.mv) { const hp0 = u.hp, ox = u.x, oy = u.y, opp0 = B.units.filter(e => e.opp).length, sp0 = B.sprung || 0; return act(() => { if (moveTo(B, u, x, y) && u.hp === hp0 && (B.sprung || 0) === sp0 && B.units.filter(e => e.opp).length === opp0) undo = { u, x: ox, y: oy }; }); } }
   if (!t && !B.six) { drop(); refresh(); }
 }
 cv.addEventListener('click', e => { const r = cv.getBoundingClientRect(); const M = B && !B.room ? 1 : 0; tap(Math.floor((e.clientX - r.left - cv.clientLeft) / cell) - M, Math.floor((e.clientY - r.top - cv.clientTop) / cell) - M); });
@@ -464,12 +480,13 @@ function tipText(x, y) {
   const u = sel && !sel.acted && sel.hp > 0 && B.phase !== 'deploy' ? sel : null, i = idx(B, x, y);
   if (mode && u && SPELLS[mSpell(mode)] && SPELLS[mSpell(mode)].rad != null) { const n = inRad(B, x, y, SPELLS[mSpell(mode)].rad, 'E').length, fr = SPELLS[mSpell(mode)].ff ? inRad(B, x, y, SPELLS[mSpell(mode)].rad, 'H').filter(h => !h.illusion).length : 0; return `<b>${SPELLS[mSpell(mode)].n}</b>: ${n} foe${n === 1 ? '' : 's'} caught${fr ? `, <span class="bad">and ${fr} of your own</span>` : ''}`; }
   if (t && t.side === 'E') {
-    let s = `<b>${t.name}</b> \u00b7 HP ${t.hp}/${t.max} \u00b7 AC ${t.ac}`;
+    let s = `<b>${t.name}</b> \u00b7 HP ${t.hp}/${t.max} \u00b7 AC ${t.ac}${t.una ? ' \u00b7 unaware' : ''}`;
     if (u && !mode) { const d = dist(u, t), how = d === 1 ? 'Strike' : u.range && d <= u.range && los(B, u.x, u.y, t.x, t.y) ? 'Shoot' : reach && [...reach.d].some((dd, k) => dd > 0 && dd <= u.mv && !B.grid[k] && Math.max(Math.abs(k % B.w - t.x), Math.abs(Math.floor(k / B.w) - t.y)) === 1) ? 'Move and strike' : '';
       if (how) { const p = preview(B, u, t, how === 'Shoot'); s += `<br>${how}: <b>${p.pct}%</b> to hit \u00b7 ${p.lo}${p.hi > p.lo ? '\u2013' + p.hi : ''} damage${p.n > 1 ? ', up to ' + p.n + ' blows' : ''}${p.note ? ' \u00b7 ' + p.note : ''}`; } else s += '<br><span class="mute">out of reach</span>'; }
     return s;
   }
   if (t && t.side === 'H') return `<b>${t.name}</b> \u00b7 ${t.illusion ? 'a phantom' : CL[t.cls].n + ' ' + t.lvl} \u00b7 HP ${t.hp}/${t.max} \u00b7 AC ${t.ac}`;
+  { const tr = !mode && trapAt(B, x, y); if (tr && tr.found) return 'A trap in the floor. ' + (u && nimble(u) ? 'Tap it from the next square to disarm it.' : 'A thief or assassin beside it can disarm it; anyone else who steps here sets it off.'); }
   if (u && !mode && reach && reach.d[i] > 0 && reach.d[i] <= u.mv) {
     const leave = u.fly || u.cls === 'thief' || u.cls === 'assassin' ? 0 : B.units.filter(e => e.hp > 0 && e.side === 'E' && !e.opp && !helpless(e) && dist(e, u) === 1 && Math.max(Math.abs(e.x - x), Math.abs(e.y - y)) > 1).length;
     const stop = !u.fly && B.units.some(e => e.hp > 0 && e.side === 'E' && !helpless(e) && Math.max(Math.abs(e.x - x), Math.abs(e.y - y)) === 1);

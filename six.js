@@ -35,7 +35,7 @@ function begin6() { S = newParty(draft); draft = null; save(); camp(); }
 function camp6() {
   B = null; show('camp'); save();
   const bl = billing(S.day, true), alive = living(S), fin = bl.final && !S.ending, heal = healerCanRaise(S);
-  let h = `<div class="bar"><h2>Day ${roman(S.day)}</h2><span>The Six</span><span class="gold">${S.gold} gp</span><span>Potions ${S.potions}</span>${S.dev ? '<span class="gold small">DEV, not saved</span>' : ''}<span class="sp"></span><button class="sm ${S.fly === false ? '' : 'on'}" onclick="S.fly=S.fly===false;camp()">Skycam: ${S.fly === false ? 'off' : 'on'}</button><button class="sm" onclick="this.textContent=(SND.cycle(),SND.label())">${SND.label()}</button><button class="sm" onclick="help()">?</button></div>
+  let h = `<div class="bar"><h2>Day ${roman(S.day)}</h2><span>The Six</span><span class="gold">${S.gold} gp</span><span>Potions ${S.potions}<span class="small mute">${packText()}</span></span>${S.dev ? '<span class="gold small">DEV, not saved</span>' : ''}<span class="sp"></span><button class="sm ${S.fly === false ? '' : 'on'}" onclick="S.fly=S.fly===false;camp()">Skycam: ${S.fly === false ? 'off' : 'on'}</button><button class="sm" onclick="this.textContent=(SND.cycle(),SND.label())">${SND.label()}</button><button class="sm" onclick="help()">?</button></div>
   ${S.ending ? `<div class="card"><span class="gold">${S.ending === 'served' ? 'The Six march under Vhorax now. The games go on while he gathers his strength.' : 'Vhorax is dead and the gates stand open. Those who stay fight for the purse alone.'}</span></div>` : ''}
   <div class="card"><h3>Today's games: ${bl.title}</h3>${dawn(bl)}${fin ? '<p style="margin:2px 0 6px">The Editor of the Games comes down from his box. "Six. I took a hundred and it is six who are worth the keeping. Kneel, and march with me. Or refuse, and I will start again."</p>' : ''}${billingText(bl)}.<br>
   <span class="mute">${bl.sides > 1 ? '<b class="gold">Ambush:</b> they come through two gates. ' : ''}Purse: ${bl.purse} gp.</span>
@@ -93,12 +93,15 @@ function shop6() {
   const line = id => { const it = ITEMS[id]; return `<div class="line"><span class="${it.tier ? 'gold' : ''}">${it.n}</span><span class="small mute">${itemText(it)}</span><span class="sp"></span>${users(it)}<button class="sm" ${S.gold >= it.cost ? '' : 'disabled'} onclick="buy6('${id}')">${it.cost} gp</button></div>`; };
   let h = `<h2>Quartermaster</h2><p class="mute" style="margin:0 0 6px">"Six of you. Fewer mouths, better steel." You have <b class="gold">${S.gold} gp</b>. Purchases go to the stash; wear them from a hero's sheet.</p>
   <div class="line"><span>Healing potion (${S.potions} held)</span><span class="sp"></span><button class="sm" ${S.gold >= 30 ? '' : 'disabled'} onclick="buy6('potion')">30 gp</button></div>
+  ${Object.keys(POTS).map(id => `<div class="line"><span>${POTS[id].n} (${(S.pots || {})[id] || 0} held)</span><span class="small mute">${POTS[id].note}</span><span class="sp"></span><button class="sm" ${S.gold >= POTS[id].cost ? '' : 'disabled'} onclick="buy6('${id}')">${POTS[id].cost} gp</button></div>`).join('')}
+  ${[Object.keys(WANDS)[S.day % 4]].map(id => `<div class="line"><span class="gold">${WANDS[id].n}</span><span class="small mute">${WANDS[id].ch} charges of ${SPELLS[WANDS[id].spell].n}. For those who keep a spellbook. ${(S.wands || {})[id] ? (S.wands[id] + ' charges held.') : ''}</span><span class="sp"></span><button class="sm" ${S.gold >= WANDS[id].cost ? '' : 'disabled'} onclick="buy6('${id}')">${WANDS[id].cost} gp</button></div>`).join('')}
   <div class="line"><b>Rare pieces today</b></div>${st.magic.map(line).join('')}`;
   for (const [s, lab] of [['weapon', 'Weapons'], ['body', 'Armour'], ['off', 'Shields'], ['head', 'Headgear'], ['cloak', 'Cloaks and boots']]) h += `<div class="line"><b>${lab}</b></div>` + st.plain.filter(id => ITEMS[id].slot === s || (s === 'cloak' && ITEMS[id].slot === 'boots')).map(line).join('');
   modal(h + `<div class="end"><button onclick="closeModal();sheet(sheetAt)">Sheets</button><button class="go" onclick="closeModal();camp()">Done</button></div>`); $('mbox').classList.add('wide');
 }
 function buy6(id) {
   if (id === 'potion') { if (S.gold < 30) return; S.gold -= 30; S.potions++; }
+  else if (POTS[id] || WANDS[id]) { const c = (POTS[id] || WANDS[id]).cost; if (S.gold < c) return; S.gold -= c; gain(S, id); }
   else { const it = ITEMS[id]; if (S.gold < it.cost) return; S.gold -= it.cost; S.inv.push(id); }
   SND.play('coin'); save(); const y = $('mbox').scrollTop; shop6(); $('mbox').scrollTop = y;
 }
@@ -119,7 +122,7 @@ async function sixLoop() {
     const u = b.order[b.turn];
     if (u.hp <= 0 || u.acted) { b.turn++; continue; }
     b.lag = 0;
-    if (u.side === 'E') { foeAct(b, u); u.acted = true; b.turn++; refresh(); await wait(); continue; }
+    if (u.side === 'E') { const idle = foeAct(b, u) === 'idle'; u.acted = true; b.turn++; if (idle) continue; refresh(); await wait(); continue; } // the unwary standing still take no time
     if (u.st.sleep || u.st.stun) { skipTurn(b, u); u.acted = true; b.turn++; continue; }
     if (quick) { S.cohorts[0].order = 'attack'; S.cohorts[0].spells = true; heroAct(b, u, S); u.acted = true; b.turn++; refresh(); await wait(); continue; }
     busy = false; u.guard = false; pickUnit(u); refresh(); return; // this hero is yours to command
@@ -145,7 +148,7 @@ function result6(r, left, yielded) {
 function devParty(q) {
   const d = clamp(+q.get('day') || 1, 1, 99), used = {}, s = newParty(['fighter', 'paladin', 'cleric', 'mage', 'thief', 'ranger'].map(cls => { const n = randomName(used); used[n] = 1; return Object.assign({ cls, name: n }, rollStats(cls)); }));
   const lvl = clamp(+q.get('lvl') || 1 + Math.round(d / 3.4), 1, 14), t = clamp(Math.floor(d / 8), 0, 3);
-  s.dev = true; s.day = d; s.gold = 300 + 60 * d; s.potions = 4;
+  s.dev = true; s.day = d; s.gold = 300 + 60 * d; s.potions = 4; s.pots = { pmight: 1, phaste: 1, pstone: 1, phide: 1 }; s.wands = { wdart: 8 };
   for (const h of s.heroes) {
     while (h.lvl < lvl) levelUp(h); h.xp = xpNeed(h.lvl - 1) || 0;
     if (t) for (const sl of ['weapon', 'body', 'off']) { const up = h.eq[sl] + Math.min(t, sl === 'weapon' ? 3 : 2); if (h.eq[sl] && ITEMS[up]) { s.inv.push(up); equip(s, h, up); } }

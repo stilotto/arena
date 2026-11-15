@@ -78,19 +78,35 @@ works and is on `main`. Nothing has had a proper human balance pass.
 - A canvas gradient made before `translate` is in the wrong place afterwards.
 - The first street roofs covered the lower street row; see above.
 - Bump `?v=` on every script tag or phones keep old code.
+- Monster flags are matched with `includes`, so a flag with a `g` or `u` in
+  it makes the foe goblin-kind or undead. (`reg` already makes wererats and
+  trolls count for the ranger's bonus; nobody has ruled on that.)
+- A global function called `alert` would shadow the browser's. Hence `rouse`.
+- A move can now stop short (a trap), so never assume a hero arrived:
+  check the distance before the follow-up blow.
+- A test that leaves the party at the door no longer starts a fight. Call
+  `rouse(B, foe, 99, true)` first.
 
 ## Sprint 2, as agreed
 
-**2a, mechanics**
+**2a, mechanics: built.** `TODO.md` lists what was chosen and what is open.
+How it fits:
 
-- Floor traps and locked chests in quest rooms; thieves find and disarm.
-  Doors, bookshelves and sarcophagi already exist (`thingAt`, `interact`).
-- Unaware foes and patrols: a room's foes start unaware until a hero comes
-  into their line of sight or makes noise. The party gets a free first round
-  against anyone caught unaware. Thieves and rangers are harder to notice.
-- Wands and more kinds of potion. Scrolls exist (`SCROLLS`, `readScroll`,
-  `S.bag`).
-- More monster abilities: grab, charge, call for help.
+- Awareness is `u.una` on a foe. `foeAct` hands an unaware foe to `watch`,
+  which walks its beat (`e.pat`, two squares) and looks. `rouse(b, e, r)`
+  wakes everyone within `r`; the woken get `sur = b.round` and skip that
+  round, unless `ready` is passed (an alarm). `hurt` and a missed `strike`
+  rouse too. `foeAct` returns `'idle'` when nothing happened so the party
+  mode does not pause for it.
+- Traps are `b.traps` (`found`, `gone`), chests `b.chests` (`lock`, `trap`,
+  `open`). Both are plain data saved with the battle. A chest is a `WALL` in
+  the grid but not in `room.cells`, so it blocks feet and not sight.
+  `moveTo` walks the hero's path and stops them on the first trap; `flood`
+  treats a known trap as a dead end for anyone but a thief.
+- Potions are `S.pots` and `POTS` (`quaff`); they set a timer in `u.st` that
+  `endRound` counts down. Wands are `S.wands` (charges) and `WANDS`, and go
+  through `readScroll`, as scrolls do. `gain(S, id)` adds any of them.
+- Monster abilities are flags in `MON[..].f`: `rsh`, `clt`, `cry`.
 
 **2b, places**: the sewer, the market and the ship, all three. Each needs a
 layout in `genRoom`, foes and a master in `PLACES` and `MON`, figures,

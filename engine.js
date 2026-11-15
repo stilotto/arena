@@ -55,7 +55,9 @@ function spellsFor(h) {
 
 /* ---------- foes ---------- */
 // f: g = goblin-kind/giant (ranger bonus), u = undead, par = paralysing touch, poi = poison, reg = regenerates,
-//    fly = ignores zones of control
+//    fly = ignores zones of control, rsh = charges (a run of three squares doubles the first blow),
+//    clt = clutches (a hit can hold a hero in place), cry = calls for help (rouses the room; when hurt, brings one more).
+//    Flags are matched by substring, so a new one must not contain a g or a u.
 const MON = {
   kobold:    { n: 'Kobold',          pl: 'Kobolds',          hd: .5, ac: 7, dmg: [1, 4, 0], mv: 4, cost: 5,   g: 'k', f: 'g' },
   rat:       { n: 'Giant Rat',       pl: 'Giant Rats',       hd: .5, ac: 7, dmg: [1, 3, 0], mv: 6, cost: 4,   g: 'r' },
@@ -63,8 +65,8 @@ const MON = {
   gobarcher: { n: 'Goblin Archer',   pl: 'Goblin Archers',   hd: 1,  ac: 7, dmg: [1, 6, 0], mv: 4, cost: 11,  g: 'a', f: 'g', range: 7 },
   skeleton:  { n: 'Skeleton',        pl: 'Skeletons',        hd: 1,  ac: 7, dmg: [1, 6, 0], mv: 4, cost: 11,  g: 's', f: 'u' },
   orc:       { n: 'Orc',             pl: 'Orcs',             hd: 1,  ac: 6, dmg: [1, 8, 0], mv: 4, cost: 12,  g: 'o', f: 'g' },
-  wolf:      { n: 'Dire Wolf',       pl: 'Dire Wolves',      hd: 2,  ac: 7, dmg: [1, 4, 1], mv: 7, cost: 20,  g: 'w' },
-  zombie:    { n: 'Zombie',          pl: 'Zombies',          hd: 2,  ac: 8, dmg: [1, 8, 0], mv: 3, cost: 20,  g: 'z', f: 'u' },
+  wolf:      { n: 'Dire Wolf',       pl: 'Dire Wolves',      hd: 2,  ac: 7, dmg: [1, 4, 1], mv: 7, cost: 20,  g: 'w', f: 'rsh cry' },
+  zombie:    { n: 'Zombie',          pl: 'Zombies',          hd: 2,  ac: 8, dmg: [1, 8, 0], mv: 3, cost: 20,  g: 'z', f: 'u clt' },
   hobgoblin: { n: 'Hobgoblin',       pl: 'Hobgoblins',       hd: 1.5, ac: 5, dmg: [1, 8, 0], mv: 4, cost: 18, g: 'h', f: 'g' },
   ghoul:     { n: 'Ghoul',           pl: 'Ghouls',           hd: 2,  ac: 6, dmg: [1, 4, 0], att: 2, mv: 5, cost: 40, g: 'G', f: 'u par' },
   spider:    { n: 'Giant Spider',    pl: 'Giant Spiders',    hd: 3,  ac: 5, dmg: [1, 8, 0], mv: 6, cost: 55,  g: 'S', f: 'poi' },
@@ -72,7 +74,7 @@ const MON = {
   ogre:      { n: 'Ogre',            pl: 'Ogres',            hd: 4,  ac: 5, dmg: [1, 10, 0], mv: 4, cost: 75, g: 'O', f: 'g' },
   wight:     { n: 'Barrow Wight',    pl: 'Barrow Wights',    hd: 4,  ac: 5, dmg: [1, 6, 0], mv: 4, cost: 90,  g: 'W', f: 'u par' },
   wraith:    { n: 'Wraith',          pl: 'Wraiths',          hd: 5,  ac: 4, dmg: [1, 6, 1], mv: 6, cost: 140, g: 'X', f: 'u par' },
-  minotaur:  { n: 'Minotaur',        pl: 'Minotaurs',        hd: 6,  ac: 6, dmg: [1, 8, 2], att: 2, mv: 5, cost: 150, g: 'B' },
+  minotaur:  { n: 'Minotaur',        pl: 'Minotaurs',        hd: 6,  ac: 6, dmg: [1, 8, 2], att: 2, mv: 5, cost: 150, g: 'B', f: 'rsh' },
   troll:     { n: 'Troll',           pl: 'Trolls',           hd: 6,  ac: 4, dmg: [1, 6, 2], att: 3, mv: 5, cost: 220, g: 'T', f: 'g reg' },
   giant:     { n: 'Hill Giant',      pl: 'Hill Giants',      hd: 8,  ac: 4, dmg: [2, 8, 0], mv: 5, cost: 280, g: 'H', f: 'g' },
   wyvern:    { n: 'Wyvern',          pl: 'Wyverns',          hd: 7,  ac: 3, dmg: [2, 8, 0], mv: 7, cost: 300, g: 'V', f: 'poi fly' },
@@ -82,21 +84,21 @@ const MON = {
   dragon:    { n: 'Arena Wyrm',      pl: 'Arena Wyrms',      hd: 10, ac: 1, dmg: [1, 10, 2], att: 3, mv: 7, cost: 900, g: 'Z', f: 'fly', breath: [8, 6, 0] },
   // side-quest foes. caster = ranged magic bolt (uses range and dmg)
   thug:      { n: 'Thug',            pl: 'Thugs',            hd: 1,  ac: 7, dmg: [1, 6, 0], mv: 4, cost: 10,  g: 't' },
-  cutpurse:  { n: 'Cutpurse',        pl: 'Cutpurses',        hd: 1,  ac: 6, dmg: [1, 4, 1], mv: 7, cost: 11,  g: 'c' },
+  cutpurse:  { n: 'Cutpurse',        pl: 'Cutpurses',        hd: 1,  ac: 6, dmg: [1, 4, 1], mv: 7, cost: 11,  g: 'c', f: 'cry' },
   slinger:   { n: 'Rooftop Archer',  pl: 'Rooftop Archers',  hd: 1,  ac: 7, dmg: [1, 6, 0], mv: 4, cost: 12,  g: 'a', range: 6 },
-  hound:     { n: 'Gutter Hound',    pl: 'Gutter Hounds',    hd: 1.5, ac: 7, dmg: [1, 6, 0], mv: 7, cost: 16, g: 'd' },
-  bruiser:   { n: 'Bruiser',         pl: 'Bruisers',         hd: 3,  ac: 6, dmg: [1, 8, 1], mv: 4, cost: 45,  g: 'b' },
+  hound:     { n: 'Gutter Hound',    pl: 'Gutter Hounds',    hd: 1.5, ac: 7, dmg: [1, 6, 0], mv: 7, cost: 16, g: 'd', f: 'rsh cry' },
+  bruiser:   { n: 'Bruiser',         pl: 'Bruisers',         hd: 3,  ac: 6, dmg: [1, 8, 1], mv: 4, cost: 45,  g: 'b', f: 'clt' },
   wererat:   { n: 'Wererat',         pl: 'Wererats',         hd: 3,  ac: 6, dmg: [1, 8, 0], mv: 6, cost: 70,  g: 'R', f: 'reg' },
   gangboss:  { n: 'Gang Boss',       pl: 'Gang Bosses',      hd: 5,  ac: 4, dmg: [1, 8, 2], att: 2, mv: 5, cost: 150, g: 'M', summon: ['thug', 2] },
-  cultist:   { n: 'Cultist',         pl: 'Cultists',         hd: 1,  ac: 8, dmg: [1, 4, 0], mv: 4, cost: 9,   g: 'c' },
+  cultist:   { n: 'Cultist',         pl: 'Cultists',         hd: 1,  ac: 8, dmg: [1, 4, 0], mv: 4, cost: 9,   g: 'c', f: 'cry' },
   cultpriest: { n: 'Cult Priest',    pl: 'Cult Priests',     hd: 3,  ac: 7, dmg: [1, 6, 1], mv: 4, cost: 50,  g: 'p', range: 6 },
-  slime:     { n: 'Grey Ooze',       pl: 'Grey Oozes',       hd: 3,  ac: 8, dmg: [2, 4, 0], mv: 2, cost: 40,  g: 'o', f: 'u' },
+  slime:     { n: 'Grey Ooze',       pl: 'Grey Oozes',       hd: 3,  ac: 8, dmg: [2, 4, 0], mv: 2, cost: 40,  g: 'o', f: 'u clt' },
   gargoyle:  { n: 'Gargoyle',        pl: 'Gargoyles',        hd: 4,  ac: 5, dmg: [1, 6, 0], att: 2, mv: 6, cost: 95, g: 'G', f: 'fly' },
   necromancer: { n: 'Necromancer',   pl: 'Necromancers',     hd: 5,  ac: 6, dmg: [1, 8, 0], mv: 4, cost: 170, g: 'N', range: 7, summon: ['skeleton', 2] },
-  apprentice: { n: 'Apprentice',     pl: 'Apprentices',      hd: 2,  ac: 8, dmg: [1, 6, 0], mv: 4, cost: 28,  g: 'a', range: 6 },
+  apprentice: { n: 'Apprentice',     pl: 'Apprentices',      hd: 2,  ac: 8, dmg: [1, 6, 0], mv: 4, cost: 28,  g: 'a', range: 6, f: 'cry' },
   imp:       { n: 'Imp',             pl: 'Imps',             hd: 2,  ac: 4, dmg: [1, 4, 0], mv: 7, cost: 38,  g: 'i', f: 'poi fly' },
   armour:    { n: 'Animated Armour', pl: 'Animated Armours', hd: 3,  ac: 2, dmg: [1, 8, 0], mv: 4, cost: 60,  g: 'A', f: 'u' },
-  golem:     { n: 'Clay Guardian',   pl: 'Clay Guardians',   hd: 7,  ac: 5, dmg: [2, 8, 0], mv: 3, cost: 200, g: 'C', f: 'u' },
+  golem:     { n: 'Clay Guardian',   pl: 'Clay Guardians',   hd: 7,  ac: 5, dmg: [2, 8, 0], mv: 3, cost: 200, g: 'C', f: 'u clt' },
   sorcerer:  { n: 'Sorcerer',        pl: 'Sorcerers',        hd: 6,  ac: 5, dmg: [1, 8, 2], mv: 4, cost: 220, g: 'S', range: 8, summon: ['imp', 2] },
   vhorax:    { n: 'Vhorax',          pl: 'Vhorax',           hd: 16, ac: -2, dmg: [2, 10, 4], att: 3, mv: 6, cost: 1500, g: '@', gaze: 1, summon: ['legionary', 4] }
 };
@@ -214,6 +216,11 @@ const BOLTERS = { cultpriest: 1, necromancer: 1, apprentice: 1, sorcerer: 1 };
 function say(b, s) { b.log.push(s); if (b.log.length > 200) b.log.shift(); }
 function place(b, u, x, y) { u.x = x; u.y = y; b.grid[idx(b, x, y)] = u; }
 function moveTo(b, u, x, y) {
+  let trap = null; const run = dist(u, { x, y });
+  if (b.traps && u.side === 'H' && !u.illusion && !u.fly) { // walk the path: the first trap on it that the hero does not step over stops them there
+    const p = flood(b, u).p, s = idx(b, u.x, u.y), path = []; for (let c = idx(b, x, y); c !== s && c >= 0; c = p[c]) path.unshift(c);
+    for (const c of path) { const cx = c % b.w, cy = (c - cx) / b.w; spot(b, u, cx, cy); const t = trapAt(b, cx, cy); if (t && !(t.found && nimble(u)) && !b.grid[c]) { trap = t; x = cx; y = cy; break; } }
+  }
   if (!u.fly && u.cls !== 'thief' && u.cls !== 'assassin') for (const e of b.units) { // free blows from foes left behind
     if (e.hp <= 0 || e.side === u.side || e.illusion || e.opp || helpless(e) || dist(e, u) !== 1 || Math.max(Math.abs(e.x - x), Math.abs(e.y - y)) <= 1) continue;
     e.opp = true; strike(b, e, u, e.side === 'H' ? e.wd || CL[e.cls].dmg : e.m.dmg, { bonus: 2 });
@@ -223,8 +230,9 @@ function moveTo(b, u, x, y) {
   for (const e of b.units) { // anyone standing guard strikes the first enemy to close with them
     if (!e.guard || e.hp <= 0 || e.side === u.side || helpless(e) || dist(e, u) !== 1) continue;
     e.guard = false; if (b.six) say(b, e.name + ' was on guard, and strikes as ' + who(u) + ' closes in.');
-    strike(b, e, u, e.side === 'H' ? e.wd || CL[e.cls].dmg : e.m.dmg, { bonus: 2 }); if (u.hp <= 0) return false;
+    strike(b, e, u, e.side === 'H' ? e.wd || CL[e.cls].dmg : e.m.dmg, { bonus: 2, mult: run >= 3 && u.f && u.f.includes('rsh') ? 2 : 1 }); if (u.hp <= 0) return false; // set against a charge
   }
+  if (trap) { spring(b, u, trap); if (u.hp <= 0) return false; }
   return true;
 }
 
@@ -327,7 +335,7 @@ function checkOver(b) {
 
 // Zone of control: a square next to an active enemy. Entering one ends the move, and
 // walking out of an enemy's reach gives that enemy a free blow. Fliers ignore both.
-const helpless = u => u.st.sleep || u.st.stun;
+const helpless = u => u.st.sleep || u.st.stun || u.una;
 function zocMask(b, u) {
   const Z = new Uint8Array(b.w * b.h);
   for (const e of b.units) {
@@ -339,10 +347,12 @@ function zocMask(b, u) {
 function flood(b, u) {
   const n = b.w * b.h, d = new Int16Array(n).fill(-1), p = new Int32Array(n).fill(-1), q = [idx(b, u.x, u.y)];
   const Z = u.fly ? null : zocMask(b, u);
+  let T = null; // a trap the party knows of is never walked through, only onto. Thieves step over.
+  if (b.traps && u.side === 'H' && !u.fly && !nimble(u)) for (const t of b.traps) if (t.found && !t.gone) (T = T || new Uint8Array(n))[idx(b, t.x, t.y)] = 1;
   d[q[0]] = 0;
   for (let i = 0; i < q.length; i++) {
     const c = q[i], cx = c % b.w, cy = (c - cx) / b.w;
-    if (Z && i && Z[c]) continue;
+    if (i && ((Z && Z[c]) || (T && T[c]))) continue;
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
       if (!dx && !dy) continue;
       const x = cx + dx, y = cy + dy; if (!inb(b, x, y)) continue;
@@ -360,10 +370,12 @@ function approach(b, u, reach) {
   for (const f of fs) for (let y = Math.max(0, f.y - reach); y <= Math.min(b.h - 1, f.y + reach); y++) for (let x = Math.max(0, f.x - reach); x <= Math.min(b.w - 1, f.x + reach); x++) if (reach < 2 || los(b, x, y, f.x, f.y)) G[idx(b, x, y)] = 1;
   const s = idx(b, u.x, u.y); if (G[s]) return;
   const { d, p, q } = flood(b, u); let tg = -1;
-  for (const c of q) if (G[c] && !b.grid[c]) { tg = c; break; }
+  const known = c => { const t = u.side === 'H' && !nimble(u) && trapAt(b, c % b.w, Math.floor(c / b.w)); return t && t.found; }; // a hero on orders keeps off a known trap while there is anywhere else to go
+  for (const c of q) if (G[c] && !b.grid[c] && !known(c)) { tg = c; break; }
   if (tg < 0) {
     let bs = dist(u, nearest(u, fs));
-    for (const c of q) { if (d[c] > u.mv) break; if (b.grid[c]) continue; const cx = c % b.w, o = { x: cx, y: (c - cx) / b.w }, k = dist(o, nearest(o, fs)); if (k < bs) { bs = k; tg = c; } }
+    for (const c of q) { if (d[c] > u.mv) break; if (b.grid[c] || known(c)) continue; const cx = c % b.w, o = { x: cx, y: (c - cx) / b.w }, k = dist(o, nearest(o, fs)); if (k < bs) { bs = k; tg = c; } }
+    if (tg < 0) for (const c of q) if (c !== s && d[c] <= u.mv && !b.grid[c] && known(c)) { tg = c; break; } // nowhere else: through the trap
     if (tg < 0) return;
   }
   let c = tg; while (c !== s && (d[c] > u.mv || b.grid[c])) c = p[c];
@@ -378,6 +390,7 @@ function flee(b, u) {
 
 function kill(b, t, src) {
   const was = t.hp; t.hp = 0; b.grid[idx(b, t.x, t.y)] = null; fx(b, { k: 'die', a: [t.x, t.y], u: t });
+  for (const h of b.units) if (h.held === t.id) { delete h.held; delete h.st.root; }
   if (t.illusion) return;
   // The Six: a hero cut down is only out of the fight unless the blow was a terrible one. Win, and they get up again.
   if (t.side === 'H' && b.six && was > -10) { t.down = true; say(b, t.name + ' is down.'); }
@@ -385,7 +398,7 @@ function kill(b, t, src) {
   else { b.xp += Math.round(t.m.cost * TUNE.xp * (t.boss ? 3 : 1)); b.gold += Math.ceil(t.m.cost / 4) * (t.boss ? 4 : 1); if (src && src.h) { src.h.kills++; if (t.boss) src.h.trophies = (src.h.trophies || []).concat([t.name]); } if (t.boss) say(b, t.name + ' is slain by ' + (src ? src.name : 'the legion') + '!'); }
 }
 function hurt(b, t, dm, src, col, crit) {
-  dm = Math.max(1, Math.round(dm)); t.hp -= dm; delete t.st.sleep;
+  dm = Math.max(1, Math.round(dm)); t.hp -= dm; delete t.st.sleep; if (t.una) rouse(b, t, 5);
   fx(b, { k: 'txt', a: [t.x, t.y], s: dm + (crit ? '!' : ''), c: crit ? '#ffd86a' : col || (t.side === 'H' ? '#ff5a4a' : '#fff'), big: crit ? 1 : 0, side: t.side });
   if (t.hp <= 0) kill(b, t, src);
 }
@@ -394,10 +407,10 @@ function strike(b, a, t, dmg, o) {
   o = o || {}; const ev = { k: o.ranged ? 'shot' : 'slash', a: [a.x, a.y], b: [t.x, t.y], side: a.side, hit: false, w: !o.ranged ? a.cls || a.mid : BOLTERS[a.mid] ? 'bolt' : a.cls === 'mage' || a.cls === 'illusionist' ? 'dart' : 'arrow', lag: o.ranged ? Math.min(520, 110 + Math.hypot(a.x - t.x, a.y - t.y) * 36) : 120 };
   fx(b, ev);
   if (t.illusion) { if (ri(20) >= 12) { kill(b, t); fx(b, { k: 'txt', a: [t.x, t.y], s: 'poof', c: '#c77be0' }); } return false; }
-  const roll = ri(20), need = a.thac0 - t.ac - (t.st.stun ? 4 : 0) - (o.bonus || 0) - (a.st.bless ? 1 : 0);
-  if (!(t.st.sleep || roll === 20 || (roll !== 1 && roll >= need))) { if (b.six) say(b, who(a) + ' misses ' + who(t) + '.'); return false; }
+  const roll = ri(20), need = a.thac0 - t.ac - (t.st.stun ? 4 : 0) - (o.bonus || 0) - (a.st.bless ? 1 : 0) - (t.una ? 4 : 0) - (a.st.might ? 1 : 0) + (t.st.stone ? 4 : 0);
+  if (!(t.st.sleep || roll === 20 || (roll !== 1 && roll >= need))) { if (b.six) say(b, who(a) + ' misses ' + who(t) + '.'); if (t.una) rouse(b, t, 5); return false; }
   const nat = roll === 20; // a natural 20 is a critical hit: the damage dice are rolled twice
-  let dm = (dice(dmg) + (nat ? dice(dmg) : 0) + (a.db || 0) + (o.plus || 0)) * (o.mult || 1); if (t.st.sleep) dm *= 2;
+  let dm = (dice(dmg) + (nat ? dice(dmg) : 0) + (a.db || 0) + (o.plus || 0) + (a.st.might ? 3 : 0)) * (o.mult || 1); if (t.st.sleep) dm *= 2;
   if (b.six || nat && (a.boss || t.boss)) say(b, who(a) + (nat ? ' lands a critical blow on ' : ' hits ') + who(t) + ' for ' + Math.max(1, Math.round(dm)) + '.');
   ev.hit = true; ev.nat = nat; hurt(b, t, dm, a, null, nat); return true;
 }
@@ -412,15 +425,47 @@ function los(b, x0, y0, x1, y1) {
 const inShot = (b, a, t) => dist(a, t) <= a.range && los(b, a.x, a.y, t.x, t.y);
 const flanked = (b, t, a) => b.units.some(x => x.hp > 0 && x.side === a.side && x !== a && dist(x, t) === 1);
 
+/* ---------- the unaware, the watchful, and what brings help ---------- */
+const nimble = u => u.cls === 'thief' || u.cls === 'assassin';
+// How close a hero can come before an unwary foe with a clear view notices. Thieves, assassins and rangers move quietly.
+const sightOf = h => h.st.hide ? 0 : nimble(h) ? 2 : h.cls === 'ranger' ? 3 : 6;
+// Whoever is roused loses the round they are roused in, unless they were given fair warning (ready).
+function rouse(b, e, r, ready) {
+  for (const x of b.units) if (x.una && x.hp > 0 && (x === e || dist(x, e) <= r)) { x.una = false; if (!ready) x.sur = b.round; fx(b, { k: 'txt', a: [x.x, x.y], s: '!', c: '#ffb14a' }); }
+}
+function stepTo(b, u, tx, ty, n) { // walk up to n squares towards a square
+  const { d, p } = flood(b, u), s = idx(b, u.x, u.y); let c = idx(b, tx, ty); if (d[c] < 0) return false;
+  while (c !== s && c >= 0 && (d[c] > n || b.grid[c])) c = p[c];
+  return c !== s && c >= 0 && moveTo(b, u, c % b.w, Math.floor(c / b.w));
+}
+// An unwary foe's turn: walk its beat if it has one, and look about. Noticing costs it the turn.
+function watch(b, e) {
+  const sees = () => b.units.find(h => h.side === 'H' && h.hp > 0 && dist(e, h) <= sightOf(h) && los(b, e.x, e.y, h.x, h.y));
+  let h = sees(), out = 'idle';
+  if (!h && e.pat) { const t = e.pat[e.pi || 0]; if ((e.x === t[0] && e.y === t[1]) || !stepTo(b, e, t[0], t[1], 2)) e.pi = 1 - (e.pi || 0); else out = 'walk'; if (e.hp <= 0 || !e.una) return; h = sees(); }
+  if (!h) return out;
+  const cry = e.f.includes('cry');
+  say(b, (e.boss ? e.name : 'The ' + e.name) + ' notices ' + h.name + (cry ? ' and raises the alarm.' : '.')); rouse(b, e, cry ? 99 : 5);
+}
+// A new foe steps in: through its gate in the arena, or at the free square nearest a point.
+function arrive(b, mid, dir, near) {
+  let spot = null;
+  if (dir && dir !== 'Q') for (let j = 0; j < 12 && !spot; j++) { const o = Math.ceil(j / 2) * (j % 2 ? 1 : -1), x = dir === 'E' ? b.w - 1 : dir === 'W' ? 0 : Math.floor(b.w / 2) + o, y = dir === 'N' ? 0 : dir === 'S' ? b.h - 1 : Math.floor(b.h / 2) + o; if (inb(b, x, y) && !at(b, x, y)) spot = [x, y]; }
+  else for (let d = 1; d <= 4 && !spot; d++) for (let y = near.y - d; y <= near.y + d && !spot; y++) for (let x = near.x - d; x <= near.x + d; x++) if (inb(b, x, y) && !at(b, x, y)) { spot = [x, y]; break; }
+  if (!spot) return null;
+  const nu = foeUnit(mid, b.nid++, false, null, b.bl.vet); nu.door = dir; nu.acted = true; b.units.push(nu); place(b, nu, spot[0], spot[1]); burst(b, spot[0], spot[1], 0, '#ff7828'); return nu;
+}
+
 function heroAttack(b, u, t, ranged) {
   const c = CL[u.cls], L = u.lvl; let n = 1, o = {};
   if (ranged) { o.ranged = true; if (u.cls === 'ranger' && L >= 5) n = 2; }
   else if (u.cls === 'fighter' && t.hd < 1) n = L;
   else if ((u.cls === 'fighter' || u.cls === 'paladin' || u.cls === 'ranger') && L >= 7) n = 2;
   else if (u.cls === 'monk' && L >= 3) n = 2;
+  if (u.st.haste) n++;
   if (u.cls === 'ranger' && t.f && t.f.includes('g')) o.plus = L;
   if (u.cls === 'monk') o.plus = Math.floor(L / 2);
-  if (!ranged && (u.cls === 'thief' || u.cls === 'assassin') && flanked(b, t, u)) o.mult = L < 5 ? 2 : L < 9 ? 3 : 4;
+  if (!ranged && nimble(u) && (flanked(b, t, u) || t.una)) o.mult = L < 5 ? 2 : L < 9 ? 3 : 4; // a foe who has not noticed the blade is as good as flanked
   if (u.bane && t.f && t.f.includes(u.bane)) o.mult = (o.mult || 1) * 2;
   for (let i = 0; i < n; i++) {
     if (t.hp <= 0) { // a fighter's sweep carries on to the next weak foe in reach
@@ -434,8 +479,9 @@ function heroAttack(b, u, t, ranged) {
 }
 function assassinate(b, u, t) {
   u.kill = 0; u.acted = true;
-  const ch = clamp(40 + 5 * u.lvl - 6 * t.hd, 5, 90);
+  const ch = clamp(40 + 5 * u.lvl - 6 * t.hd + (t.una ? 25 : 0), 5, 95);
   fx(b, { k: 'slash', a: [u.x, u.y], b: [t.x, t.y], side: 'H', hit: true, w: 'assassin', crit: 1, lag: 140 });
+  if (t.una) rouse(b, t, 5);
   if (!t.boss && !t.illusion && ri(100) <= ch) { say(b, u.name + ' assassinates a ' + t.name + '.'); fx(b, { k: 'txt', a: [t.x, t.y], s: 'slain', c: '#fff' }); kill(b, t, u); return true; }
   return false;
 }
@@ -463,7 +509,7 @@ function cast(b, u, id, x, y) {
     }
     case 'missile': { const n = 1 + Math.floor((L - 1) / 2); fx(b, { k: 'line', a: [u.x, u.y], b: [x, y], c: '#9fd0ff' }); hurt(b, t, dice([n, 4, n]), u, '#9fd0ff'); break; }
     case 'fireball': {
-      burst(b, x, y, 2, '#ff9a3a'); let n = 0;
+      burst(b, x, y, 2, '#ff9a3a'); let n = 0; rouse(b, { x, y }, 7);
       for (const f of inRad(b, x, y, 2)) { let dm = dice([L, 6, 0]); if (ri(20) + (f.side === 'E' ? f.hd : f.lvl + 2) >= 16) dm /= 2; hurt(b, f, dm, u, '#ffb060'); n++; }
       say(b, u.name + ' hurls a Fireball: ' + n + ' caught in the blast.'); break;
     }
@@ -480,7 +526,7 @@ function cast(b, u, id, x, y) {
     case 'bless': { burst(b, u.x, u.y, 2, '#fffbe0'); for (const a of inRad(b, u.x, u.y, 2, 'H')) a.st.bless = 1; say(b, u.name + ' blesses the party.'); break; }
     case 'hold': { fx(b, { k: 'line', a: [u.x, u.y], b: [x, y], c: '#fffbe0' }); if (!t.boss && t.hd <= L + 3 && !t.f.includes('u')) { t.st.stun = ri(4) + 1; fx(b, { k: 'txt', a: [x, y], s: 'held', c: '#fffbe0' }); say(b, u.name + ' holds a ' + t.name + ' fast.'); } else say(b, 'The ' + t.name + ' shrugs off the spell.'); break; }
     case 'entangle': { burst(b, x, y, 1, '#5fbf6a'); for (const f of inRad(b, x, y, 1, 'E')) f.st.root = f.boss ? 1 : ri(3) + 2; say(b, u.name + ' casts Entangle.'); break; }
-    case 'lightning': { burst(b, x, y, 1, '#e8f6ff'); for (const f of inRad(b, x, y, 1, 'E')) { let dm = dice([3, 8, L]); if (ri(20) + f.hd >= 16) dm /= 2; hurt(b, f, dm, u, '#cfeaff'); } say(b, u.name + ' calls down lightning.'); break; }
+    case 'lightning': { burst(b, x, y, 1, '#e8f6ff'); rouse(b, { x, y }, 7); for (const f of inRad(b, x, y, 1, 'E')) { let dm = dice([3, 8, L]); if (ri(20) + f.hd >= 16) dm /= 2; hurt(b, f, dm, u, '#cfeaff'); } say(b, u.name + ' calls down lightning.'); break; }
   }
   return true;
 }
@@ -579,9 +625,15 @@ function heroAct(b, u, S) {
 function foeAct(b, e) {
   if (e.hp <= 0) return;
   if (skipTurn(b, e)) return;
+  if (e.una) return watch(b, e);
+  if (e.sur === b.round) return 'idle'; // caught unaware: the party has this round free
   const rooted = e.st.root; if (rooted && !--e.st.root) delete e.st.root;
   let hs = foesOf(b, e); if (!hs.length) return;
   const m = e.m;
+  if (e.f.includes('cry') && !e.cried && e.hp <= e.max / 2 && (b.cries || 0) < 2 && ri(100) <= 60) { // hurt, it calls one more of its kind
+    e.cried = 1; const nu = arrive(b, e.mid, e.door, e);
+    if (nu) { b.cries = (b.cries || 0) + 1; fx(b, { k: 'txt', a: [e.x, e.y], s: 'help!', c: '#ffb14a' }); say(b, (e.mid === 'wolf' || e.mid === 'hound' ? 'The ' + e.name + ' howls' : 'The ' + e.name + ' calls for help') + ', and another ' + e.name + ' comes.'); return; }
+  }
   if (m.breath && e.cd <= 0) {
     let best = null, bs = 1;
     for (const h of hs) { if (dist(e, h) > 6) continue; const n = inRad(b, h.x, h.y, 1, 'H').length; if (n > bs) { bs = n; best = h; } }
@@ -613,14 +665,19 @@ function foeAct(b, e) {
     }
     if (k) say(b, b.quest ? e.name + ' calls for help: ' + k + ' more come.' : e.name + ' calls ' + k + ' more of the Ashen Legion through the gates.');
   }
+  const ox = e.x, oy = e.y;
   if (!rooted && !(reach > 1 ? hs.some(h => inShot(b, e, h)) : dist(e, nearest(e, hs)) <= 1)) approach(b, e, reach);
   if (e.hp <= 0) return;
+  let ran = e.f.includes('rsh') && Math.max(Math.abs(e.x - ox), Math.abs(e.y - oy)) >= 3;
   for (let i = 0; i < (m.att || 1); i++) {
     hs = foesOf(b, e);
     const adj = hs.filter(h => dist(e, h) === 1); let t = adj.find(h => h.illusion) || adj[ri(adj.length) - 1], ranged = false;
-    if (!t && e.range) { t = nearest(e, hs.filter(h => inShot(b, e, h))); ranged = true; }
+    if (!t && e.range) { t = nearest(e, hs.filter(h => inShot(b, e, h) && !h.st.hide)); ranged = true; }
     if (!t) break;
-    if (strike(b, e, t, m.dmg, { ranged }) && t.hp > 0 && !t.illusion) {
+    const o = { ranged, bonus: t.held === e.id && t.st.root ? 4 : 0 };
+    if (ran && !ranged) { ran = false; o.bonus += 2; o.mult = 2; fx(b, { k: 'txt', a: [e.x, e.y], s: 'charge', c: '#ffb14a' }); if (b.six) say(b, 'The ' + e.name + ' charges ' + t.name + '.'); }
+    if (strike(b, e, t, m.dmg, o) && t.hp > 0 && !t.illusion) {
+      if (e.f.includes('clt') && !t.st.root && !t.fly && ri(20) + t.lvl < 14) { t.st.root = 2; t.held = e.id; fx(b, { k: 'txt', a: [t.x, t.y], s: 'grabbed', c: '#ffb14a' }); if (b.six) say(b, 'The ' + e.name + ' has hold of ' + t.name + '.'); }
       if (e.f.includes('par') && ri(20) + t.lvl < 13) { t.st.stun = ri(2) + 1; fx(b, { k: 'txt', a: [t.x, t.y], s: 'held', c: '#b9f' }); }
       if (e.f.includes('poi') && ri(20) + t.lvl < 12) hurt(b, t, ri(6), e, '#9be36a');
     }
@@ -632,6 +689,7 @@ function endRound(b) {
     if (u.hp <= 0) continue;
     u.acted = false; u.moved = false; u.opp = false; u.delayed = false;
     if (u.illusion) { u.acted = true; if (--u.fade <= 0) kill(b, u); continue; }
+    for (const k of ['might', 'haste', 'stone', 'hide']) if (u.st[k] && !--u.st[k]) { delete u.st[k]; if (k === 'haste') u.mv -= 3; }
     if (u.regen && u.hp < u.max) u.hp = Math.min(u.max, u.hp + u.regen);
     if (u.side === 'E') { if (u.cd > 0) u.cd--; if (u.f.includes('reg') && u.hp < u.max) u.hp = Math.min(u.max, u.hp + 3); }
   }
@@ -930,13 +988,28 @@ function startRoom(S) {
   for (const mid of [av[ri(Math.min(2, av.length)) - 1], av[ri(av.length) - 1]]) cnt[mid] = (cnt[mid] || 0) + clamp(Math.round(want * .5 / MON[mid].cost), 1, 4);
   for (const mid in cnt) for (let i = 0; i < cnt[mid]; i++) es.push(foeUnit(mid, id++, false, null, vet));
   for (let i = R.spawn.length - 1; i > 0; i--) { const j = ri(i + 1) - 1, t = R.spawn[i]; R.spawn[i] = R.spawn[j]; R.spawn[j] = t; }
+  { const far = R.spawn.filter(c => R.entry.every(e => Math.max(Math.abs(e[0] - c[0]), Math.abs(e[1] - c[1])) >= 7)); if (far.length >= es.length + 8) R.spawn = far; } // out of sight of the door, where the room allows
   es.forEach((e, i) => place(b, e, R.spawn[i][0], R.spawn[i][1]));
-  if (last) { const boss = foeUnit(P.boss, id++, true, P.bn, vet * (d < 6 ? .55 : d < 12 ? .8 : 1), 1.2); place(b, boss, R.bossAt[0], R.bossAt[1]); es.unshift(boss); }
+  // Nobody in the room knows the party is there yet. One or two walk a beat.
+  let beats = 0; const rest = R.spawn.slice(es.length);
+  for (const e of es) { e.una = true; if (!e.range && beats < 2 && ri(3) === 1) { const to = rest.find(c => { const k = Math.max(Math.abs(c[0] - e.x), Math.abs(c[1] - e.y)); return k >= 4 && k <= 9; }); if (to) { e.pat = [to, [e.x, e.y]]; beats++; } } }
+  // Traps in the floor and a chest or two. Both are saved with the battle, so a resumed room keeps them.
+  b.traps = []; b.chests = [];
+  const open = () => { const seen = new Uint8Array(b.w * b.h), qu = [R.door[1] * b.w + R.door[0]]; seen[qu[0]] = 1; for (let i = 0; i < qu.length; i++) { const cx = qu[i] % b.w, cy = (qu[i] - cx) / b.w; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const x = cx + dx, y = cy + dy, k = y * b.w + x; if (inb(b, x, y) && !seen[k] && b.grid[k] !== WALL) { seen[k] = 1; qu.push(k); } } } return qu.length; };
+  const total = open(), isBossAt = (x, y) => x === R.bossAt[0] && y === R.bossAt[1];
+  for (let i = rest.length - 1, n = (last || ri(100) <= 65 ? 1 : 0) + (ri(100) <= 20 ? 1 : 0); i >= 0 && n > 0; i--) { // a chest must not wall anything off
+    const [x, y] = rest[i]; if (at(b, x, y) || isBossAt(x, y) || ![[1, 0], [-1, 0], [0, 1], [0, -1]].some(d => R.cells[(y + d[1]) * b.w + x + d[0]] === 1)) continue;
+    b.grid[idx(b, x, y)] = WALL; if (open() !== total - 1) { b.grid[idx(b, x, y)] = null; continue; }
+    b.chests.push({ x, y, lock: ri(100) <= 70, trap: ri(100) <= 30 }); n--;
+  }
+  for (let i = 0, n = ri(3) - 1 + (q.room >= 2 ? 1 : 0); i < rest.length && n > 0; i++) { const [x, y] = rest[i]; if (at(b, x, y) || isBossAt(x, y)) continue; b.traps.push({ x, y, k: ['spike', 'spike', 'snare', 'alarm'][ri(4) - 1] }); n--; }
+  if (last) { const boss = foeUnit(P.boss, id++, true, P.bn, vet * (d < 6 ? .55 : d < 12 ? .8 : 1), 1.2); place(b, boss, R.bossAt[0], R.bossAt[1]); boss.una = true; es.unshift(boss); }
   b.bl = { title: P.n + ': ' + R.name, foes: Object.keys(cnt).map(k => ({ id: k, count: cnt[k] })), boss: last ? P.boss : null, bn: P.bn, purse: 0, sides: 1, vet, six: true };
   const xs = R.entry.map(e => e[0]), ys = R.entry.map(e => e[1]);
   b.zone = { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) };
   b.units = hs.concat(es); b.nid = id;
-  say(b, P.n + ', ' + R.name + ': ' + billingText(b.bl) + '.');
+  say(b, P.n + ', ' + R.name + ': ' + billingText(b.bl) + '. They have not seen you yet.');
+  for (const u of hs) spot(b, u, u.x, u.y);
   return b;
 }
 // Settle one room. Wounds and spent spells carry into the next; the downed get back up at 1 hit point.
@@ -981,13 +1054,80 @@ function beginQuest(S, place) { S.quest = { place, room: 0, gold: 0, loot: [], s
 /* ---------- one-use scrolls, and the doors they are found behind ---------- */
 const SCROLLS = { sfire: { n: 'Scroll of Fire', spell: 'fireball' }, ssleep: { n: 'Scroll of Slumber', spell: 'sleep' }, smend: { n: 'Scroll of Mending', spell: 'cure' }, sbolt: { n: 'Scroll of Lightning', spell: 'lightning' } };
 // Anyone can read a scroll. It casts as a 5th-level caster would, or better if the reader is.
+// A wand holds charges of one spell. Only those who keep a spellbook can use one; it casts as a 6th-level caster would.
+const WANDS = { wdart: { n: 'Wand of Missiles', spell: 'missile', ch: 8, cost: 350 }, wweb: { n: 'Wand of Webs', spell: 'web', ch: 5, cost: 400 }, whold: { n: 'Wand of Binding', spell: 'hold', ch: 5, cost: 450 }, wfire: { n: 'Wand of Fire', spell: 'fireball', ch: 3, cost: 700 } };
+// Potions beyond healing. Drinking one is the hero's action; t is how many rounds it lasts.
+const POTS = { pmight: { n: 'Potion of Giant Strength', st: 'might', t: 5, cost: 70, note: '+1 to hit and +3 damage for five rounds.' }, phaste: { n: 'Potion of Speed', st: 'haste', t: 4, cost: 90, note: 'Three more squares and one more blow, for four rounds.' },
+  pstone: { n: 'Potion of Stoneskin', st: 'stone', t: 5, cost: 80, note: 'Four points harder to hit for five rounds.' }, phide: { n: 'Potion of Shadows', st: 'hide', t: 5, cost: 80, note: 'For five rounds the unwary cannot notice the drinker, and archers cannot pick them out.' } };
+const USE = id => SCROLLS[id] || WANDS[id];
+function quaff(b, u, S, id) {
+  const p = POTS[id]; if (!p || !S.pots || !(S.pots[id] > 0) || u.acted || u.st[p.st]) return false;
+  S.pots[id]--; u.acted = true; u.st[p.st] = p.t + 1; if (p.st === 'haste') u.mv += 3;
+  fx(b, { k: 'txt', a: [u.x, u.y], s: p.st === 'might' ? 'strength' : p.st === 'haste' ? 'speed' : p.st === 'stone' ? 'stoneskin' : 'shadows', c: '#9fd0ff' }); say(b, u.name + ' drinks a ' + p.n + '.'); return true;
+}
+// Put a scroll, potion or wand in the party's pack. Returns what it is called.
+function gain(S, id) {
+  if (id === 'potion') { S.potions++; return 'healing potion'; }
+  if (POTS[id]) { S.pots = S.pots || {}; S.pots[id] = (S.pots[id] || 0) + 1; return POTS[id].n; }
+  if (WANDS[id]) { S.wands = S.wands || {}; S.wands[id] = (S.wands[id] || 0) + WANDS[id].ch; return WANDS[id].n; }
+  S.bag = S.bag || {}; S.bag[id] = (S.bag[id] || 0) + 1; return SCROLLS[id].n;
+}
+const anyOf = o => { const k = Object.keys(o); return k[ri(k.length) - 1]; };
 function readScroll(b, u, S, id, x, y) {
-  const sc = SCROLLS[id]; if (!sc || !S.bag || !(S.bag[id] > 0) || u.acted) return false;
-  const had = u.sp[sc.spell], lv = u.lvl; u.sp[sc.spell] = (had || 0) + 1; u.lvl = Math.max(lv, 5);
+  const sc = USE(id), store = SCROLLS[id] ? S.bag : S.wands; if (!sc || !store || !(store[id] > 0) || u.acted || (WANDS[id] && !BOOK[u.cls])) return false;
+  const had = u.sp[sc.spell], lv = u.lvl; u.sp[sc.spell] = (had || 0) + 1; u.lvl = Math.max(lv, WANDS[id] ? 6 : 5);
   const ok = cast(b, u, sc.spell, x, y); u.lvl = lv;
   if (!ok) { if (had == null) delete u.sp[sc.spell]; else u.sp[sc.spell] = had; return false; }
   if (had == null && !u.sp[sc.spell]) delete u.sp[sc.spell];
-  S.bag[id]--; return true;
+  store[id]--; return true;
+}
+
+/* ---------- traps in the floor, and locked chests ---------- */
+const trapAt = (b, x, y) => b.traps ? b.traps.find(t => t.x === x && t.y === y && !t.gone) : null;
+// A thief or assassin gets one look at each trap that comes within two squares.
+function spot(b, u, x, y) {
+  if (!b.traps || !nimble(u)) return;
+  for (const t of b.traps) {
+    if (t.found || t.gone || Math.max(Math.abs(t.x - x), Math.abs(t.y - y)) > 2 || !los(b, x, y, t.x, t.y) || (t.tried || (t.tried = {}))[u.id]) continue;
+    t.tried[u.id] = 1;
+    if (ri(100) <= clamp((u.cls === 'thief' ? 55 : 40) + 5 * u.lvl, 5, 95)) { t.found = true; fx(b, { k: 'txt', a: [t.x, t.y], s: 'trap', c: '#ffd86a' }); say(b, u.name + ' spots a trap in the floor.'); }
+  }
+}
+function spring(b, u, t) {
+  t.gone = true; t.found = true; t.sprung = true; b.sprung = (b.sprung || 0) + 1; const N = u.name; fx(b, { k: 'txt', a: [t.x, t.y], s: 'trap!', c: '#ff5a4a' });
+  if (t.k === 'alarm') { say(b, N + ' treads on a loose flagstone. Somewhere a bell rings, and the whole place is awake.'); rouse(b, u, 99, true); }
+  else if (t.k === 'snare') { u.st.root = 2; say(b, 'A snare closes on ' + N + "'s ankle."); hurt(b, u, ri(3), null); }
+  else { let dm = dice([1 + Math.floor(b.day / 8), 6, 0]); if (ri(20) + u.lvl + 2 * dexAC(u.h.dex) >= 15) dm /= 2; say(b, 'Spikes come up through the floor under ' + N + '.'); hurt(b, u, dm, null); }
+}
+// A thief or assassin next to a known trap takes it apart, as their action. A bad fumble sets it off.
+function disarm(b, u, x, y) {
+  const t = trapAt(b, x, y); if (!t || !t.found || !nimble(u) || u.acted || dist(u, t) > 1) return false;
+  u.acted = true; const r = ri(100), ch = clamp((u.cls === 'thief' ? 55 : 40) + 6 * u.lvl, 5, 95);
+  if (r <= ch) { t.gone = true; b.xp += 10 + 4 * b.day; fx(b, { k: 'txt', a: [t.x, t.y], s: 'disarmed', c: '#7dff8a' }); say(b, u.name + ' disarms the trap.'); }
+  else if (r > 90) { say(b, u.name + ' fumbles the trap.'); spring(b, u, t); }
+  else say(b, u.name + ' cannot work the trap out yet.');
+  return true;
+}
+// Anyone can try a chest. A thief picks the lock quietly; the rest force it, and the noise carries.
+function openChest(b, u, S, x, y) {
+  const c = (b.chests || []).find(q => q.x === x && q.y === y), N = u.name, thief = nimble(u);
+  if (!c || c.open || u.acted || dist(u, c) > 1) return null;
+  u.acted = true; b.lag = 2400; const res = { x, y, who: N, what: 'chest' };
+  if (c.lock) {
+    const ch = thief ? clamp((u.cls === 'thief' ? 50 : 35) + 6 * u.lvl, 5, 95) : clamp(20 + 12 * strDmg(u.h.str) + (CL[u.cls].hd >= 10 ? 15 : 0), 5, 80);
+    if (!thief) rouse(b, c, 6, true);
+    if (ri(100) > ch) { res.k = 'locked'; res.cap = thief ? `A good lock. ${N}'s pick slips; another try may do it.` : `${N} heaves at the lid. It holds, and <b class="bad">the noise carries</b>. A thief could pick it quietly.`; say(b, N + (thief ? ' fails to pick the lock on a chest.' : ' fails to force a chest.')); return res; }
+    c.lock = false;
+  }
+  let hit = '';
+  if (c.trap) { c.trap = false; if (thief && ri(100) <= 50 + 5 * u.lvl) hit = ` ${N} finds a needle in the lock and snaps it off.`; else { const dm = ri(4) + 1 + Math.floor(b.day / 6); hit = ` A needle in the lock pricks ${N} for <b class="bad">${dm}</b>.`; hurt(b, u, dm, null, '#9be36a'); } }
+  c.open = true; b.opened = b.opened || {}; b.opened[x + ',' + y] = 1; res.k = 'treasure';
+  const g = 12 + ri(16) + 4 * b.day, r = ri(100); if (S.quest) S.quest.gold += g; else S.gold += g;
+  let item = '';
+  if (r <= 22) item = 'a ' + gain(S, 'potion'); else if (r <= 50) item = 'a ' + gain(S, anyOf(POTS)); else if (r <= 70) item = 'a ' + gain(S, anyOf(SCROLLS)); else if (r <= 80) item = 'a ' + gain(S, anyOf(WANDS));
+  else if (r <= 87 && S.quest) { const top = clamp(1 + Math.floor(b.day / 8), 1, 3), pool = Object.values(ITEMS).filter(i => i.tier > 0 && i.tier <= top), id = pool[ri(pool.length) - 1].id; S.quest.loot.push(id); item = ITEMS[id].n; }
+  res.cap = `The lid comes up on <b class="gold">${g} gp</b>${item ? ` and <b class="gold">${item}</b>` : ''}.${hit}`;
+  say(b, N + ' opens a chest: ' + g + ' gp' + (item ? ' and ' + item : '') + '.'); return res;
 }
 const DOORTALK = ['"Please. Take what you want and go."', '"They are in the yard. All of them. That is all I know."', '"Crake pays the watch. Nobody is coming."', '"You are from the arena. I saw you fight. I had money on you."', '"Shut the door. They will see the light."'];
 // A hero next to a house door tries it, as their action. Behind it: someone hiding, something worth taking, a trap, or trouble.
@@ -997,7 +1137,7 @@ function openDoor(b, u, S, x, y) {
   b.opened[x + ',' + y] = 1; u.acted = true; b.lag = 2400;
   const r = ri(100), res = { x, y, who: u.name };
   if (r <= 35) { res.k = 'citizen'; res.text = DOORTALK[ri(DOORTALK.length) - 1]; if (ri(100) <= 35) { res.gold = ri(10) + 4; S.gold += res.gold; } say(b, u.name + ' opens a door on someone hiding.' + (res.gold ? ' They press ' + res.gold + ' gp into ' + u.name + "'s hand." : '')); }
-  else if (r <= 65) { res.k = 'treasure'; if (ri(100) <= 30) { S.potions++; res.item = 'a healing potion'; } else { const ids = Object.keys(SCROLLS), id = ids[ri(ids.length) - 1]; S.bag = S.bag || {}; S.bag[id] = (S.bag[id] || 0) + 1; res.item = 'a ' + SCROLLS[id].n; } say(b, u.name + ' finds ' + res.item + ' behind a door.'); }
+  else if (r <= 65) { res.k = 'treasure'; if (ri(100) <= 30) res.item = 'a ' + gain(S, ri(2) === 1 ? 'potion' : anyOf(POTS)); else { const ids = Object.keys(SCROLLS), id = ids[ri(ids.length) - 1]; S.bag = S.bag || {}; S.bag[id] = (S.bag[id] || 0) + 1; res.item = 'a ' + SCROLLS[id].n; } say(b, u.name + ' finds ' + res.item + ' behind a door.'); }
   else if (r <= 85) { res.k = 'trap'; if (u.cls === 'thief' || u.cls === 'assassin') { res.safe = true; say(b, u.name + ' spots the wire across the doorway and steps over it.'); } else { res.dmg = ri(2); say(b, 'A trap behind the door catches ' + u.name + ' for ' + res.dmg + '.'); hurt(b, u, res.dmg, null); } }
   else { res.k = 'ambush'; let spot = null;
     for (let d = 1; d <= 3 && !spot; d++) for (let yy = y - d; yy <= y + d && !spot; yy++) for (let xx = x - d; xx <= x + d; xx++) if (inb(b, xx, yy) && !at(b, xx, yy)) { spot = [xx, yy]; break; }
@@ -1009,10 +1149,12 @@ function openDoor(b, u, S, x, y) {
 function thingAt(b, x, y) {
   const R = b.room; if (!R) return null;
   if (R.doors && R.doors.some(d => d[0] === x && d[1] === y)) return 'door';
+  if (b.chests && b.chests.some(c => c.x === x && c.y === y)) return 'chest';
   const p = R.props.find(q => q.x === x && q.y === y); return p && (p.k === 'shelf' || p.k === 'sarc') ? p.k : null;
 }
 function interact(b, u, S, x, y) {
   const what = thingAt(b, x, y); if (!what) return null; if (what === 'door') { const r = openDoor(b, u, S, x, y); if (r) r.what = 'door'; return r; }
+  if (what === 'chest') return openChest(b, u, S, x, y);
   if (u.acted || Math.max(Math.abs(u.x - x), Math.abs(u.y - y)) > 1) return null;
   b.opened = b.opened || {}; if (b.opened[x + ',' + y]) return null;
   b.opened[x + ',' + y] = 1; u.acted = true; b.lag = 2400;
@@ -1040,14 +1182,16 @@ function interact(b, u, S, x, y) {
 function preview(b, u, t, ranged) {
   const c = CL[u.cls], L = u.lvl, note = []; let n = 1, plus = u.db || 0, mult = 1;
   if (ranged) { if (u.cls === 'ranger' && L >= 5) n = 2; } else if (u.cls === 'fighter' && t.hd < 1) n = L; else if ((u.cls === 'fighter' || u.cls === 'paladin' || u.cls === 'ranger') && L >= 7) n = 2; else if (u.cls === 'monk' && L >= 3) n = 2;
+  if (u.st.haste) n++; if (u.st.might) plus += 3;
   if (u.cls === 'ranger' && t.f && t.f.includes('g')) { plus += L; note.push('favoured foe'); }
   if (u.cls === 'monk') plus += Math.floor(L / 2);
-  if (!ranged && (u.cls === 'thief' || u.cls === 'assassin') && flanked(b, t, u)) { mult = L < 5 ? 2 : L < 9 ? 3 : 4; note.push('backstab'); }
+  if (!ranged && nimble(u) && (flanked(b, t, u) || t.una)) { mult = L < 5 ? 2 : L < 9 ? 3 : 4; note.push('backstab'); }
+  if (t.una) note.push('unaware');
   if (u.bane && t.f && t.f.includes(u.bane)) { mult *= 2; note.push('bane'); }
   if (t.st.sleep) { mult *= 2; note.push('asleep'); }
   const d = ranged ? u.rd || c.rdmg : u.wd || c.dmg; let lo = d[0] + (d[2] || 0) + plus, hi = d[0] * d[1] + (d[2] || 0) + plus;
   if (u.fire) { lo += u.fire[0]; hi += u.fire[0] * u.fire[1]; }
-  const need = u.thac0 - t.ac - (t.st.stun ? 4 : 0) - (u.st.bless ? 1 : 0);
+  const need = u.thac0 - t.ac - (t.st.stun ? 4 : 0) - (u.st.bless ? 1 : 0) - (t.una ? 4 : 0) - (u.st.might ? 1 : 0);
   return { pct: t.st.sleep ? 100 : clamp(Math.round((21 - need) * 5), 5, 95), lo: Math.max(1, lo * mult), hi: Math.max(1, hi * mult), n, note: note.join(', ') };
 }
 /* ---------- a battle in progress, as plain data so it can be saved and picked up again ---------- */
@@ -1062,9 +1206,10 @@ function unpackBattle(S, o) {
   if (b.units.some(u => u.side === 'H' && !u.illusion && !u.h) || b.units.some(u => u.side === 'E' && !u.m)) return null;
   if (o.hasRoom) { if (!S.quest) return null; b.room = makeRoom(S.quest.place, S.quest.room, S.quest.seed); if (b.room.w !== b.w || b.room.h !== b.h) return null; }
   b.grid = new Array(b.w * b.h).fill(null); if (b.room) b.room.cells.forEach((k, i) => { if (k) b.grid[i] = WALL; });
+  for (const c of b.chests || []) b.grid[idx(b, c.x, c.y)] = WALL;
   for (const u of b.units) if (u.hp > 0) b.grid[idx(b, u.x, u.y)] = u;
   b.order = o.order ? o.order.map(id => byId[id]).filter(Boolean) : null; b.dead = o.dead.map(id => byId[id]).filter(Boolean);
   return b;
 }
 
-if (typeof module !== 'undefined') module.exports = { CL, ORDER, MON, SCHED, SPELLS, TUNE, TIER, TIERCOST, FINAL, ITEMS, SLOTS, BOOK, migrate, redeploy, inZone, veteran, newParty, rollStats, randomName, equip, unequip, kit, sixAC, fillMem, slotsFor, rollInit, foeAct, heroAct, endRound, shopStock, raise, raiseCost, preview, packBattle, unpackBattle, SCROLLS, readScroll, openDoor, thingAt, interact, PLACES, makeRoom, startRoom, finishRoom, endQuest, beginQuest, tend, los, newCampaign, startBattle, autoRound, finishBattle, billing, billingText, budget, gateCap, living, canTrain, trainCost, levelUp, checkOver, xpNeed, roman };
+if (typeof module !== 'undefined') module.exports = { CL, ORDER, MON, SCHED, SPELLS, TUNE, TIER, TIERCOST, FINAL, ITEMS, SLOTS, BOOK, migrate, redeploy, inZone, veteran, newParty, rollStats, randomName, equip, unequip, kit, sixAC, fillMem, slotsFor, rollInit, foeAct, heroAct, endRound, shopStock, raise, raiseCost, preview, packBattle, unpackBattle, SCROLLS, WANDS, POTS, USE, quaff, gain, readScroll, trapAt, spot, disarm, openChest, rouse, moveTo, heroAttack, flood, cast, openDoor, thingAt, interact, PLACES, makeRoom, startRoom, finishRoom, endQuest, beginQuest, tend, los, newCampaign, startBattle, autoRound, finishBattle, billing, billingText, budget, gateCap, living, canTrain, trainCost, levelUp, checkOver, xpNeed, roman };
