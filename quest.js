@@ -121,6 +121,8 @@ function paintRoom(g, c, R) {
     for (let x = 0; x < w; x++) {
       const X = x * c, p = propAt[y * w + x], v = hash(x + 50, y + 9);
       if (isWall(x, y)) {
+        // A wall normally rises over the square behind it. If that square is open floor, keep the wall inside its own square so it hides nobody.
+        const open = y > 0 && !isWall(x, y - 1), fr0 = !isWall(x, y + 1) && y < h - 1; t.save(); if (open) { t.translate(0, H); if (fr0) t.scale(1, c / (c + H)); }
         const edge = [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [-1, 1], [1, -1], [-1, -1]].some(d => !isWall(x + d[0], y + d[1]) && (pl !== 'tower' || K(x + d[0], y + d[1]) !== 1 || propAt[(y + d[1]) * w + x + d[0]]));
         const front = !isWall(x, y + 1) && y < h - 1;
         if (pl === 'slum') {
@@ -153,6 +155,7 @@ function paintRoom(g, c, R) {
           } else { const l = litAt[y * w + x]; if (l) { t.fillStyle = '#17120f'; t.fillRect(X + c * .44, c * .05, c * .12, c * .14); } }
           if (R.roof && (x + y) % 2) { t.fillStyle = 'rgba(0,0,0,.3)'; t.fillRect(X + c * .2, c * .2, c * .6, c * .6); }
         }
+        t.restore();
         continue;
       }
       if (!p || p.k === 'water') continue;
