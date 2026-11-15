@@ -376,7 +376,7 @@ function kill(b, t, src) {
   // The Six: a hero cut down is only out of the fight unless the blow was a terrible one. Win, and they get up again.
   if (t.side === 'H' && b.six && was > -10) { t.down = true; say(b, t.name + ' is down.'); }
   else if (t.side === 'H') { b.dead.push(t); say(b, '† ' + t.name + ' the ' + CL[t.cls].n + ' falls' + (src && src.name ? ' to ' + (src.boss ? src.name : 'a ' + src.name) : '') + '.'); }
-  else { b.xp += Math.round(t.m.cost * TUNE.xp * (t.boss ? 3 : 1)); b.gold += Math.ceil(t.m.cost / 4) * (t.boss ? 4 : 1); if (src && src.h) src.h.kills++; if (t.boss) say(b, t.name + ' is slain by ' + (src ? src.name : 'the legion') + '!'); }
+  else { b.xp += Math.round(t.m.cost * TUNE.xp * (t.boss ? 3 : 1)); b.gold += Math.ceil(t.m.cost / 4) * (t.boss ? 4 : 1); if (src && src.h) { src.h.kills++; if (t.boss) src.h.trophies = (src.h.trophies || []).concat([t.name]); } if (t.boss) say(b, t.name + ' is slain by ' + (src ? src.name : 'the legion') + '!'); }
 }
 function hurt(b, t, dm, src, col) {
   dm = Math.max(1, Math.round(dm)); t.hp -= dm; delete t.st.sleep;
@@ -389,10 +389,12 @@ function strike(b, a, t, dmg, o) {
   fx(b, ev);
   if (t.illusion) { if (ri(20) >= 12) { kill(b, t); fx(b, { k: 'txt', a: [t.x, t.y], s: 'poof', c: '#c77be0' }); } return false; }
   const roll = ri(20), need = a.thac0 - t.ac - (t.st.stun ? 4 : 0) - (o.bonus || 0) - (a.st.bless ? 1 : 0);
-  if (!(t.st.sleep || roll === 20 || (roll !== 1 && roll >= need))) return false;
+  if (!(t.st.sleep || roll === 20 || (roll !== 1 && roll >= need))) { if (b.six) say(b, who(a) + ' misses ' + who(t) + '.'); return false; }
   let dm = (dice(dmg) + (a.db || 0) + (o.plus || 0)) * (o.mult || 1); if (t.st.sleep) dm *= 2;
+  if (b.six) say(b, who(a) + ' hits ' + who(t) + ' for ' + Math.max(1, Math.round(dm)) + '.');
   ev.hit = true; hurt(b, t, dm, a); return true;
 }
+const who = u => u.side === 'H' || u.boss ? u.name : 'the ' + u.name;
 // Walls block sight in quest rooms; the open arena has none.
 function los(b, x0, y0, x1, y1) {
   if (!b.room) return true;
@@ -549,6 +551,9 @@ function heroAct(b, u, S) {
   }
   const reach = u.range || 1;
   if (co.order === 'withdraw') { if (canMove()) flee(b, u); }
+  else if (co.order === 'guard') { // hold the line, but take one step to meet a foe who has come close
+    if (canMove() && reach === 1) { const d = dist(u, nearest(u, fs)); if (d === 2) { const mv = u.mv; u.mv = 1; approach(b, u, 1); u.mv = mv; } }
+  }
   else if (co.order === 'attack' && canMove() && !(reach > 1 ? fs.some(f => inShot(b, u, f)) : dist(u, nearest(u, fs)) <= 1)) approach(b, u, reach);
   if (u.hp <= 0) return;
   fs = foesOf(b, u);
@@ -628,7 +633,7 @@ function autoRound(b, S) {
 function finishBattle(S, b, yielded) {
   const res = { final: b.over === 'win' && b.bl.final, win: b.over === 'win', yielded: !!yielded, draw: b.over === 'draw', dead: b.dead.map(u => u.name + ' the ' + CL[u.cls].n), xp: 0, gold: 0, tended: 0, ready: 0, day: b.day, down: [] };
   const surv = [];
-  for (const u of b.units) { if (u.side !== 'H' || u.illusion) continue; if (u.hp <= 0 && u.down) { u.h.hp = 1; res.down.push(u.name); } else if (u.hp <= 0) { if (u.down) res.dead.push(u.name + ' the ' + CL[u.cls].n); u.h.dead = true; u.h.hp = 0; u.h.diedDay = b.day; S.fallen++; } else { u.h.hp = u.hp; surv.push(u); } }
+  for (const u of b.units) { if (u.side !== 'H' || u.illusion) continue; u.h.fought = (u.h.fought || 0) + 1; if (u.hp <= 0 && u.down) { u.h.hp = 1; u.h.downs = (u.h.downs || 0) + 1; res.down.push(u.name); } else if (u.hp <= 0) { if (u.down) res.dead.push(u.name + ' the ' + CL[u.cls].n); u.h.dead = true; u.h.hp = 0; u.h.diedDay = b.day; S.fallen++; } else { u.h.hp = u.hp; surv.push(u); } }
   if (res.win) {
     res.gold = b.gold + b.bl.purse; S.gold += res.gold;
     res.xp = surv.length ? Math.floor(b.xp / surv.length) : 0; for (const u of surv) u.h.xp += res.xp;
@@ -778,7 +783,7 @@ function shopStock(day) {
 }
 const raiseCost = h => 60 + 60 * h.lvl;
 const healerCanRaise = S => S.raisedDay !== S.day && S.heroes.some(h => !h.dead && h.cls === 'cleric' && h.lvl >= 9);
-function raise(h) { h.dead = false; h.hp = 1; delete h.diedDay; }
+function raise(h) { h.dead = false; h.hp = 1; h.raised = (h.raised || 0) + 1; delete h.diedDay; }
 // Initiative for the party mode: everyone rolls each round and acts in that order.
 function rollInit(b) {
   b.order = b.units.filter(u => u.hp > 0 && !u.illusion).map(u => ({ u, i: ri(10) + (u.h ? Math.floor((u.h.dex - 10) / 2) + (u.cls === 'thief' || u.cls === 'monk' ? 2 : u.cls === 'assassin' ? 1 : 0) : u.mv > 5 ? 1 : 0) + rnd() * .5 })).sort((a, c) => c.i - a.i).map(x => x.u);
@@ -923,8 +928,8 @@ function finishRoom(S, b, fled) {
   const up = [];
   for (const u of b.units) {
     if (u.side !== 'H' || u.illusion) continue;
-    u.h.left = u.sp;
-    if (u.hp <= 0 && u.down) { u.h.hp = 1; res.down.push(u.name); } else if (u.hp <= 0) { u.h.dead = true; u.h.hp = 0; u.h.diedDay = b.day; S.fallen++; res.dead.push(u.name + ' the ' + CL[u.cls].n); } else { u.h.hp = u.hp; up.push(u); }
+    u.h.left = u.sp; u.h.fought = (u.h.fought || 0) + 1;
+    if (u.hp <= 0 && u.down) { u.h.hp = 1; u.h.downs = (u.h.downs || 0) + 1; res.down.push(u.name); } else if (u.hp <= 0) { u.h.dead = true; u.h.hp = 0; u.h.diedDay = b.day; S.fallen++; res.dead.push(u.name + ' the ' + CL[u.cls].n); } else { u.h.hp = u.hp; up.push(u); }
   }
   if (res.win) {
     res.xp = up.length ? Math.floor(b.xp * .6 / up.length) : 0; for (const u of up) u.h.xp += res.xp;
@@ -956,4 +961,35 @@ function endQuest(S, how) {
 }
 function beginQuest(S, place) { S.quest = { place, room: 0, gold: 0, loot: [], seed: ri(999999) }; for (const h of S.heroes) delete h.left; }
 
-if (typeof module !== 'undefined') module.exports = { CL, ORDER, MON, SCHED, SPELLS, TUNE, TIER, TIERCOST, FINAL, ITEMS, SLOTS, BOOK, migrate, redeploy, inZone, veteran, newParty, rollStats, randomName, equip, unequip, kit, sixAC, fillMem, slotsFor, rollInit, foeAct, heroAct, endRound, shopStock, raise, raiseCost, PLACES, makeRoom, startRoom, finishRoom, endQuest, beginQuest, tend, los, newCampaign, startBattle, autoRound, finishBattle, billing, billingText, budget, gateCap, living, canTrain, trainCost, levelUp, checkOver, xpNeed, roman };
+/* ---------- odds, shown before the player commits ---------- */
+function preview(b, u, t, ranged) {
+  const c = CL[u.cls], L = u.lvl, note = []; let n = 1, plus = u.db || 0, mult = 1;
+  if (ranged) { if (u.cls === 'ranger' && L >= 5) n = 2; } else if (u.cls === 'fighter' && t.hd < 1) n = L; else if ((u.cls === 'fighter' || u.cls === 'paladin' || u.cls === 'ranger') && L >= 7) n = 2; else if (u.cls === 'monk' && L >= 3) n = 2;
+  if (u.cls === 'ranger' && t.f && t.f.includes('g')) { plus += L; note.push('favoured foe'); }
+  if (u.cls === 'monk') plus += Math.floor(L / 2);
+  if (!ranged && (u.cls === 'thief' || u.cls === 'assassin') && flanked(b, t, u)) { mult = L < 5 ? 2 : L < 9 ? 3 : 4; note.push('backstab'); }
+  if (u.bane && t.f && t.f.includes(u.bane)) { mult *= 2; note.push('bane'); }
+  if (t.st.sleep) { mult *= 2; note.push('asleep'); }
+  const d = ranged ? u.rd || c.rdmg : u.wd || c.dmg; let lo = d[0] + (d[2] || 0) + plus, hi = d[0] * d[1] + (d[2] || 0) + plus;
+  if (u.fire) { lo += u.fire[0]; hi += u.fire[0] * u.fire[1]; }
+  const need = u.thac0 - t.ac - (t.st.stun ? 4 : 0) - (u.st.bless ? 1 : 0);
+  return { pct: t.st.sleep ? 100 : clamp(Math.round((21 - need) * 5), 5, 95), lo: Math.max(1, lo * mult), hi: Math.max(1, hi * mult), n, note: note.join(', ') };
+}
+/* ---------- a battle in progress, as plain data so it can be saved and picked up again ---------- */
+function packBattle(b) {
+  const o = {}; for (const k in b) if (!['units', 'grid', 'fx', 'room', 'order', 'dead'].includes(k)) o[k] = b[k];
+  o.units = b.units.map(u => { const c = Object.assign({}, u); if (u.h) { c.hname = u.h.name; delete c.h; } delete c.m; return c; });
+  o.order = b.order ? b.order.map(u => u.id) : null; o.dead = b.dead.map(u => u.id); o.hasRoom = !!b.room; return o;
+}
+function unpackBattle(S, o) {
+  const b = Object.assign({}, o, { fx: [], lag: 0 }), byId = {};
+  b.units = o.units.map(c => { const u = Object.assign({}, c); if (c.hname != null) u.h = S.heroes.find(h => h.name === c.hname); if (u.mid) u.m = MON[u.mid]; byId[u.id] = u; return u; });
+  if (b.units.some(u => u.side === 'H' && !u.illusion && !u.h) || b.units.some(u => u.side === 'E' && !u.m)) return null;
+  if (o.hasRoom) { if (!S.quest) return null; b.room = makeRoom(S.quest.place, S.quest.room, S.quest.seed); if (b.room.w !== b.w || b.room.h !== b.h) return null; }
+  b.grid = new Array(b.w * b.h).fill(null); if (b.room) b.room.cells.forEach((k, i) => { if (k) b.grid[i] = WALL; });
+  for (const u of b.units) if (u.hp > 0) b.grid[idx(b, u.x, u.y)] = u;
+  b.order = o.order ? o.order.map(id => byId[id]).filter(Boolean) : null; b.dead = o.dead.map(id => byId[id]).filter(Boolean);
+  return b;
+}
+
+if (typeof module !== 'undefined') module.exports = { CL, ORDER, MON, SCHED, SPELLS, TUNE, TIER, TIERCOST, FINAL, ITEMS, SLOTS, BOOK, migrate, redeploy, inZone, veteran, newParty, rollStats, randomName, equip, unequip, kit, sixAC, fillMem, slotsFor, rollInit, foeAct, heroAct, endRound, shopStock, raise, raiseCost, preview, packBattle, unpackBattle, PLACES, makeRoom, startRoom, finishRoom, endQuest, beginQuest, tend, los, newCampaign, startBattle, autoRound, finishBattle, billing, billingText, budget, gateCap, living, canTrain, trainCost, levelUp, checkOver, xpNeed, roman };

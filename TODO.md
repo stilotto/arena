@@ -24,29 +24,39 @@ Ideas from the owner. Nothing here is built until the owner says go.
 - The foes' march through the doors only shows in the skycam, not on the
   tactical board.
 
-## Next ideas (owner approved for the list, not yet built)
+## Sprint 1: built
 
-- **A bigger playspace.** On a wide screen, put the board on the left at full
-  height and move the panel, controls and log into a sidebar on the right.
-- **A battle log you can read.** A scrollable history of who hit whom, in
-  place of the three-line log.
-- **Tooltips on the board.** Hovering a square shows hit chance and expected
-  damage before committing.
-- **Undo a move.** In The Six, a hero can take back a move before acting.
-- **Named heroes with history.** A short service record on the sheet: days
-  survived, kills, times cut down, notable foes slain.
-- **Vhorax's commentary.** A line from him before and after each day,
-  reacting to how the day went.
+- The board takes the full height on a wide screen, with the panel, controls
+  and log in a sidebar on the right. Phones keep the stacked layout.
+- A scrolling battle log. In The Six it records every blow.
+- Sound made in code (no audio files): blows, arrows, each spell, deaths,
+  doors, a gong, the crowd, a quiet bed of sound for each place, the till,
+  level-up. One button cycles off, low and full, and is remembered.
+- Pointing at a square shows hit chance and damage, or what a move costs.
+- A hand-made move can be undone until the hero acts, if nothing came of it.
+- A Guard order: hold position but step up to meet a foe who comes close.
+  Cohorts on Attack switch to Guard on siege days and back afterwards.
+- Vhorax comments at dawn and after each day.
+- Service records: fights, times cut down, times raised, champions slain.
+- A battle in progress is saved, and Continue returns to it.
+
+## Sprint 2: more game (not yet built)
+
+- **Doors, traps and locked chests** in quest rooms, so a thief has something
+  to do outside a fight.
+- **Unaware foes and patrols.**
 - **Magic item variety.** Wands, scrolls and potions beyond healing.
 - **Monster abilities.** More foes that grab, charge or call for help, so
   fights are not all walk up and hit.
-- **Saving mid-battle.** Closing the tab during a fight should not lose it.
+- **More quest places** (a sewer, a market, a ship).
+- **Balance pass**, after hands-on play.
 
-## Sound
+## Still open from sprint 1
 
-- Sound effects throughout: blows, arrows, each spell, deaths, doors, the
-  crowd, footsteps, the quartermaster's till, level-up. A mute button and a
-  volume setting, off under reduced-motion only if asked. No sound exists yet.
+- Tooltips need a mouse; on a touch screen there is no equivalent yet.
+- Sounds have not been heard by anyone: they were written and checked to run,
+  not tuned by ear.
+- Undo covers moves only, not attacks or spells.
 
 ## The Six: built
 

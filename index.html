@@ -73,7 +73,19 @@ select,input[type=text]{font:inherit;color:var(--ink);background:#1c1512;border:
 .roster th{color:var(--mute)} .roster .dead td{color:#7a6a58;text-decoration:line-through}
 .foot{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px} .foot .go{margin-left:auto;font-size:18px;padding:8px 16px}
 
-#battle{padding:4px 6px;max-width:1100px}
+#battle{padding:4px 6px;max-width:1100px;display:flex;flex-direction:column}
+#side{display:contents}
+#bbar{order:0}#stage{order:1;position:relative}#chips{order:2}#panel{order:3}#bctl{order:4}#log{order:5}
+#tip{position:absolute;pointer-events:none;background:rgba(20,14,10,.95);border:1px solid var(--gold);border-radius:4px;padding:4px 8px;font-size:14px;line-height:1.3;width:max-content;max-width:250px;z-index:3}
+.bad{color:#ff8a70}.vx{font-style:italic;margin:2px 0 6px;color:#e8d5a8}
+@media (min-width:900px) and (min-aspect-ratio:5/4){
+#battle{max-width:none;display:grid;grid-template-columns:1fr 320px;gap:12px;height:100vh;padding:6px 10px;align-items:start}
+#stage{display:grid;place-items:center;height:calc(100vh - 12px);grid-column:1;grid-row:1;order:0;min-width:0}
+#side{display:flex;flex-direction:column;height:calc(100vh - 12px);min-height:0;grid-column:2;grid-row:1}
+#side>*{order:0}
+#log{flex:1;height:auto!important;min-height:70px}
+#cv{margin:0 auto!important}
+}
 #bbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:15px;margin-bottom:3px}
 #bbar .sp{flex:1}
 #cv{display:block;margin:0 auto;border:6px solid #6a5a48;border-radius:4px;box-shadow:0 0 0 2px #2a1f18,0 0 0 5px #8e2a22,0 0 0 7px #2a1f18,0 8px 24px rgba(0,0,0,.6);margin-top:8px;margin-bottom:10px;background:var(--sand);touch-action:manipulation;cursor:pointer}
@@ -85,7 +97,8 @@ select,input[type=text]{font:inherit;color:var(--ink);background:#1c1512;border:
 #bctl{display:flex;gap:6px;margin:5px 0;align-items:center;flex-wrap:wrap}
 #bctl button{white-space:nowrap}
 #bctl .go{font-size:17px;padding:7px 16px}
-#log{font-size:14px;color:var(--mute);height:4.2em;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
+#log{font-size:14px;color:var(--mute);height:4.6em;overflow-y:auto;border-top:1px solid var(--line);padding-top:3px}
+#log .bad{color:#ff8a70}
 #log div:last-child{color:var(--ink)}
 
 #modal{position:fixed;inset:0;background:rgba(10,7,5,.78);display:grid;place-items:center;padding:10px;z-index:5}
@@ -126,32 +139,36 @@ select,input[type=text]{font:inherit;color:var(--ink);background:#1c1512;border:
 <div id="camp" class="screen hidden"></div>
 
 <div id="battle" class="screen hidden">
-  <div id="bbar"></div>
-  <canvas id="cv"></canvas>
-  <div id="chips"></div>
-  <div id="panel"></div>
-  <div id="bctl">
-    <button id="bEnd" class="go">End turn</button>
-    <button id="bAuto">Auto: off</button>
-    <button id="bSpeed">Speed: normal</button>
-    <span style="flex:1"></span>
-    <button id="bCam" class="sm">Skycam</button>
-    <button id="bYield" class="sm">Plead for mercy</button>
+  <div id="stage"><canvas id="cv"></canvas><div id="tip" class="hidden"></div></div>
+  <div id="side">
+    <div id="bbar"></div>
+    <div id="chips"></div>
+    <div id="panel"></div>
+    <div id="bctl">
+      <button id="bEnd" class="go">End turn</button>
+      <button id="bAuto">Auto: off</button>
+      <button id="bSpeed">Speed: normal</button>
+      <span style="flex:1"></span>
+      <button id="bCam" class="sm">Skycam</button>
+      <button id="bSnd" class="sm">Sound</button>
+      <button id="bYield" class="sm">Plead for mercy</button>
+    </div>
+    <div id="log"></div>
   </div>
-  <div id="log"></div>
 </div>
 
 <div id="fly" class="hidden"><canvas id="flyc"></canvas><div class="bug">SKYCAM</div><div class="skip">Tap to skip</div><div id="lower"><div id="lowA"></div><div id="lowB"></div></div></div>
 
 <div id="modal" class="hidden"><div id="mbox"></div></div>
 
-<script src="engine.js?v=11"></script>
-<script src="figures.js?v=11"></script>
-<script src="arena3d.js?v=11"></script>
-<script src="six.js?v=11"></script>
-<script src="quest.js?v=11"></script>
-<script src="board.js?v=11"></script>
-<script src="fx.js?v=11"></script>
-<script src="ui.js?v=11"></script>
+<script src="engine.js?v=13"></script>
+<script src="sound.js?v=13"></script>
+<script src="figures.js?v=13"></script>
+<script src="arena3d.js?v=13"></script>
+<script src="six.js?v=13"></script>
+<script src="quest.js?v=13"></script>
+<script src="board.js?v=13"></script>
+<script src="fx.js?v=13"></script>
+<script src="ui.js?v=13"></script>
 </body>
 </html>

@@ -11,7 +11,7 @@ function startQuest(place) { closeModal(); beginQuest(S, place); save(); enterRo
 function enterRoom() {
   closeModal();
   B = startRoom(S); quick = false; sel = null; insp = null; csel = 0; mode = null; reach = null; busy = false; auto = false; note = ''; B.phase = 'deploy';
-  show('battle'); size(); refresh();
+  show('battle'); size(); refresh(); SND.ambient(B.room.place); SND.play('door', 200);
   if (S.fly !== false) playFly(7500, false);
 }
 const partyLine = () => S.heroes.map(x => `<span class="${x.dead ? 'mute' : x.hp < x.max * .4 ? 'gold' : ''}">${x.name} ${x.dead ? 'slain' : x.hp + '/' + x.max}</span>`).join(' · ');
@@ -20,18 +20,18 @@ function questResult(fled) {
   const P = PLACES[S.quest.place], name = B.room.name, r = finishRoom(S, B, fled), nm = ids => ids.map(id => ITEMS[id].n).join(', ');
   let h;
   if (!r.win) {
-    endQuest(S, 'lost'); save();
+    endQuest(S, 'lost'); S.last = 'questlost'; save(); SND.play('dirge', 200);
     h = `<h2>${fled ? 'The party flees' : 'Carried out'}</h2><p>${fled ? 'They run for the way they came, and drop what they were carrying to do it.' : "Vhorax's handlers come for his property before dawn and drag the Six out by their heels."} Everything found on this quest is lost. The experience is not.</p>`;
     if (r.dead.length) h += `<p><b>Slain:</b> <span class="mute">${r.dead.join(', ')}.</span></p>`;
     return modal(h + `<div class="end"><button class="go" onclick="closeModal();camp()">Back to the cells</button></div>`);
   }
   if (r.last) {
-    const out = endQuest(S, 'done'); save();
+    const out = endQuest(S, 'done'); S.last = 'quest'; save(); SND.play('fanfare', 200);
     h = `<h2>${P.n} is cleared</h2><p>${P.bn} is dead. The party carries out <b class="gold">${out.gold} gp</b>${out.loot.length ? ' and <b class="gold">' + nm(out.loot) + '</b>' : ''}. Each hero standing earns <b>${r.xp}</b> experience for the last fight.</p>`;
     if (r.dead.length) h += `<p><b>Slain:</b> <span class="mute">${r.dead.join(', ')}.</span></p>`;
     return modal(h + `<p class="mute">They are back in the cells before dawn, and sleep.</p><div class="end"><button class="go" onclick="closeModal();camp()">Back to the cells</button></div>`);
   }
-  save(); between(`<p>Each hero standing earns <b>${r.xp}</b> experience. Found here: ${r.gold} gp${r.loot.length ? ' and <b class="gold">' + nm(r.loot) + '</b>' : ''}.</p>${r.down.length ? `<p>Cut down but back on their feet: ${r.down.join(', ')}.</p>` : ''}${r.dead.length ? `<p><b>Slain:</b> <span class="mute">${r.dead.join(', ')}.</span></p>` : ''}`, name);
+  SND.play('heal', 200); save(); between(`<p>Each hero standing earns <b>${r.xp}</b> experience. Found here: ${r.gold} gp${r.loot.length ? ' and <b class="gold">' + nm(r.loot) + '</b>' : ''}.</p>${r.down.length ? `<p>Cut down but back on their feet: ${r.down.join(', ')}.</p>` : ''}${r.dead.length ? `<p><b>Slain:</b> <span class="mute">${r.dead.join(', ')}.</span></p>` : ''}`, name);
 }
 function between(top, name) {
   const q = S.quest, P = PLACES[q.place], cures = living(S).reduce((n, x) => n + ((x.left && (x.left.cure || 0) + (x.left.loh || 0)) || 0), 0), hurt = living(S).some(x => x.hp < x.max);

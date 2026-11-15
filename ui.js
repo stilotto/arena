@@ -24,7 +24,7 @@ function help() {
   modal(`<h2>How to play</h2>
   <p>You command a legion of one hundred in ten cohorts. Each day the gate admits only so many cohorts. Choose who fights; the rest heal faster. In <b>Assembly</b> you can move heroes between cohorts to mix callings.</p>
   <p><b>On the sands</b> every cohort follows a standing order: Attack, Hold or Withdraw. Press <b>End turn</b> and they carry it out. To take a hero in hand, tap them, then tap a lit square to move, a foe to strike, or a spell and then its target.</p>
-  <p><b>Holding the line.</b> A square next to an enemy is in its zone of control: stepping into one ends the move, and walking away from an enemy gives it a free blow. Foes obey the same rule, so a front rank protects the ranks behind it. Thieves and assassins slip away untouched, and flying foes ignore the rule. Before the first turn you may place your heroes by hand.</p>
+  <p><b>Holding the line.</b> A square next to an enemy is in its zone of control: stepping into one ends the move, and walking away from an enemy gives it a free blow. Foes obey the same rule, so a front rank protects the ranks behind it. Thieves and assassins slip away untouched, and flying foes ignore the rule. Before the first turn you may place your heroes by hand. A cohort on <b>Guard</b> holds its place but steps up to meet a foe who comes close. With a mouse, point at a foe to see your chance to hit.</p>
   <p><b>Sieges.</b> Some days the foes come through two, three or all four gates, and the legion starts in a ring at the centre with its toughest callings outermost.</p>
   <p><b>After the games</b> healers spend their unused spells, everyone rests, and spells return. Spend your purse at the quartermaster on arms, armour and potions. Heroes with enough experience must pay to train before they gain a level.</p>
   <p><b>The Six</b> is the same arena with a party of six. Every hero acts by hand in initiative order, carries their own gear, and casters choose their spells each day. A hero cut down is only out of the fight unless the blow was terrible; the truly dead can be raised for a price.</p>
@@ -37,7 +37,23 @@ function newGame() {
 }
 
 /* ---------- camp ---------- */
+// What Vhorax has to say. kind: how the last day went, or what today holds.
+const VX = {
+  first: ['"A hundred. Let us see how many of you are worth the bread."'], first6: ['"Six. I took a hundred, and it is six of you that interest me."'],
+  flawless: ['"Not one lost. Do not mistake it for my mercy; tomorrow is worse."', '"Clean work. The crowd prefers blood. I prefer soldiers."', '"You begin to fight as one thing. Good."'],
+  costly: ['"You paid too much for that. Learn, or I will run out of you."', '"The sand drank well today. Mostly yours."', '"A victory. The dead would call it something else."'],
+  lost: ['"Disappointing. The same gate opens tomorrow."', '"I did not build this place to watch you die badly."'],
+  yield: ['"Mercy, then. It is not free, and it is not endless."', '"You knelt to them. Remember how it felt."'],
+  boss: ['"That one cost me a great deal to bring here. You are worth more than I thought."', '"My champion, dead on my own sand. Good."'],
+  siege: ['"They come from every side today. Show me a wall."', '"A legion that cannot be surrounded is a legion. Today we find out."'],
+  bossday: ['"I have sent for something special. Do try to last."', '"Today the crowd came for one name, and it is not yours."'],
+  quest: ['"You are back, and richer. Do not grow fond of the outside."', '"I hear you made a mess of the place. Good."'],
+  questlost: ['"Dragged home by my own handlers. I expected better of a night out."']
+};
+function vhorax(kind) { const a = VX[kind]; return a ? `<p class="vx">${a[(S.day * 7 + (S.fallen || 0)) % a.length]} <span class="mute small">Vhorax</span></p>` : ''; }
+const dawn = bl => vhorax(bl.final ? '' : bl.boss ? 'bossday' : bl.sides > 1 && S.mode !== 'six' ? 'siege' : S.last || (S.day === 1 ? (S.mode === 'six' ? 'first6' : 'first') : ''));
 function camp() {
+  dropBattle(); SND.ambient(null); undo = null;
   if (S.mode === 'six') return camp6();
   B = null; show('camp');
   const cap = gateCap(S.day), bl = billing(S.day), alive = living(S);
@@ -45,9 +61,9 @@ function camp() {
   save();
   const ready = alive.filter(canTrain).length;
   const fin = bl.final && !S.ending;
-  let h = `<div class="bar"><h2>Day ${roman(S.day)}</h2><span>Legion <b>${alive.length}</b>/100</span><span class="gold">${S.gold} gp</span><span>Potions ${S.potions}</span>${S.dev ? '<span class="gold small">DEV, not saved</span>' : ''}<span class="sp"></span><button class="sm ${S.fly === false ? '' : 'on'}" onclick="S.fly=S.fly===false;camp()">Skycam: ${S.fly === false ? 'off' : 'on'}</button><button class="sm" onclick="help()">?</button></div>
+  let h = `<div class="bar"><h2>Day ${roman(S.day)}</h2><span>Legion <b>${alive.length}</b>/100</span><span class="gold">${S.gold} gp</span><span>Potions ${S.potions}</span>${S.dev ? '<span class="gold small">DEV, not saved</span>' : ''}<span class="sp"></span><button class="sm ${S.fly === false ? '' : 'on'}" onclick="S.fly=S.fly===false;camp()">Skycam: ${S.fly === false ? 'off' : 'on'}</button><button class="sm" onclick="this.textContent=(SND.cycle(),SND.label())">${SND.label()}</button><button class="sm" onclick="help()">?</button></div>
   ${S.ending ? `<div class="card"><span class="gold">${S.ending === 'served' ? 'The legion marches under Vhorax now. The games go on while he gathers his strength.' : 'Vhorax is dead and the gates stand open. Those who stay fight for the purse alone.'}</span></div>` : ''}
-  <div class="card"><h3>Today's games: ${bl.title}</h3>${fin ? '<p style="margin:2px 0 6px">The Editor of the Games comes down from his box. "You are what I built this place to make. Kneel, and march with me to take back the Iron Plane. Or refuse, and I will start again with another hundred."</p>' : ''}${billingText(bl)}.<br>
+  <div class="card"><h3>Today's games: ${bl.title}</h3>${dawn(bl)}${fin ? '<p style="margin:2px 0 6px">The Editor of the Games comes down from his box. "You are what I built this place to make. Kneel, and march with me to take back the Iron Plane. Or refuse, and I will start again with another hundred."</p>' : ''}${billingText(bl)}.<br>
   <span class="mute">${bl.sides > 1 ? `<b class="gold">Siege:</b> they come through ${['', '', 'two', 'three', 'all four'][bl.sides]} gates and the legion starts ringed at the centre. ` : ''}The gate admits <b>${cap}</b> cohort${cap > 1 ? 's' : ''}. Purse: ${bl.purse} gp. Chosen: ${S.pick.length}/${cap}.</span>
   ${fin ? '<div class="row" style="margin-top:6px"><button onclick="kneel()">Kneel to Vhorax</button><span class="mute small">or send the legion to the sands to defy him.</span></div>' : ''}</div>`;
   if (living(S, -1).length) h += `<div class="card gold">${living(S, -1).length} heroes are in reserve and will not fight. Assembly puts them back in a cohort.</div>`;
@@ -59,8 +75,8 @@ function camp() {
       <div class="hpb"><i style="width:${mx ? 100 * hp / mx : 0}%"></i></div></div>
       <button class="sm" onclick="event.stopPropagation();openCi=openCi===${ci}?-1:${ci};camp()">${openCi === ci ? 'Hide' : 'Roster'}</button></div>`;
     if (openCi === ci) {
-      h += `<div class="roster"><table><tr><th>Name</th><th>Calling</th><th>Lv</th><th>HP</th><th>AC</th><th>XP</th><th>Str</th><th>Dex</th><th>Con</th><th>Kills</th></tr>`;
-      for (const x of S.heroes.filter(x => x.ci === ci)) h += `<tr class="${x.dead ? 'dead' : ''}"><td>${x.name}</td><td>${CL[x.cls].n}</td><td>${x.lvl}</td><td>${x.dead ? 'fell day ' + roman(x.diedDay) : x.hp + '/' + x.max}</td><td>${heroAC(x, S.gear[x.cls])}</td><td>${x.xp}/${xpNeed(x.lvl)}</td><td>${x.str}</td><td>${x.dex}</td><td>${x.con}</td><td>${x.kills}</td></tr>`;
+      h += `<div class="roster"><table><tr><th>Name</th><th>Calling</th><th>Lv</th><th>HP</th><th>AC</th><th>XP</th><th>Str</th><th>Dex</th><th>Con</th><th>Kills</th><th>Fights</th></tr>`;
+      for (const x of S.heroes.filter(x => x.ci === ci)) h += `<tr class="${x.dead ? 'dead' : ''}"><td>${x.name}</td><td>${CL[x.cls].n}</td><td>${x.lvl}</td><td>${x.dead ? 'fell day ' + roman(x.diedDay) : x.hp + '/' + x.max}</td><td>${heroAC(x, S.gear[x.cls])}</td><td>${x.xp}/${xpNeed(x.lvl)}</td><td>${x.str}</td><td>${x.dex}</td><td>${x.con}</td><td>${x.kills}</td><td title="${x.trophies ? 'Slew ' + x.trophies.join(', ') : ''}">${x.fought || 0}${x.trophies ? ' \u2605' : ''}</td></tr>`;
       h += '</table></div>';
     }
   });
@@ -93,7 +109,7 @@ function buy(k, ci) {
   if (k === 'potion') { if (S.gold < 30) return; S.gold -= 30; S.potions++; }
   else if (k === 'heal') { const l = living(S, ci), c = l.reduce((s, x) => s + x.max - x.hp, 0); if (S.gold < c) return; S.gold -= c; l.forEach(x => x.hp = x.max); }
   else { const gr = S.gear[ci], c = TIERCOST[gr[k] + 1]; if (!c || S.gold < c) return; S.gold -= c; gr[k]++; }
-  save(); shop();
+  SND.play('coin'); save(); shop();
 }
 function train() {
   let h = `<h2>Training ground</h2><p class="mute" style="margin:0 0 6px">A hero with enough experience gains a level only after paid training. You have <b class="gold">${S.gold} gp</b>.</p>`, any = 0, total = 0;
@@ -107,7 +123,7 @@ function train() {
 }
 function doTrain(ci) {
   for (const x of living(S, ci < 0 ? null : ci).filter(canTrain).sort((a, b) => a.lvl - b.lvl)) { const c = trainCost(x); if (S.gold < c) break; S.gold -= c; levelUp(x); }
-  save(); train();
+  SND.play('level'); save(); train();
 }
 
 /* ---------- assembly: move heroes between cohorts ---------- */
@@ -163,19 +179,23 @@ function freeEnding() {
 
 /* ---------- battle ---------- */
 const cv = $('cv'), g = cv.getContext('2d');
-let cell = 20, raf = 0, sand = null, roomTick = 0;
+let cell = 20, raf = 0, sand = null, roomTick = 0, undo = null;
+const WIDE = matchMedia('(min-width:900px) and (min-aspect-ratio:5/4)');
 function toSands() {
   if (S.mode === 'six') S.pick = [0];
   B = startBattle(S, S.pick); quick = false; sel = null; insp = null; csel = S.pick[0]; mode = null; reach = null; busy = false; auto = false; note = '';
   B.phase = 'deploy';
-  show('battle'); size(); refresh();
+  if (!B.six) for (const co of S.cohorts) { // on a siege day, cohorts on Attack stand guard instead; they go back to Attack afterwards
+    if (B.doors.length > 1 && co.order === 'attack') { co.order = 'guard'; co.was = 1; } else if (B.doors.length === 1 && co.was) { co.order = 'attack'; delete co.was; } }
+  show('battle'); size(); refresh(); SND.ambient('arena'); SND.play('door', 300);
   if (S.fly !== false) playFly(9000, true);
 }
 function size() {
   if (!B) return;
-  const W = Math.min(window.innerWidth, 1100) - 24, H = Math.max(170, window.innerHeight - 270);
+  const wide = WIDE.matches; // on a wide screen the board gets the full height and everything else sits in a sidebar
+  const W = wide ? window.innerWidth - 320 - 52 : Math.min(window.innerWidth, 1100) - 24, H = wide ? window.innerHeight - 44 : Math.max(170, window.innerHeight - 270);
   const M = B.room ? 0 : 1, GW = B.w + 2 * M, GH = B.h + 2 * M; // the arena shows its wall, one square deep, all round
-  cell = Math.max(9, Math.floor(Math.min(W / GW, H / GH)));
+  cell = clamp(Math.floor(Math.min(W / GW, H / GH)), 9, 84);
   const dpr = window.devicePixelRatio || 1;
   cv.style.width = GW * cell + 'px'; cv.style.height = GH * cell + 'px';
   cv.width = GW * cell * dpr; cv.height = GH * cell * dpr; g.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -189,6 +209,7 @@ function draw() {
   if (!B) return;
   const c = cell, now = Date.now();
   const M = B.room ? 0 : 1, st = fxPre(now);
+  for (let i = B.fx.length - 1; i >= 0 && !B.fx[i]._s; i--) { B.fx[i]._s = 1; SND.fx(B.fx[i]); }
   g.drawImage(sand, 0, 0, (B.w + 2 * M) * c, (B.h + 2 * M) * c);
   g.save(); g.translate(M * c, M * c);
   if (B.phase === 'deploy') { const z = B.zone, zx = Math.max(0, z.x0), zy = Math.max(0, z.y0); g.fillStyle = 'rgba(240,197,106,.2)'; g.fillRect(zx * c, zy * c, (Math.min(B.w - 1, z.x1) - zx + 1) * c, (Math.min(B.h - 1, z.y1) - zy + 1) * c); }
@@ -241,7 +262,7 @@ function draw() {
 }
 const stuck = u => u.st.sleep || u.st.stun;
 function pickUnit(u) {
-  sel = u; csel = u.ci; mode = null; note = ''; insp = null;
+  sel = u; csel = u.ci; mode = null; note = ''; insp = null; if (undo && undo.u !== u) undo = null;
   reach = (B.phase !== 'deploy' && !u.acted && !u.moved && !u.st.root && !stuck(u)) ? flood(B, u) : null;
 }
 function refresh() {
@@ -260,7 +281,7 @@ function refresh() {
       for (const k in u.sp) if (u.sp[k] > 0) h += `<button class="sm ${mode === k ? 'on' : ''}" onclick="setMode('${k}')">${SPELLS[k].n} ×${u.sp[k]}</button>`;
       if (u.kill) h += `<button class="sm ${mode === 'kill' ? 'on' : ''}" onclick="setMode('kill')">Assassinate</button>`;
       if (S.potions > 0 && u.hp < u.max) h += `<button class="sm" onclick="act(()=>drink(B,sel,S))">Potion (${S.potions})</button>`;
-      h += `<button class="sm" onclick="act(()=>{sel.acted=true})">${B.six ? 'Pass' : 'Wait'}</button>${B.six ? '' : '<button class="sm" onclick="drop();refresh()">Deselect</button>'}</div>`;
+      h += `${undo && undo.u === u ? '<button class="sm on" onclick="undoMove()">Undo move</button>' : ''}<button class="sm" onclick="act(()=>{sel.acted=true})">${B.six ? 'Pass' : 'Wait'}</button>${B.six ? '' : '<button class="sm" onclick="drop();refresh()">Deselect</button>'}</div>`;
     }
   }
   if (insp && insp.hp > 0 && insp.side === 'H') h += `<div>${fig(insp.key || insp.cls, 40)}<b>${insp.name}</b> · ${CL[insp.cls].n} ${insp.lvl} · HP ${insp.hp}/${insp.max} · AC ${insp.ac}</div>`;
@@ -270,7 +291,7 @@ function refresh() {
   }
   if (csel != null && B.cis.includes(csel) && !B.six) {
     const co = S.cohorts[csel];
-    h += `<div class="row"><span class="mute">${cname(csel)} orders:</span>` + ['attack', 'hold', 'withdraw'].map(o => `<button class="sm ${co.order === o ? 'on' : ''}" onclick="setOrder('${o}')">${o[0].toUpperCase() + o.slice(1)}</button>`).join('') +
+    h += `<div class="row"><span class="mute">${cname(csel)} orders:</span>` + ['attack', 'guard', 'hold', 'withdraw'].map(o => `<button class="sm ${co.order === o ? 'on' : ''}" onclick="setOrder('${o}')">${o[0].toUpperCase() + o.slice(1)}</button>`).join('') +
       `<button class="sm ${co.spells ? 'on' : ''}" onclick="S.cohorts[csel].spells=!S.cohorts[csel].spells;refresh()">Spells: ${co.spells ? 'on' : 'off'}</button></div>`;
   }
   if (B.phase === 'deploy') h = `<div class="gold">Deployment. Tap a hero, then a lit square to place them, or another hero to swap. Set orders, then begin.</div>` + h;
@@ -278,10 +299,13 @@ function refresh() {
   $('panel').innerHTML = h || '<span class="mute">Tap a hero to command them by hand, a foe to inspect it, or a cohort to change its orders. End turn carries out all standing orders.</span>';
   $('bEnd').disabled = busy; $('bEnd').textContent = B.phase === 'deploy' ? 'Begin battle' : 'End turn'; $('bAuto').textContent = B.six ? 'Quick fight: ' + (quick ? 'on' : 'off') : 'Auto: ' + (auto ? 'on' : 'off'); $('bAuto').classList.toggle('on', B.six ? quick : auto);
   $('bSpeed').textContent = 'Speed: ' + (fast ? 'fast' : 'normal'); $('bYield').disabled = busy; $('bYield').textContent = B.quest ? 'Flee' : 'Plead for mercy';
-  $('log').innerHTML = B.log.slice(-3).map(s => `<div>${s}</div>`).join('');
-  draw();
+  $('log').innerHTML = B.log.slice(-90).map(s => `<div${s[0] === '\u2020' || s.includes(' is down') || s.includes('slain') ? ' class="bad"' : ''}>${s}</div>`).join(''); $('log').scrollTop = 1e6;
+  $('bSnd').textContent = SND.label();
+  draw(); saveBattle();
 }
 function drop() { sel = null; reach = null; mode = null; note = ''; }
+// take back a move made by hand, as long as nothing came of it
+function undoMove() { if (!undo || busy || undo.u.acted) return; const u = undo.u; B.grid[idx(B, u.x, u.y)] = null; place(B, u, undo.x, undo.y); u.moved = false; undo = null; pickUnit(u); refresh(); }
 function pickCohort(ci) { csel = ci; if (sel && sel.ci !== ci) { sel = null; reach = null; mode = null; } refresh(); }
 function setOrder(o) { S.cohorts[csel].order = o; refresh(); }
 function setMode(k) {
@@ -291,7 +315,7 @@ function setMode(k) {
 }
 function act(fn) {
   if (busy || !sel) return;
-  fn(); mode = null; note = '';
+  undo = null; fn(); mode = null; note = '';
   if (checkOver(B)) return result();
   if (B.six && (sel.acted || sel.hp <= 0)) return sixNext(true);
   if (sel.hp <= 0) sel = null; else pickUnit(sel);
@@ -324,13 +348,14 @@ function tap(x, y) {
     }
     note = 'Out of reach.'; return refresh();
   }
-  if (!t && reach) { const i = idx(B, x, y); if (reach.d[i] > 0 && reach.d[i] <= u.mv) return act(() => moveTo(B, u, x, y)); }
+  if (!t && reach) { const i = idx(B, x, y); if (reach.d[i] > 0 && reach.d[i] <= u.mv) { const hp0 = u.hp, ox = u.x, oy = u.y, opp0 = B.units.filter(e => e.opp).length; return act(() => { if (moveTo(B, u, x, y) && u.hp === hp0 && B.units.filter(e => e.opp).length === opp0) undo = { u, x: ox, y: oy }; }); } }
   if (!t && !B.six) { drop(); refresh(); }
 }
 cv.addEventListener('click', e => { const r = cv.getBoundingClientRect(); const M = B && !B.room ? 1 : 0; tap(Math.floor((e.clientX - r.left - cv.clientLeft) / cell) - M, Math.floor((e.clientY - r.top - cv.clientTop) / cell) - M); });
 
 async function endTurn() {
   if (busy || !B || B.over) return;
+  if (B.phase === 'deploy') SND.play('gong');
   if (B.six) { if (B.phase === 'deploy') { B.phase = null; drop(); rollInit(B); return sixLoop(); } const u = B.order && B.order[B.turn]; if (u && u.side === 'H') { sel = u; u.acted = true; sixNext(); } return; }
   if (B.phase === 'deploy') { B.phase = null; drop(); refresh(); if (!auto) return; }
   busy = true; sel = null; mode = null; reach = null; note = ''; refresh();
@@ -357,13 +382,15 @@ function yieldDay() {
   B.over = 'lose'; result(true);
 }
 function result(yielded) {
-  auto = false; busy = false; sel = null; refresh();
+  auto = false; busy = false; sel = null; undo = null; refresh(); dropBattle(); SND.ambient(null);
   if (B.quest) return questResult(yielded);
-  const r = finishBattle(S, B, yielded); save();
+  const r = finishBattle(S, B, yielded);
+  S.last = r.win ? (B.bl.boss ? 'boss' : r.dead.length > Math.max(0, B.units.filter(u => u.side === 'H' && !u.illusion).length * .08) ? 'costly' : 'flawless') : yielded ? 'yield' : 'lost'; save();
+  SND.play(r.win ? 'fanfare' : 'dirge', 200); if (r.win) SND.play('cheer', 100);
   const left = living(S).length;
   if (S.mode === 'six') return result6(r, left, yielded);
   if (r.final) return modal(freeEnding() + `<div class="end"><button class="go" onclick="afterResult(${left})">Onward</button></div>`);
-  let h = `<h2>${r.win ? 'Victory' : yielded ? 'Mercy is granted' : r.draw ? 'A draw' : 'The cohort is lost'}</h2>`;
+  let h = `<h2>${r.win ? 'Victory' : yielded ? 'Mercy is granted' : r.draw ? 'A draw' : 'The cohort is lost'}</h2>` + vhorax(S.last);
   if (r.win) h += `<p>The crowd of the planes roars. Purse and plunder: <b class="gold">${r.gold} gp</b>. Each survivor earns <b>${r.xp}</b> experience.</p>`;
   else if (yielded) h += `<p>Vhorax turns his thumb. The forfeit is <b class="gold">${r.fine} gp</b>, and the same foes wait tomorrow.</p>`;
   else if (r.draw) h += '<p>The light fails before the matter is settled. The same foes wait tomorrow.</p>';
@@ -382,6 +409,47 @@ $('bEnd').onclick = endTurn;
 $('bAuto').onclick = () => { if (B && B.six) { quick = !quick; refresh(); if (quick && !busy) { if (B.phase === 'deploy') endTurn(); else sixLoop(); } return; } auto = !auto; refresh(); if (auto) endTurn(); };
 $('bSpeed').onclick = () => { fast = !fast; refresh(); };
 $('bYield').onclick = yieldDay;
+$('bSnd').onclick = () => { SND.cycle(); refresh(); if (SND.on() && B) SND.ambient(B.room ? B.room.place : 'arena'); };
+document.addEventListener('click', e => { if (e.target.closest && e.target.closest('button')) SND.play('tick', 0, 30); });
+
+/* ---------- a battle in progress is saved, so closing the tab does not lose it ---------- */
+const BKEY = () => (S.mode === 'six' ? KEY6 : KEY) + '-battle';
+function saveBattle() { if (!S || S.dev || !B || B.over || busy) return; try { localStorage.setItem(BKEY(), JSON.stringify({ day: S.day, b: packBattle(B) })); save(); } catch (e) { } }
+function dropBattle() { if (!S) return; try { localStorage.removeItem(BKEY()); } catch (e) { } }
+function resume() {
+  try {
+    const d = JSON.parse(localStorage.getItem(BKEY())); if (!d || d.day !== S.day) return false;
+    const b = unpackBattle(S, d.b); if (!b) { dropBattle(); return false; }
+    B = b; quick = false; sel = null; insp = null; csel = b.cis[0]; mode = null; reach = null; busy = false; auto = false; note = ''; undo = null;
+    show('battle'); size(); refresh(); SND.ambient(b.room ? b.room.place : 'arena');
+    if (b.six && b.order && b.phase !== 'deploy') sixLoop();
+    return true;
+  } catch (e) { dropBattle(); return false; }
+}
+
+/* ---------- what a square offers, shown beside the pointer ---------- */
+function tipText(x, y) {
+  if (!B || busy || B.over || !inb(B, x, y)) return '';
+  let t = at(B, x, y); if (t && t.wall) return '';
+  const u = sel && !sel.acted && sel.hp > 0 && B.phase !== 'deploy' ? sel : null, i = idx(B, x, y);
+  if (mode && u && SPELLS[mode] && SPELLS[mode].rad != null) { const n = inRad(B, x, y, SPELLS[mode].rad, 'E').length, fr = SPELLS[mode].ff ? inRad(B, x, y, SPELLS[mode].rad, 'H').filter(h => !h.illusion).length : 0; return `<b>${SPELLS[mode].n}</b>: ${n} foe${n === 1 ? '' : 's'} caught${fr ? `, <span class="bad">and ${fr} of your own</span>` : ''}`; }
+  if (t && t.side === 'E') {
+    let s = `<b>${t.name}</b> \u00b7 HP ${t.hp}/${t.max} \u00b7 AC ${t.ac}`;
+    if (u && !mode) { const d = dist(u, t), how = d === 1 ? 'Strike' : u.range && d <= u.range && los(B, u.x, u.y, t.x, t.y) ? 'Shoot' : reach && [...reach.d].some((dd, k) => dd > 0 && dd <= u.mv && !B.grid[k] && Math.max(Math.abs(k % B.w - t.x), Math.abs(Math.floor(k / B.w) - t.y)) === 1) ? 'Move and strike' : '';
+      if (how) { const p = preview(B, u, t, how === 'Shoot'); s += `<br>${how}: <b>${p.pct}%</b> to hit \u00b7 ${p.lo}${p.hi > p.lo ? '\u2013' + p.hi : ''} damage${p.n > 1 ? ', up to ' + p.n + ' blows' : ''}${p.note ? ' \u00b7 ' + p.note : ''}`; } else s += '<br><span class="mute">out of reach</span>'; }
+    return s;
+  }
+  if (t && t.side === 'H') return `<b>${t.name}</b> \u00b7 ${t.illusion ? 'a phantom' : CL[t.cls].n + ' ' + t.lvl} \u00b7 HP ${t.hp}/${t.max} \u00b7 AC ${t.ac}`;
+  if (u && !mode && reach && reach.d[i] > 0 && reach.d[i] <= u.mv) {
+    const leave = u.fly || u.cls === 'thief' || u.cls === 'assassin' ? 0 : B.units.filter(e => e.hp > 0 && e.side === 'E' && !e.opp && !helpless(e) && dist(e, u) === 1 && Math.max(Math.abs(e.x - x), Math.abs(e.y - y)) > 1).length;
+    const stop = !u.fly && B.units.some(e => e.hp > 0 && e.side === 'E' && !helpless(e) && Math.max(Math.abs(e.x - x), Math.abs(e.y - y)) === 1);
+    return `Move ${reach.d[i]} square${reach.d[i] > 1 ? 's' : ''}${stop ? ' \u00b7 next to a foe' : ''}${leave ? `<br><span class="bad">${leave} foe${leave > 1 ? 's get' : ' gets'} a free blow as you leave</span>` : ''}`;
+  }
+  return '';
+}
+cv.addEventListener('mousemove', e => { const r = cv.getBoundingClientRect(), M = B && !B.room ? 1 : 0, s = tipText(Math.floor((e.clientX - r.left - cv.clientLeft) / cell) - M, Math.floor((e.clientY - r.top - cv.clientTop) / cell) - M), tip = $('tip');
+  if (!s) return tip.classList.add('hidden'); const sr = $('stage').getBoundingClientRect(); tip.innerHTML = s; tip.classList.remove('hidden'); tip.style.left = Math.min(sr.width - 250, e.clientX - sr.left + 16) + 'px'; tip.style.top = Math.max(0, e.clientY - sr.top + 18) + 'px'; });
+cv.addEventListener('mouseleave', () => $('tip').classList.add('hidden'));
 $('bCam').onclick = () => { if (!busy && B && !B.over) playFly(6500); };
 
 /* ---------- skycam ---------- */
@@ -454,11 +522,12 @@ function devCampaign(q) {
 }
 $('bNew').onclick = newGame;
 $('bHelp').onclick = help;
-$('bCont').onclick = () => { S = load(); camp(); };
+$('bCont').onclick = () => { S = load(); if (!resume()) camp(); };
 $('bNew6').onclick = () => { if (load(true) && !confirm('Abandon the current party and gather a new six?')) return; draft = null; create6(); };
-$('bCont6').onclick = () => { S = load(true); camp(); };
+$('bCont6').onclick = () => { S = load(true); if (!resume()) camp(); };
 if (load()) { $('bCont').classList.remove('hidden'); $('bNew').classList.remove('go'); }
 if (load(true)) { $('bCont6').classList.remove('hidden'); $('bNew6').classList.remove('go'); }
+WIDE.addEventListener && WIDE.addEventListener('change', size);
 window.addEventListener('resize', () => { size(); if (!$('title').classList.contains('hidden')) titleLoop(true); });
 const Q = new URLSearchParams(location.search);
 if (Q.has('six')) { S = devParty(Q); camp(); if (Q.has('fight')) toSands(); } else if (Q.has('day')) { S = devCampaign(Q); camp(); if (Q.has('fight')) toSands(); } else titleLoop(true);

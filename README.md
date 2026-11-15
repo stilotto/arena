@@ -14,6 +14,7 @@ Play: https://stilotto.github.io/arena/
 - `quest.js`: side quests for The Six (crypt, tower, street)
 - `board.js`: the arena floor, wall, crowd and braziers on the board
 - `fx.js`: battle effects (blows, arrows, spells, deaths)
+- `sound.js`: all sound, generated in code
 - `tools/sim.js`: headless balance run (`node tools/sim.js 5 30`)
 
 Developer hook: add `?day=20` to the URL to jump to a later day with a levelled,

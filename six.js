@@ -35,9 +35,9 @@ function begin6() { S = newParty(draft); draft = null; save(); camp(); }
 function camp6() {
   B = null; show('camp'); save();
   const bl = billing(S.day, true), alive = living(S), fin = bl.final && !S.ending, heal = healerCanRaise(S);
-  let h = `<div class="bar"><h2>Day ${roman(S.day)}</h2><span>The Six</span><span class="gold">${S.gold} gp</span><span>Potions ${S.potions}</span>${S.dev ? '<span class="gold small">DEV, not saved</span>' : ''}<span class="sp"></span><button class="sm ${S.fly === false ? '' : 'on'}" onclick="S.fly=S.fly===false;camp()">Skycam: ${S.fly === false ? 'off' : 'on'}</button><button class="sm" onclick="help()">?</button></div>
+  let h = `<div class="bar"><h2>Day ${roman(S.day)}</h2><span>The Six</span><span class="gold">${S.gold} gp</span><span>Potions ${S.potions}</span>${S.dev ? '<span class="gold small">DEV, not saved</span>' : ''}<span class="sp"></span><button class="sm ${S.fly === false ? '' : 'on'}" onclick="S.fly=S.fly===false;camp()">Skycam: ${S.fly === false ? 'off' : 'on'}</button><button class="sm" onclick="this.textContent=(SND.cycle(),SND.label())">${SND.label()}</button><button class="sm" onclick="help()">?</button></div>
   ${S.ending ? `<div class="card"><span class="gold">${S.ending === 'served' ? 'The Six march under Vhorax now. The games go on while he gathers his strength.' : 'Vhorax is dead and the gates stand open. Those who stay fight for the purse alone.'}</span></div>` : ''}
-  <div class="card"><h3>Today's games: ${bl.title}</h3>${fin ? '<p style="margin:2px 0 6px">The Editor of the Games comes down from his box. "Six. I took a hundred and it is six who are worth the keeping. Kneel, and march with me. Or refuse, and I will start again."</p>' : ''}${billingText(bl)}.<br>
+  <div class="card"><h3>Today's games: ${bl.title}</h3>${dawn(bl)}${fin ? '<p style="margin:2px 0 6px">The Editor of the Games comes down from his box. "Six. I took a hundred and it is six who are worth the keeping. Kneel, and march with me. Or refuse, and I will start again."</p>' : ''}${billingText(bl)}.<br>
   <span class="mute">${bl.sides > 1 ? '<b class="gold">Ambush:</b> they come through two gates. ' : ''}Purse: ${bl.purse} gp.</span>
   ${fin ? '<div class="row" style="margin-top:6px"><button onclick="kneel()">Kneel to Vhorax</button><span class="mute small">or go to the sands to defy him.</span></div>' : ''}</div>`;
   S.heroes.forEach((x, i) => {
@@ -52,7 +52,7 @@ function camp6() {
     <p class="more mute">The party rests fully each night and spells return. <a href="https://stilotto.github.io/">More games from Stilotto</a></p>`;
   $('camp').innerHTML = h;
 }
-function train6(i) { const x = S.heroes[i], c = trainCost(x); if (!canTrain(x) || S.gold < c) return; S.gold -= c; levelUp(x); camp(); }
+function train6(i) { const x = S.heroes[i], c = trainCost(x); if (!canTrain(x) || S.gold < c) return; S.gold -= c; levelUp(x); SND.play('level'); camp(); }
 function raise6(i, byHealer) {
   const x = S.heroes[i];
   if (byHealer) { if (!healerCanRaise(S)) return; S.raisedDay = S.day; } else { if (S.gold < raiseCost(x)) return; S.gold -= raiseCost(x); }
@@ -63,7 +63,7 @@ function raise6(i, byHealer) {
 function sheet(i) {
   sheetAt = i = (i + 6) % 6; const x = S.heroes[i], k = kit(x), w = k.w, n = slotsFor(x), used = memCount(x);
   let h = `<h2>${x.name} <span class="small mute">${CL[x.cls].n} ${x.lvl}${x.dead ? ' · fallen' : ''}</span></h2><div class="sheet"><div><canvas id="doll" width="440" height="560"></canvas>
-    <div class="small" style="margin-top:6px">HP <b>${x.hp}/${x.max}</b> · AC <b>${sixAC(x, k)}</b> · THAC0 <b>${sixThac0(x, k)}</b><br>Damage <b>${w ? diceText(w.rdice || w.dice) : x.cls === 'monk' ? '1d6' : '1d2'}${k.dmg + strDmg(x.str) ? '+' + (k.dmg + strDmg(x.str)) : ''}</b> · Move <b>${CL[x.cls].mv + k.mv}</b><br>Str ${x.str} · Dex ${x.dex} · Con ${x.con} · Kills ${x.kills}<br><span class="mute">${CL[x.cls].note}</span></div></div><div>`;
+    <div class="small" style="margin-top:6px">HP <b>${x.hp}/${x.max}</b> · AC <b>${sixAC(x, k)}</b> · THAC0 <b>${sixThac0(x, k)}</b><br>Damage <b>${w ? diceText(w.rdice || w.dice) : x.cls === 'monk' ? '1d6' : '1d2'}${k.dmg + strDmg(x.str) ? '+' + (k.dmg + strDmg(x.str)) : ''}</b> · Move <b>${CL[x.cls].mv + k.mv}</b><br>Str ${x.str} · Dex ${x.dex} · Con ${x.con} · Kills ${x.kills}<br><b>Service:</b> ${x.fought || 0} fight${x.fought === 1 ? '' : 's'}, cut down ${x.downs || 0} time${x.downs === 1 ? '' : 's'}${x.raised ? ', raised ' + x.raised + (x.raised === 1 ? ' time' : ' times') : ''}.${x.trophies ? ' Slew ' + x.trophies.join(', ') + '.' : ''}<br><span class="mute">${CL[x.cls].note}</span></div></div><div>`;
   for (const [s, lab] of SLOTS) { const it = ITEMS[x.eq[s]]; h += `<button class="slotb ${it && it.tier ? 'on' : ''}" ${it ? `onclick="doff(${i},'${s}')"` : 'disabled'} title="${it ? itemText(it) : ''}"><span>${lab}</span><span>${it ? it.n + ' ✕' : (s === 'off' && w && w.two ? 'two-handed weapon' : 'empty')}</span></button>`; }
   if (n) {
     h += `<div class="line"><b>Spells for the day</b><span class="mute small">${used}/${n} memorised</span></div>`;
@@ -99,7 +99,7 @@ function shop6() {
 function buy6(id) {
   if (id === 'potion') { if (S.gold < 30) return; S.gold -= 30; S.potions++; }
   else { const it = ITEMS[id]; if (S.gold < it.cost) return; S.gold -= it.cost; S.inv.push(id); }
-  save(); const y = $('mbox').scrollTop; shop6(); $('mbox').scrollTop = y;
+  SND.play('coin'); save(); const y = $('mbox').scrollTop; shop6(); $('mbox').scrollTop = y;
 }
 
 /* ---------- battle: initiative, one actor at a time ---------- */
@@ -127,7 +127,7 @@ async function sixLoop() {
 }
 function result6(r, left, yielded) {
   if (r.final) return modal(freeEnding() + `<div class="end"><button class="go" onclick="afterResult(${left})">Onward</button></div>`);
-  let h = `<h2>${r.win ? 'Victory' : yielded ? 'Mercy is granted' : r.draw ? 'A draw' : left ? 'Dragged from the sand' : 'The Six are no more'}</h2>`;
+  let h = `<h2>${r.win ? 'Victory' : yielded ? 'Mercy is granted' : r.draw ? 'A draw' : left ? 'Dragged from the sand' : 'The Six are no more'}</h2>` + vhorax(S.last);
   if (r.win) h += `<p>The crowd of the planes roars. Purse and plunder: <b class="gold">${r.gold} gp</b>. Each hero still standing earns <b>${r.xp}</b> experience.</p>`;
   else if (r.draw) h += '<p>The light fails before the matter is settled. The same foes wait tomorrow.</p>';
   else if (left) h += `<p>${yielded ? 'Vhorax turns his thumb.' : 'The handlers haul the fallen out by their heels. Vhorax is not done with them.'} The forfeit is <b class="gold">${r.fine || 0} gp</b>, and the same foes wait tomorrow.</p>`;

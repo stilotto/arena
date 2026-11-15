@@ -27,8 +27,9 @@ the Iron Plane who is forging a new legion.
   sprite per calling and per foe; `six.js` is the screens for the party mode
   (The Six); `quest.js` is its side quests (screens, room painting and the
   lighting overlay); `board.js` paints the arena floor and wall; `fx.js` draws
-  blows, arrows, spells and deaths from the events the engine records; `index.html` holds the CSS.
-- Bump the `?v=` on all eight script tags in `index.html` with every change so
+  blows, arrows, spells and deaths from the events the engine records; `sound.js`
+  makes every sound in code from those same events (no audio files); `index.html` holds the CSS.
+- Bump the `?v=` on all nine script tags in `index.html` with every change so
   phones get the new code.
 - Balance check: `node tools/sim.js [runs] [days]` plays the campaign on
   standing orders and prints deaths per day.
