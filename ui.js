@@ -306,6 +306,7 @@ function refresh() {
   $('bSnd').textContent = SND.label();
   draw(); saveBattle();
 }
+const THING = { door: 'door', shelf: 'bookshelf', sarc: 'sarcophagus' };
 const mSpell = m => m && m.startsWith('scroll:') ? SCROLLS[m.slice(7)].spell : m; // a scroll is aimed like the spell it holds
 function drop() { sel = null; reach = null; mode = null; note = ''; }
 // take back a move made by hand, as long as nothing came of it
@@ -327,10 +328,11 @@ function act(fn) {
 }
 function tap(x, y) {
   if (busy || !B || B.over || !inb(B, x, y)) return;
-  if (B.room && B.room.doors && B.phase !== 'deploy' && !mode && B.room.doors.some(d => d[0] === x && d[1] === y)) { // a house door
-    if (B.opened && B.opened[x + ',' + y]) { note = 'That door has been tried already.'; return refresh(); }
-    if (!sel || sel.acted || sel.hp <= 0 || Math.max(Math.abs(sel.x - x), Math.abs(sel.y - y)) > 1) { note = 'A door. A hero standing next to it can try it, as their action.'; return refresh(); }
-    let res = null; act(() => { res = openDoor(B, sel, S, x, y); }); if (res) peek(res); return;
+  const thing = B.phase !== 'deploy' && !mode && thingAt(B, x, y); // a house door, a bookshelf or a sarcophagus
+  if (thing) { const nm = THING[thing];
+    if (B.opened && B.opened[x + ',' + y]) { note = 'That ' + nm + ' has been tried already.'; return refresh(); }
+    if (!sel || sel.acted || sel.hp <= 0 || Math.max(Math.abs(sel.x - x), Math.abs(sel.y - y)) > 1) { note = 'A ' + nm + '. A hero standing next to it can try it, as their action.'; return refresh(); }
+    let res = null; act(() => { res = interact(B, sel, S, x, y); }); if (res) peek(res); return;
   }
   let t = at(B, x, y); if (t && t.wall) t = null;
   const u = sel;
@@ -457,7 +459,7 @@ window.addEventListener('keydown', e => {
 /* ---------- what a square offers, shown beside the pointer ---------- */
 function tipText(x, y) {
   if (!B || busy || B.over || !inb(B, x, y)) return '';
-  let t = at(B, x, y); if (t && t.wall) return B.room && B.room.doors && B.room.doors.some(d => d[0] === x && d[1] === y) ? (B.opened && B.opened[x + ',' + y] ? 'This door has been tried.' : 'A door. A hero next to it can try it.') : '';
+  let t = at(B, x, y); if (t && t.wall) { const th = thingAt(B, x, y); return th ? (B.opened && B.opened[x + ',' + y] ? 'This ' + THING[th] + ' has been tried.' : 'A ' + THING[th] + '. A hero next to it can try it.') : ''; }
   const u = sel && !sel.acted && sel.hp > 0 && B.phase !== 'deploy' ? sel : null, i = idx(B, x, y);
   if (mode && u && SPELLS[mSpell(mode)] && SPELLS[mSpell(mode)].rad != null) { const n = inRad(B, x, y, SPELLS[mSpell(mode)].rad, 'E').length, fr = SPELLS[mSpell(mode)].ff ? inRad(B, x, y, SPELLS[mSpell(mode)].rad, 'H').filter(h => !h.illusion).length : 0; return `<b>${SPELLS[mSpell(mode)].n}</b>: ${n} foe${n === 1 ? '' : 's'} caught${fr ? `, <span class="bad">and ${fr} of your own</span>` : ''}`; }
   if (t && t.side === 'E') {

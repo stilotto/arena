@@ -40,6 +40,14 @@ Ideas from the owner. Nothing here is built until the owner says go.
 - Service records: fights, times cut down, times raised, champions slain.
 - A battle in progress is saved, and Continue returns to it.
 
+## Built since sprint 1
+
+- Delay in The Six; keys to step through friends and foes; rain that comes
+  and goes with thunder; house doors, bookshelves and sarcophagi to try, with
+  a small picture of what is found; one-use scrolls; critical hits on a
+  natural 20 for both sides; a crowd that only raises its voice when
+  something earns it.
+
 ## Sprint 2: more game (not yet built)
 
 - **Doors, traps and locked chests** in quest rooms, so a thief has something

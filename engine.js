@@ -378,9 +378,9 @@ function kill(b, t, src) {
   else if (t.side === 'H') { b.dead.push(t); say(b, '† ' + t.name + ' the ' + CL[t.cls].n + ' falls' + (src && src.name ? ' to ' + (src.boss ? src.name : 'a ' + src.name) : '') + '.'); }
   else { b.xp += Math.round(t.m.cost * TUNE.xp * (t.boss ? 3 : 1)); b.gold += Math.ceil(t.m.cost / 4) * (t.boss ? 4 : 1); if (src && src.h) { src.h.kills++; if (t.boss) src.h.trophies = (src.h.trophies || []).concat([t.name]); } if (t.boss) say(b, t.name + ' is slain by ' + (src ? src.name : 'the legion') + '!'); }
 }
-function hurt(b, t, dm, src, col) {
+function hurt(b, t, dm, src, col, crit) {
   dm = Math.max(1, Math.round(dm)); t.hp -= dm; delete t.st.sleep;
-  fx(b, { k: 'txt', a: [t.x, t.y], s: '' + dm, c: col || (t.side === 'H' ? '#ff5a4a' : '#fff') });
+  fx(b, { k: 'txt', a: [t.x, t.y], s: dm + (crit ? '!' : ''), c: crit ? '#ffd86a' : col || (t.side === 'H' ? '#ff5a4a' : '#fff'), big: crit ? 1 : 0, side: t.side });
   if (t.hp <= 0) kill(b, t, src);
 }
 function heal(b, t, n) { n = Math.min(n, t.max - t.hp); t.hp += n; fx(b, { k: 'txt', a: [t.x, t.y], s: '+' + n, c: '#7dff8a' }); return n; }
@@ -390,9 +390,10 @@ function strike(b, a, t, dmg, o) {
   if (t.illusion) { if (ri(20) >= 12) { kill(b, t); fx(b, { k: 'txt', a: [t.x, t.y], s: 'poof', c: '#c77be0' }); } return false; }
   const roll = ri(20), need = a.thac0 - t.ac - (t.st.stun ? 4 : 0) - (o.bonus || 0) - (a.st.bless ? 1 : 0);
   if (!(t.st.sleep || roll === 20 || (roll !== 1 && roll >= need))) { if (b.six) say(b, who(a) + ' misses ' + who(t) + '.'); return false; }
-  let dm = (dice(dmg) + (a.db || 0) + (o.plus || 0)) * (o.mult || 1); if (t.st.sleep) dm *= 2;
-  if (b.six) say(b, who(a) + ' hits ' + who(t) + ' for ' + Math.max(1, Math.round(dm)) + '.');
-  ev.hit = true; hurt(b, t, dm, a); return true;
+  const nat = roll === 20; // a natural 20 is a critical hit: the damage dice are rolled twice
+  let dm = (dice(dmg) + (nat ? dice(dmg) : 0) + (a.db || 0) + (o.plus || 0)) * (o.mult || 1); if (t.st.sleep) dm *= 2;
+  if (b.six || nat && (a.boss || t.boss)) say(b, who(a) + (nat ? ' lands a critical blow on ' : ' hits ') + who(t) + ' for ' + Math.max(1, Math.round(dm)) + '.');
+  ev.hit = true; ev.nat = nat; hurt(b, t, dm, a, null, nat); return true;
 }
 const who = u => u.side === 'H' || u.boss ? u.name : 'the ' + u.name;
 // Walls block sight in quest rooms; the open arena has none.
@@ -991,6 +992,37 @@ function openDoor(b, u, S, x, y) {
   return res;
 }
 
+// Things in a room that a hero standing beside them can try: house doors, bookshelves, sarcophagi.
+function thingAt(b, x, y) {
+  const R = b.room; if (!R) return null;
+  if (R.doors && R.doors.some(d => d[0] === x && d[1] === y)) return 'door';
+  const p = R.props.find(q => q.x === x && q.y === y); return p && (p.k === 'shelf' || p.k === 'sarc') ? p.k : null;
+}
+function interact(b, u, S, x, y) {
+  const what = thingAt(b, x, y); if (!what) return null; if (what === 'door') { const r = openDoor(b, u, S, x, y); if (r) r.what = 'door'; return r; }
+  if (u.acted || Math.max(Math.abs(u.x - x), Math.abs(u.y - y)) > 1) return null;
+  b.opened = b.opened || {}; if (b.opened[x + ',' + y]) return null;
+  b.opened[x + ',' + y] = 1; u.acted = true; b.lag = 2400;
+  const r = ri(100), res = { x, y, who: u.name, what }, N = u.name;
+  const riser = mid => { for (let d = 1; d <= 3; d++) for (let yy = y - d; yy <= y + d; yy++) for (let xx = x - d; xx <= x + d; xx++) if (inb(b, xx, yy) && !at(b, xx, yy)) { const e = foeUnit(mid, b.nid++, false, null, b.bl.vet); e.acted = true; b.units.push(e); place(b, e, xx, yy); res.k = 'ambush'; res.fig = mid; return e.name; } return null; };
+  const scroll = () => { const ids = Object.keys(SCROLLS), id = ids[ri(ids.length) - 1]; S.bag = S.bag || {}; S.bag[id] = (S.bag[id] || 0) + 1; return SCROLLS[id].n; };
+  if (what === 'shelf') {
+    if (r <= 28) { res.k = 'treasure'; res.cap = `Tucked behind the folios: <b class="gold">a ${scroll()}</b>. ${N} takes it.`; }
+    else if (r <= 48) { const ks = BOOK[u.cls] ? Object.keys(u.sp).filter(id => SPELLS[id] && BOOK[u.cls].some(q => q[0] === id)) : []; res.k = 'page';
+      if (ks.length) { const id = ks[ri(ks.length) - 1]; u.sp[id]++; res.cap = `A page of the master's own notes. ${N} can cast <b class="gold">${SPELLS[id].n}</b> once more today.`; } else { const g = ri(6) + 2; S.gold += g; res.cap = `Notes ${N} cannot read, and <b class="gold">${g} gp</b> pressed flat between the pages.`; } }
+    else if (r <= 70) { res.k = 'nothing'; res.cap = 'Dust, bad poetry, and a treatise on the breeding of imps.'; }
+    else if (r <= 86) { res.k = 'curse'; u.st.stun = 1; res.cap = `The book opens itself. ${N} cannot look away, and <b class="bad">loses the next turn</b>.`; }
+    else { const nm = riser('imp'); res.cap = nm ? 'Something was nesting behind the books. An <b class="bad">Imp</b> bursts out.' : 'Something scuttles away behind the books.'; if (!nm) res.k = 'nothing'; }
+  } else {
+    if (r <= 34) { const g = ri(18) + 7; S.gold += g; res.k = 'gold'; res.cap = `Grave goods. ${N} takes <b class="gold">${g} gp</b> from hands that no longer need it.`; }
+    else if (r <= 46) { S.potions++; res.k = 'treasure'; res.cap = `Buried with a physician's kit. ${N} takes <b class="gold">a healing potion</b>.`; }
+    else if (r <= 74) { res.k = 'nothing'; res.cap = 'Dust and a few teeth. Someone got here first.'; }
+    else { const nm = riser(b.day >= 7 && ri(2) === 1 ? 'ghoul' : 'skeleton'); res.cap = nm ? `The lid slides back and a <b class="bad">${nm}</b> sits up.` : 'The lid will not move.'; if (!nm) res.k = 'nothing'; }
+  }
+  say(b, N + (what === 'shelf' ? ' searches a bookshelf.' : ' opens a sarcophagus.') + (res.k === 'ambush' ? ' Something was inside.' : ''));
+  return res;
+}
+
 /* ---------- odds, shown before the player commits ---------- */
 function preview(b, u, t, ranged) {
   const c = CL[u.cls], L = u.lvl, note = []; let n = 1, plus = u.db || 0, mult = 1;
@@ -1003,6 +1035,7 @@ function preview(b, u, t, ranged) {
   const d = ranged ? u.rd || c.rdmg : u.wd || c.dmg; let lo = d[0] + (d[2] || 0) + plus, hi = d[0] * d[1] + (d[2] || 0) + plus;
   if (u.fire) { lo += u.fire[0]; hi += u.fire[0] * u.fire[1]; }
   const need = u.thac0 - t.ac - (t.st.stun ? 4 : 0) - (u.st.bless ? 1 : 0);
+  note.push('1 in 20 is a critical');
   return { pct: t.st.sleep ? 100 : clamp(Math.round((21 - need) * 5), 5, 95), lo: Math.max(1, lo * mult), hi: Math.max(1, hi * mult), n, note: note.join(', ') };
 }
 /* ---------- a battle in progress, as plain data so it can be saved and picked up again ---------- */
@@ -1022,4 +1055,4 @@ function unpackBattle(S, o) {
   return b;
 }
 
-if (typeof module !== 'undefined') module.exports = { CL, ORDER, MON, SCHED, SPELLS, TUNE, TIER, TIERCOST, FINAL, ITEMS, SLOTS, BOOK, migrate, redeploy, inZone, veteran, newParty, rollStats, randomName, equip, unequip, kit, sixAC, fillMem, slotsFor, rollInit, foeAct, heroAct, endRound, shopStock, raise, raiseCost, preview, packBattle, unpackBattle, SCROLLS, readScroll, openDoor, PLACES, makeRoom, startRoom, finishRoom, endQuest, beginQuest, tend, los, newCampaign, startBattle, autoRound, finishBattle, billing, billingText, budget, gateCap, living, canTrain, trainCost, levelUp, checkOver, xpNeed, roman };
+if (typeof module !== 'undefined') module.exports = { CL, ORDER, MON, SCHED, SPELLS, TUNE, TIER, TIERCOST, FINAL, ITEMS, SLOTS, BOOK, migrate, redeploy, inZone, veteran, newParty, rollStats, randomName, equip, unequip, kit, sixAC, fillMem, slotsFor, rollInit, foeAct, heroAct, endRound, shopStock, raise, raiseCost, preview, packBattle, unpackBattle, SCROLLS, readScroll, openDoor, thingAt, interact, PLACES, makeRoom, startRoom, finishRoom, endQuest, beginQuest, tend, los, newCampaign, startBattle, autoRound, finishBattle, billing, billingText, budget, gateCap, living, canTrain, trainCost, levelUp, checkOver, xpNeed, roman };

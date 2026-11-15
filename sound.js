@@ -2,7 +2,7 @@
 /* Sound, made in code: no audio files. Short, dry, physical sounds built from oscillators and filtered noise.
    Nothing plays until the player has touched the page (browsers require that), and the volume setting is remembered. */
 const SND = (() => {
-  let ctx = null, master = null, buf = null, amb = null, ambTimer = 0, level = 2, voices = 0;
+  let ctx = null, master = null, buf = null, amb = null, ambTimer = 0, level = 2, voices = 0, where = null;
   const VOL = [0, .3, .65], last = {};
   try { const v = +localStorage.getItem('the-hundred-sound'); if (v === 0 || v === 1 || v === 2) level = localStorage.getItem('the-hundred-sound') === null ? 2 : v; } catch (e) { }
   function init() {
@@ -51,6 +51,13 @@ const SND = (() => {
     cheer: t => noise(t, 1.5, .2, 'bandpass', 850, 1500, .6, .45),
     rustle: t => noise(t, .5, .2, 'bandpass', 3000, 1200, 1.5, .05),
     ring: t => { tone('sine', 1320, 1318, t, .6, .08); tone('sine', 1985, 1980, t, .5, .05); },
+    // the crowd: it only raises its voice when something earns it
+    swell: t => noise(t, .7, .13, 'bandpass', 620, 820, .7, .2),
+    hurrah: t => { noise(t, 1.5, .24, 'bandpass', 800, 1250, .7, .35); noise(t + .05, 1.3, .1, 'bandpass', 1900, 2400, 1, .4); },
+    bigroar: t => { noise(t, 2.6, .36, 'bandpass', 700, 1200, .6, .5); noise(t, 2.4, .2, 'lowpass', 300, 420, .7, .6); noise(t + .1, 2.2, .12, 'bandpass', 2000, 2600, 1, .6); },
+    ooh: t => { noise(t, 1.2, .22, 'bandpass', 330, 420, 5, .3); noise(t, 1.2, .14, 'bandpass', 760, 900, 6, .3); },
+    groan: t => { noise(t, 1.1, .2, 'bandpass', 420, 260, 4, .2); noise(t, 1.1, .1, 'bandpass', 900, 620, 5, .2); },
+    crit: t => { tone('triangle', 1650, 1600, t, .4, .14); tone('sine', 110, 50, t, .3, .5); noise(t, .08, .3, 'highpass', 2600, 2600); },
     thunder: t => { noise(t, 2.8, .55, 'lowpass', 240, 55, .6, .3); tone('sine', 56, 36, t, 2.4, .4, 0, .25); },
     drip: t => tone('sine', 1500, 880, t, .09, .06),
     sleep: t => chime(t, [660, 554, 440, 370], .1, .08), heal: t => chime(t, [523, 659, 784], .08, .09), bless: t => chime(t, [392, 494, 587, 784], .07, .08),
@@ -66,12 +73,15 @@ const SND = (() => {
   function fx(f) {
     const d = Math.max(0, f.t - Date.now());
     switch (f.k) {
-      case 'slash': play('swish', d); if (f.hit) { play(f.w === 'monk' || f.side === 'E' && !f.crit ? 'thump' : 'clang', d + f.lag); play('thump', d + f.lag + 10, 60); } break;
-      case 'shot': play(f.w === 'bolt' ? 'bolt' : 'twang', d); if (f.hit) play(f.w === 'bolt' ? 'thump' : 'thunk', d + f.lag); break;
+      case 'txt': if (where === 'arena' && f.side === 'E' && parseInt(f.s) >= 12 && !f.big) play('swell', d, 700); break;
+      case 'slash': if (f.hit && f.nat) { play('crit', d + f.lag, 100); if (where === 'arena') play(f.side === 'H' ? 'hurrah' : 'groan', d + f.lag + 120, 900); }
+        play('swish', d); if (f.hit) { play(f.w === 'monk' || f.side === 'E' && !f.crit ? 'thump' : 'clang', d + f.lag); play('thump', d + f.lag + 10, 60); } break;
+      case 'shot': if (f.hit && f.nat) { play('crit', d + f.lag, 100); if (where === 'arena') play(f.side === 'H' ? 'hurrah' : 'groan', d + f.lag + 120, 900); }
+        play(f.w === 'bolt' ? 'bolt' : 'twang', d); if (f.hit) play(f.w === 'bolt' ? 'thump' : 'thunk', d + f.lag); break;
       case 'spell': { play('incant', d, 120); const a = d + 250, hit = d + f.lag;
         if (f.id === 'missile') { for (let i = 0; i < (f.n || 1); i++) play('missile', a + i * 70, 20); play('sparkle', hit, 20); }
-        else if (f.id === 'fireball') { play('whoosh', a); play('boom', hit, 150); }
-        else if (f.id === 'lightning') play('crack', hit, 150);
+        else if (f.id === 'fireball') { play('whoosh', a); play('boom', hit, 150); if (where === 'arena') play('ooh', hit + 250, 1200); }
+        else if (f.id === 'lightning') { play('crack', hit, 150); if (where === 'arena') play('ooh', hit + 300, 1200); }
         else if (f.id === 'cure' || f.id === 'loh') play('heal', hit);
         else if (f.id === 'entangle' || f.id === 'web') play('rustle', a);
         else if (f.id === 'hold') play('ring', hit);
@@ -80,7 +90,7 @@ const SND = (() => {
         break; }
       case 'breath': play('roar', d, 200); break;
       case 'gaze': play('ring', d); play('boom', d + 200, 300); break;
-      case 'die': if (f.u && f.u.illusion) break; if (f.u && f.u.side === 'H') play('toll', d, 300); else { play('fall', d, 70); if (f.u && f.u.boss) { play('boom', d, 300); play('cheer', d + 200, 800); } } break;
+      case 'die': if (f.u && f.u.illusion) break; if (f.u && f.u.side === 'H') { play('toll', d, 300); if (where === 'arena') play('groan', d + 150, 1200); } else { play('fall', d, 70); if (f.u && f.u.boss) { play('boom', d, 300); play(where === 'arena' ? 'bigroar' : 'cheer', d + 200, 800); } else if (where === 'arena') play('hurrah', d + 120, 1100); } break;
       case 'move': play('step', d, 90); break;
     }
   }
@@ -94,16 +104,15 @@ const SND = (() => {
       if (this.n < 3) { this.n++; this.set(.75 + r() * .45, 2); this.t = setTimeout(() => { this.set(.45 + r() * .2, 2.5); this.t = setTimeout(() => this.step(), 2200 + r() * 2800); }, 3200 + r() * 4500); }
       else { this.n = 0; this.set(.1, 4); this.t = setTimeout(() => { this.flash = Date.now() + 350; play('thunder', 700 + r() * 900, 0); this.t = setTimeout(() => this.step(), 2800 + r() * 3600); }, 4500 + r() * 6500); } } };
   function ambient(place) {
-    rain.stop(); if (place === 'slum') rain.start();
+    where = place; rain.stop(); if (place === 'slum') rain.start();
     clearInterval(ambTimer); if (amb) { try { amb.g.gain.linearRampToValueAtTime(.0001, ctx.currentTime + .6); amb.s.stop(ctx.currentTime + .7); } catch (e) { } amb = null; }
     if (!place || !level || !init()) return;
-    const P = { arena: ['bandpass', 520, .5, .07, .13], crypt: ['lowpass', 150, .7, .1, .05], tower: ['bandpass', 520, 1.5, .05, .09], slum: ['highpass', 2600, .5, .035, .4] }[place] || null; if (!P) return;
+    where = place; const P = { arena: ['lowpass', 260, .9, .045, .09], crypt: ['lowpass', 150, .7, .1, .05], tower: ['bandpass', 520, 1.5, .05, .09], slum: ['highpass', 2600, .5, .035, .4] }[place] || null; if (!P) return;
     const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(), lfo = ctx.createOscillator(), lg = ctx.createGain();
     s.buffer = buf; s.loop = true; f.type = P[0]; f.frequency.value = P[1]; f.Q.value = P[2]; g.gain.value = .0001; g.gain.linearRampToValueAtTime(P[3], ctx.currentTime + 1.5);
     lfo.frequency.value = P[4]; lg.gain.value = place === 'slum' ? P[3] * .12 : P[3] * .5; lfo.connect(lg); lg.connect(g.gain); if (place === 'tower') { const l2 = ctx.createGain(); l2.gain.value = 260; lfo.connect(l2); l2.connect(f.frequency); }
     s.connect(f); f.connect(g); g.connect(master); s.start(); lfo.start(); amb = { s, g };
     if (place === 'crypt') ambTimer = setInterval(() => { if (Math.random() < .5) play('drip', Math.random() * 900, 300); }, 2300);
-    if (place === 'arena') ambTimer = setInterval(() => { if (Math.random() < .25) play('cheer', 0, 3000); }, 5200);
   }
   function cycle() { level = (level + 1) % 3; try { localStorage.setItem('the-hundred-sound', level); } catch (e) { } if (init()) { master.gain.value = VOL[level]; if (ctx.state === 'suspended') ctx.resume(); } if (!level) ambient(null); return level; }
   return { rain: () => rain.lv, flash: () => rain.flash, play, fx, ambient, cycle, label: () => 'Sound: ' + ['off', 'low', 'full'][level], on: () => level > 0 };

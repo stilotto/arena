@@ -51,7 +51,7 @@ function drawFx(g, c, now) {
     const t = now - f.t, D = (FXD[f.k] || 500) + (f.k === 'shot' || f.k === 'spell' ? f.lag : 0) + (f.n || 0) * 70;
     if (t > D) continue; live = true; if (t < 0) continue;
     const [ax, ay] = f.a ? P(f.a) : [0, 0], [bx, by] = f.b ? P(f.b) : [ax, ay];
-    if (f.k === 'txt') { const k = t / FXD.txt, big = +f.s >= 10 ? 1.25 : 1, pop = RM ? 1 : 1 + .7 * Math.max(0, 1 - t / 130); word(f.s, ax, ay - c * .25 - (RM ? 0 : ease(k) * c * .85), f.c, 1 - k * k * k, Math.max(12, Math.floor(c * .62)) * big * pop); continue; }
+    if (f.k === 'txt') { const k = t / FXD.txt, big = f.big ? 1.75 : parseInt(f.s) >= 10 ? 1.25 : 1, pop = RM ? 1 : 1 + .7 * Math.max(0, 1 - t / 130); word(f.s, ax, ay - c * .25 - (RM ? 0 : ease(k) * c * .85), f.c, 1 - k * k * k, Math.max(12, Math.floor(c * .62)) * big * pop); continue; }
     if (RM) { if ((f.k === 'slash' || f.k === 'shot' || f.k === 'spell' || f.k === 'breath' || f.k === 'gaze') && t < 260) { g.strokeStyle = f.k === 'spell' ? `rgb(${SPELLCOL[f.id] || '255,255,255'})` : '#fff'; g.lineWidth = 2; g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, by); g.stroke(); } continue; }
     const th = Math.atan2(by - ay, bx - ax), dist = Math.hypot(bx - ax, by - ay);
     switch (f.k) {
@@ -59,6 +59,7 @@ function drawFx(g, c, now) {
         const k = cl01(t / 240), col = f.crit ? '210,150,255' : f.side === 'H' ? '255,255,255' : '255,190,160';
         g.globalCompositeOperation = 'lighter';
         for (const [rad, wd, al] of [[.46, .2, .9], [.34, .09, .6]]) { g.strokeStyle = `rgba(${col},${al * (1 - k)})`; g.lineWidth = c * wd * (1 - k * .7); g.beginPath(); g.arc(bx - Math.cos(th) * c * .12, by - Math.sin(th) * c * .12, c * rad, th - 1.25, th - 1.25 + 2.5 * ease(cl01(t / 150))); g.stroke(); }
+        if (f.hit && f.nat && t > 100) { const h = cl01((t - 100) / 320); ring(bx, by, c * (.3 + .9 * ease(h)), '255,216,106', 1 - h, 4); rays(bx, by, c * .3, c * (.5 + .7 * h), 12, '255,216,106', 1 - h, 3, th + .3); }
         if (f.hit && t > 100) { const h = cl01((t - 100) / 260); rays(bx, by, c * .15 + c * .3 * h, c * .3 + c * .5 * h, 7, '255,225,160', 1 - h, 2, th); glow(bx, by, c * .5, '255,120,80', .5 * (1 - h)); }
         g.globalCompositeOperation = 'source-over';
         if (!f.hit && t > 140) word('miss', bx, by - c * .3 - (t - 140) / 280 * c * .4, '#c8c0b0', cl01(1 - (t - 140) / 280), Math.max(10, c * .38));
@@ -75,7 +76,7 @@ function drawFx(g, c, now) {
             g.fillStyle = `rgba(207,214,222,${al})`; g.beginPath(); g.moveTo(x + Math.cos(dth) * c * .12, y + Math.sin(dth) * c * .12); g.lineTo(x + Math.cos(dth + 2.5) * c * .1, y + Math.sin(dth + 2.5) * c * .1); g.lineTo(x + Math.cos(dth - 2.5) * c * .1, y + Math.sin(dth - 2.5) * c * .1); g.fill();
             if (f.w === 'arrow') { g.strokeStyle = `rgba(179,49,42,${al})`; g.lineWidth = 2; g.beginPath(); g.moveTo(tx, ty); g.lineTo(tx + Math.cos(dth + 2.6) * c * .1, ty + Math.sin(dth + 2.6) * c * .1); g.moveTo(tx, ty); g.lineTo(tx + Math.cos(dth - 2.6) * c * .1, ty + Math.sin(dth - 2.6) * c * .1); g.stroke(); } }
           if (!f.hit && k > 1) word('miss', bx, by - c * .3, '#c8c0b0', al, Math.max(10, c * .38));
-        } else { const h = cl01((t - f.lag) / 300); g.globalCompositeOperation = 'lighter'; rays(bx, by, c * .1 + c * .25 * h, c * .25 + c * .5 * h, 6, f.w === 'bolt' ? '220,140,255' : '255,235,190', 1 - h, 2, th); glow(bx, by, c * .45, f.w === 'bolt' ? '200,110,255' : '255,200,140', .55 * (1 - h)); g.globalCompositeOperation = 'source-over'; }
+        } else { const h = cl01((t - f.lag) / 300); if (f.nat) { ring(bx, by, c * (.3 + .9 * ease(h)), '255,216,106', 1 - h, 4); rays(bx, by, c * .3, c * (.5 + .7 * h), 12, '255,216,106', 1 - h, 3, th + .3); } g.globalCompositeOperation = 'lighter'; rays(bx, by, c * .1 + c * .25 * h, c * .25 + c * .5 * h, 6, f.w === 'bolt' ? '220,140,255' : '255,235,190', 1 - h, 2, th); glow(bx, by, c * .45, f.w === 'bolt' ? '200,110,255' : '255,200,140', .55 * (1 - h)); g.globalCompositeOperation = 'source-over'; }
         break; }
       case 'spell': {
         const col = SPELLCOL[f.id] || '255,255,255', W = 250, tt = t - W, T = Math.max(1, f.lag - W), R = ((f.r || 0) + .55) * c;
