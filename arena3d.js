@@ -13,7 +13,7 @@ const A3 = (() => {
   let sc = null;
 
   function build(w, h) {
-    if (sc && sc.w === w && sc.h === h) return sc;
+    if (sc && !sc.room && sc.w === w && sc.h === h) return sc;
     const a = w / 2 * 1.45 + 1.5, b = h / 2 * 1.45 + 1.5, polys = [], flags = [];
     let seed = 11; const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
     const P = (th, d, y) => [Math.cos(th) * (a + d), y, Math.sin(th) * (b + d)];
@@ -62,6 +62,7 @@ const A3 = (() => {
     const X = v => W / 2 + v[0] / v[2] * F, Y = v => H / 2 - v[1] / v[2] * F;
     const trace = vs => { vs = clip(vs); if (vs.length < 3) return false; g.beginPath(); g.moveTo(X(vs[0]), Y(vs[0])); for (let i = 1; i < vs.length; i++) g.lineTo(X(vs[i]), Y(vs[i])); g.closePath(); return true; };
 
+    if (s.room) return renderRoom(g, W, H, cam, time, units, { V, D, X, Y, trace, F, f, r });
     // sky, horizon and the dark sun
     const hl = Math.hypot(f[0], f[2]); let hy = f[1] < 0 ? -H : 2 * H;
     if (hl > .02) { const v = D([f[0] / hl, 0, f[2] / hl]); if (v[2] > .02) hy = Math.max(-H, Math.min(2 * H, Y(v))); }
@@ -138,6 +139,13 @@ const A3 = (() => {
   // where a door stands, in grid coordinates (it is outside the grid, in the podium wall)
   function door(dir) { const s = sc, t = DTH[dir]; return [s.w / 2 - .5 + Math.cos(t) * (s.a - .6), s.h / 2 - .5 + Math.sin(t) * (s.b - .6)]; }
   function fly(k, aspect, sides) {
+    if (sc.room) { // through a quest room: in over the wall, along its length just above the walls, then up
+      const s = sc, a = s.a, b = s.b, tn = Math.tan(55 * Math.PI / 360), top = Math.max(s.h / 2 / .8, s.w / 2 / .8 / Math.max(.5, aspect)) / tn;
+      const pos = [[-a * 1.9, top * .55, b * 1.7], [-a * 1.25, 7.5, b * .8], [-a * .55, 5.2, .4], [a * .2, 4.6, .3], [a * .55, 5.6, b * .25], [0, top * .6, b * .4], [0, top, .05]];
+      const tgt = [[0, 1, 0], [0, 1, 0], [a * .4, 1, 0], [a * .9, .8, 0], [a, .6, 0], [0, 0, 0], [0, 0, 0]];
+      const e = k * k * (3 - 2 * k), t = (k * .55 + e * .45) * 6, q = Math.max(0, Math.min(1, (k - .8) / .2)), qq = q * q * (3 - 2 * q);
+      return { pos: spline(pos, t), tgt: spline(tgt, t), up: norm([0, 1 - qq, -qq]), fov: 55 };
+    }
     const s = sc, a = s.a, b = s.b, ax = a + s.out, bz = b + s.out, fov = 55;
     const tn = Math.tan(fov * Math.PI / 360), top = Math.max(s.h / 2 / .8, s.w / 2 / .8 / Math.max(.5, aspect) * (aspect < 1.25 ? 1.25 / 1 : 1)) / tn;
     const pos = [[-ax * 1.45, 15, bz * 1.7], [-ax * .8, 11.5, bz * .95], [-a * .6, 4.6, b * .8], [a * .05, 3, b * .62], [a * .3, 4.2, b * .42], [0, top * .55, b * .55], [0, top, .05]];
@@ -154,6 +162,69 @@ const A3 = (() => {
     const s = sc, ph = time * .08 + 1.9;
     return { pos: [Math.cos(ph) * (s.a + s.out) * 1.2, 12.5 + Math.sin(time * .11) * 2, Math.sin(ph) * (s.b + s.out) * 1.35], tgt: [0, 2.5, 0], fov: 50 };
   }
-  return { build, render, fly, orbit, door };
+  /* ---------- quest rooms: walls and props as boxes, each place with its own sky and palette ---------- */
+  const STY = {
+    crypt: { floor: '#3a3d46', wall: [86, 90, 102], h: 2.3, line: 'rgba(0,0,0,.3)' },
+    tower: { floor: '#8a6a48', wall: [112, 104, 120], h: 2.6, line: 'rgba(40,20,0,.25)' },
+    slum: { floor: '#5c574f', wall: [110, 96, 84], h: 4, line: 'rgba(0,0,0,.2)' }
+  };
+  const ROOF = [[122, 74, 58], [90, 74, 68], [106, 90, 58], [74, 74, 86], [128, 92, 60]];
+  const PROP = { pillar: [2.7, .22, [150, 150, 160]], stair: [3.2, .12, [130, 124, 136]], shelf: [1.9, .06, [96, 62, 36]], sarc: [.7, .12, [140, 140, 150]], sarc2: [.7, .12, [140, 140, 150]], brazier: [.8, .3, [60, 50, 46]], table: [.75, .08, [122, 86, 52]], cauldron: [.8, .2, [40, 40, 46]], cage: [1.6, .1, [70, 70, 76]], orrery: [1.5, .25, [200, 164, 80]], crate: [.8, .1, [140, 100, 56]], barrel: [.95, .2, [112, 76, 44]], cart: [.9, .04, [120, 84, 48]] };
+  function buildRoom(R) {
+    const w = R.w, h = R.h, st = STY[R.place], polys = [], glows = [];
+    const k = (x, y) => x < 0 || y < 0 || x >= w || y >= h ? (R.place === 'tower' ? -1 : 1) : R.cells[y * w + x];
+    const propAt = {}; for (const p of R.props) propAt[p.y * w + p.x] = p;
+    const box = (x0, z0, x1, z1, y0, y1, col, sides) => {
+      const X0 = x0 - w / 2, X1 = x1 - w / 2, Z0 = z0 - h / 2, Z1 = z1 - h / 2;
+      polys.push({ p: [[X0, y1, Z0], [X1, y1, Z0], [X1, y1, Z1], [X0, y1, Z1]], f: rgb(col, 1) });
+      if (sides[0]) polys.push({ p: [[X0, y0, Z0], [X1, y0, Z0], [X1, y1, Z0], [X0, y1, Z0]], f: rgb(col, .5) });   // north face
+      if (sides[1]) polys.push({ p: [[X0, y0, Z1], [X1, y0, Z1], [X1, y1, Z1], [X0, y1, Z1]], f: rgb(col, .82) });  // south
+      if (sides[2]) polys.push({ p: [[X0, y0, Z0], [X0, y0, Z1], [X0, y1, Z1], [X0, y1, Z0]], f: rgb(col, .62) });  // west
+      if (sides[3]) polys.push({ p: [[X1, y0, Z0], [X1, y0, Z1], [X1, y1, Z1], [X1, y1, Z0]], f: rgb(col, .7) });   // east
+    };
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const c = R.cells[y * w + x], p = propAt[y * w + x];
+      if (p && p.k === 'water') { polys.push({ p: [[x - w / 2, .03, y - h / 2], [x + 1 - w / 2, .03, y - h / 2], [x + 1 - w / 2, .03, y + 1 - h / 2], [x - w / 2, .03, y + 1 - h / 2]], f: '#16283a', flat: 1 }); continue; }
+      if (p) { const d = PROP[p.k] || PROP.crate; box(x + d[1], y + d[1], x + 1 - d[1], y + 1 - d[1], 0, d[0], d[2], [1, 1, 1, 1]); if (p.k === 'brazier' || p.k === 'cauldron' || p.k === 'orrery') glows.push({ p: [x + .5 - w / 2, d[0] + .3, y + .5 - h / 2], r: 1.3, c: p.k === 'cauldron' ? '120,255,140' : p.k === 'orrery' ? '255,220,120' : '255,150,60' }); continue; }
+      if (c !== 1) continue;
+      const nb = [k(x, y - 1), k(x, y + 1), k(x - 1, y), k(x + 1, y)], open = nb.map(v => v !== 1 || (v === -1));
+      if (R.place === 'tower' && !nb.concat([k(x - 1, y - 1), k(x + 1, y - 1), k(x - 1, y + 1), k(x + 1, y + 1)]).some(v => v === 0 || v === 2)) continue; // open air beyond the wall
+      const blk = Math.floor(x / 3) + (y < h / 2 ? 0 : 7), col = R.place === 'slum' ? ROOF[blk % ROOF.length] : st.wall, hh = R.place === 'slum' ? 3.2 + (blk * 37 % 5) * .55 : R.roof ? .9 : st.h;
+      box(x, y, x + 1, y + 1, 0, hh, col, R.place === 'slum' ? [1, 1, 1, 1] : open.map((o, i) => o || [k(x, y - 1), k(x, y + 1), k(x - 1, y), k(x + 1, y)][i] === -1));
+      if (R.place === 'slum') for (const [dz, on] of [[1.001, nb[1] !== 1], [-.001, nb[0] !== 1]]) if (on && (x * 7 + y) % 3) { const z = y + (dz > 1 ? 1 : 0) + (dz > 1 ? .01 : -.01) - h / 2; polys.push({ p: [[x + .3 - w / 2, 1.3, z], [x + .7 - w / 2, 1.3, z], [x + .7 - w / 2, 2.1, z], [x + .3 - w / 2, 2.1, z]], f: (x + y) % 2 ? '#ffd27a' : '#3a2c22', bias: .3 }); }
+    }
+    for (const d of R.decor) if (d.k === 'torch' || d.k === 'candle' || d.k === 'lamp') glows.push({ p: [d.x + .5 - w / 2, d.k === 'lamp' ? 2.4 : 1.7, d.y + .5 - h / 2 + (d.y === 0 ? .6 : d.y === h - 1 ? -.6 : 0)], r: d.k === 'lamp' ? 1.6 : 1.1, c: d.k === 'candle' ? '255,220,150' : '255,160,70' });
+    const floor = R.round ? Array.from({ length: 32 }, (_, i) => [Math.cos(i / 32 * TAU) * 6.1 + .5 - w / 2 + 6, 0, Math.sin(i / 32 * TAU) * 6.1 + .5 - h / 2 + 6]) : [[-w / 2, 0, -h / 2], [w / 2, 0, -h / 2], [w / 2, 0, h / 2], [-w / 2, 0, h / 2]];
+    sc = { room: R, st, w, h, a: w / 2 + 1, b: h / 2 + 1, out: 3, polys, glows, floor };
+    return sc;
+  }
+  function renderRoom(g, W, H, cam, time, units, t) {
+    const s = sc, R = s.room, { V, D, X, Y, trace, F, f } = t, hw = s.w / 2, hh = s.h / 2;
+    const hl = Math.hypot(f[0], f[2]); let hy = f[1] < 0 ? -H : 2 * H;
+    if (hl > .02) { const v = D([f[0] / hl, 0, f[2] / hl]); if (v[2] > .02) hy = Math.max(-H, Math.min(2 * H, Y(v))); }
+    if (R.place === 'crypt') { g.fillStyle = '#06060a'; g.fillRect(0, 0, W, H); }
+    else {
+      const night = R.place === 'tower'; g.fillStyle = night ? '#141a30' : '#1c1a1c'; g.fillRect(0, 0, W, H);
+      if (hy > 0) { const gr = g.createLinearGradient(0, hy - H * .9, 0, hy); if (night) { gr.addColorStop(0, '#04060f'); gr.addColorStop(1, '#27305a'); } else { gr.addColorStop(0, '#16101e'); gr.addColorStop(.6, '#5a3a4a'); gr.addColorStop(1, '#c8804a'); } g.fillStyle = gr; g.fillRect(0, 0, W, hy); }
+      if (night) { let sd = 9; const rr = () => (sd = (sd * 1664525 + 1013904223) >>> 0) / 4294967296; g.fillStyle = '#dfe6ff'; for (let i = 0; i < 90; i++) { const d = D(norm([rr() * 2 - 1, rr() * .9 + .05, rr() * 2 - 1])); if (d[2] > .05) g.fillRect(X(d), Y(d), 1.5, 1.5); } const m = D(norm([.3, .35, -1])); if (m[2] > .05) { g.fillStyle = '#eef0ff'; g.beginPath(); g.arc(X(m), Y(m), F * .05, 0, TAU); g.fill(); } }
+    }
+    if (trace(s.floor.map(V))) { g.fillStyle = s.st.floor; g.fill(); }
+    g.strokeStyle = s.st.line; g.lineWidth = 1; g.beginPath();
+    const seg = (p, q) => { let a = V(p), b = V(q); if (a[2] < NEAR && b[2] < NEAR) return; if (a[2] < NEAR) { const tt = a; a = b; b = tt; } if (b[2] < NEAR) { const k = (NEAR - a[2]) / (b[2] - a[2]); b = [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, NEAR]; } g.moveTo(X(a), Y(a)); g.lineTo(X(b), Y(b)); };
+    if (!R.round) { for (let x = 1; x < s.w; x++) seg([x - hw, 0, -hh], [x - hw, 0, hh]); for (let y = 1; y < s.h; y++) seg([-hw, 0, y - hh], [hw, 0, y - hh]); }
+    g.stroke();
+    const items = [];
+    for (const p of s.polys) { const vs = p.p.map(V); let d = 0, fr = 0; for (const v of vs) { d += v[2]; if (v[2] >= NEAR) fr++; } if (fr) items.push({ d: p.flat ? 1e6 : d / 4 - (p.bias || 0), p, vs }); }
+    if (units) for (const un of units) { const v = V([un.x - hw + .5, 0, un.y - hh + .5]); if (v[2] > NEAR + .2) items.push({ d: v[2] - .35, un, v }); }
+    for (const gl of s.glows) { const v = V(gl.p); if (v[2] > NEAR) items.push({ d: v[2] - .5, gl, v }); }
+    items.sort((p, q) => q.d - p.d);
+    for (const it of items) {
+      if (it.p) { if (trace(it.vs)) { g.fillStyle = it.p.f; g.fill(); g.strokeStyle = 'rgba(0,0,0,.28)'; g.lineWidth = 1; g.stroke(); } }
+      else if (it.gl) { const x = X(it.v), y = Y(it.v), rr = F / it.v[2] * it.gl.r * (time ? 1 + Math.sin(time * 9 + it.gl.p[0]) * .06 : 1), gr = g.createRadialGradient(x, y, 0, x, y, rr); gr.addColorStop(0, `rgba(${it.gl.c},.75)`); gr.addColorStop(.25, `rgba(${it.gl.c},.3)`); gr.addColorStop(1, `rgba(${it.gl.c},0)`); g.globalCompositeOperation = 'lighter'; g.fillStyle = gr; g.beginPath(); g.arc(x, y, rr, 0, TAU); g.fill(); g.globalCompositeOperation = 'source-over'; }
+      else { const un = it.un, x = X(it.v), y = Y(it.v), k = F / it.v[2]; g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.ellipse(x, y, k * .36, k * .12, 0, 0, TAU); g.fill(); if (un.boss) { g.strokeStyle = '#f0c56a'; g.lineWidth = Math.max(1, k * .05); g.beginPath(); g.ellipse(x, y, k * .6, k * .2, 0, 0, TAU); g.stroke(); } FIG.draw(g, un.key, x, y, k * (un.boss ? 1.3 : 1), (un.side === 'H' ? 1 : -1) * (t.r[0] < 0 ? -1 : 1)); }
+    }
+    if (R.place !== 'tower') { const vg = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .3, W / 2, H / 2, Math.max(W, H) * .75); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, R.place === 'crypt' ? 'rgba(0,0,0,.8)' : 'rgba(10,5,15,.5)'); g.fillStyle = vg; g.fillRect(0, 0, W, H); }
+  }
+  return { build, buildRoom, render, fly, orbit, door };
 })();
 if (typeof module !== 'undefined') module.exports = A3;

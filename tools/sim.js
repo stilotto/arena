@@ -29,6 +29,11 @@ if (process.argv[4] === 'six') { // node tools/sim.js 5 31 six : a party on quic
       const st = E.shopStock(S.day);
       for (const h of S.heroes) if (!h.dead) for (const id of st.plain.concat(st.magic)) { const i = E.ITEMS[id], cur = E.ITEMS[h.eq.body]; if (i.slot === 'body' && i.use.includes(h.cls === 'mage' ? 'M' : h.cls[0].toUpperCase()) && S.gold >= i.cost && (i.ac || 0) > ((cur && cur.ac) || 0)) { S.gold -= i.cost; S.inv.push(id); E.equip(S, h, id); } }
       if (!E.living(S).length) { wipes = 9; break; }
+      if (process.argv[5] === 'quest') { // one side quest before each arena day
+        const pl = ['crypt', 'tower', 'slum'][S.day % 3]; E.beginQuest(S, pl); let how = 'done', rooms = 0;
+        while (S.quest.room < 4) { const b = E.startRoom(S); b.nofx = true; while (!E.checkOver(b)) E.autoRound(b, S); const r = E.finishRoom(S, b); if (!r.win) { how = 'lost'; break; } rooms++; E.tend(S); }
+        E.endQuest(S, how); line.push(`[${pl[0]}${rooms}${how === 'lost' ? 'x' : ''}]`);
+      }
       const d = S.day, before = E.living(S).length, b = E.startBattle(S, [0]); b.nofx = true;
       while (!E.checkOver(b)) E.autoRound(b, S);
       const out = E.finishBattle(S, b); if (!out.win) wipes++;

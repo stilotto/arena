@@ -47,7 +47,7 @@ function camp6() {
       <div class="row">${x.dead ? (heal ? `<button class="sm on" onclick="raise6(${i},1)">Healer raises</button>` : '') + `<button class="sm" ${S.gold >= raiseCost(x) ? '' : 'disabled'} onclick="raise6(${i})">Temple raises, ${raiseCost(x)} gp</button>`
         : (canTrain(x) ? `<button class="sm on" ${S.gold >= trainCost(x) ? '' : 'disabled'} onclick="train6(${i})">Train, ${trainCost(x)} gp</button>` : '') + `<button class="sm" onclick="sheet(${i})">Sheet</button>`}</div></div>`;
   });
-  h += `<div class="foot"><button onclick="shop6()">Quartermaster</button><button onclick="sheet(sheetAt)">Stash (${S.inv.length})</button>
+  h += `<div class="foot"><button onclick="shop6()">Quartermaster</button><button onclick="sheet(sheetAt)">Stash (${S.inv.length})</button>${S.quest ? `<button class="on" onclick="enterRoom()">Resume quest (room ${S.quest.room + 1})</button>` : `<button ${S.questDay === S.day || !alive.length ? 'disabled' : ''} onclick="leave()">${S.questDay === S.day ? 'Leave used today' : 'Ask leave: side quest'}</button>`}
     <button class="go" ${alive.length ? '' : 'disabled'} onclick="toSands()">To the sands</button></div>
     <p class="more mute">The party rests fully each night and spells return. <a href="https://stilotto.github.io/">More games from Stilotto</a></p>`;
   $('camp').innerHTML = h;

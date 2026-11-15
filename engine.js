@@ -80,6 +80,24 @@ const MON = {
   firegiant: { n: 'Fire Giant',      pl: 'Fire Giants',      hd: 11, ac: 3, dmg: [2, 8, 4], att: 2, mv: 5, cost: 600, g: 'J', f: 'g' },
   warfiend:  { n: 'Warfiend',        pl: 'Warfiends',        hd: 9,  ac: 0, dmg: [2, 6, 2], att: 2, mv: 6, cost: 650, g: 'Y' },
   dragon:    { n: 'Arena Wyrm',      pl: 'Arena Wyrms',      hd: 10, ac: 1, dmg: [1, 10, 2], att: 3, mv: 7, cost: 900, g: 'Z', f: 'fly', breath: [8, 6, 0] },
+  // side-quest foes. caster = ranged magic bolt (uses range and dmg)
+  thug:      { n: 'Thug',            pl: 'Thugs',            hd: 1,  ac: 7, dmg: [1, 6, 0], mv: 4, cost: 10,  g: 't' },
+  cutpurse:  { n: 'Cutpurse',        pl: 'Cutpurses',        hd: 1,  ac: 6, dmg: [1, 4, 1], mv: 7, cost: 11,  g: 'c' },
+  slinger:   { n: 'Rooftop Archer',  pl: 'Rooftop Archers',  hd: 1,  ac: 7, dmg: [1, 6, 0], mv: 4, cost: 12,  g: 'a', range: 6 },
+  hound:     { n: 'Gutter Hound',    pl: 'Gutter Hounds',    hd: 1.5, ac: 7, dmg: [1, 6, 0], mv: 7, cost: 16, g: 'd' },
+  bruiser:   { n: 'Bruiser',         pl: 'Bruisers',         hd: 3,  ac: 6, dmg: [1, 8, 1], mv: 4, cost: 45,  g: 'b' },
+  wererat:   { n: 'Wererat',         pl: 'Wererats',         hd: 3,  ac: 6, dmg: [1, 8, 0], mv: 6, cost: 70,  g: 'R', f: 'reg' },
+  gangboss:  { n: 'Gang Boss',       pl: 'Gang Bosses',      hd: 5,  ac: 4, dmg: [1, 8, 2], att: 2, mv: 5, cost: 150, g: 'M', summon: ['thug', 2] },
+  cultist:   { n: 'Cultist',         pl: 'Cultists',         hd: 1,  ac: 8, dmg: [1, 4, 0], mv: 4, cost: 9,   g: 'c' },
+  cultpriest: { n: 'Cult Priest',    pl: 'Cult Priests',     hd: 3,  ac: 7, dmg: [1, 6, 1], mv: 4, cost: 50,  g: 'p', range: 6 },
+  slime:     { n: 'Grey Ooze',       pl: 'Grey Oozes',       hd: 3,  ac: 8, dmg: [2, 4, 0], mv: 2, cost: 40,  g: 'o', f: 'u' },
+  gargoyle:  { n: 'Gargoyle',        pl: 'Gargoyles',        hd: 4,  ac: 5, dmg: [1, 6, 0], att: 2, mv: 6, cost: 95, g: 'G', f: 'fly' },
+  necromancer: { n: 'Necromancer',   pl: 'Necromancers',     hd: 5,  ac: 6, dmg: [1, 8, 0], mv: 4, cost: 170, g: 'N', range: 7, summon: ['skeleton', 2] },
+  apprentice: { n: 'Apprentice',     pl: 'Apprentices',      hd: 2,  ac: 8, dmg: [1, 6, 0], mv: 4, cost: 28,  g: 'a', range: 6 },
+  imp:       { n: 'Imp',             pl: 'Imps',             hd: 2,  ac: 4, dmg: [1, 4, 0], mv: 7, cost: 38,  g: 'i', f: 'poi fly' },
+  armour:    { n: 'Animated Armour', pl: 'Animated Armours', hd: 3,  ac: 2, dmg: [1, 8, 0], mv: 4, cost: 60,  g: 'A', f: 'u' },
+  golem:     { n: 'Clay Guardian',   pl: 'Clay Guardians',   hd: 7,  ac: 5, dmg: [2, 8, 0], mv: 3, cost: 200, g: 'C', f: 'u' },
+  sorcerer:  { n: 'Sorcerer',        pl: 'Sorcerers',        hd: 6,  ac: 5, dmg: [1, 8, 2], mv: 4, cost: 220, g: 'S', range: 8, summon: ['imp', 2] },
   vhorax:    { n: 'Vhorax',          pl: 'Vhorax',           hd: 16, ac: -2, dmg: [2, 10, 4], att: 3, mv: 6, cost: 1500, g: '@', gaze: 1, summon: ['legionary', 4] }
 };
 
@@ -214,7 +232,7 @@ function heroUnit(S, h, id) {
   const c = CL[h.cls], gr = S.gear[h.cls];
   if (h.eq) { // The Six: everything comes from what the hero carries
     const k = kit(h), w = k.w, fist = h.cls === 'monk' ? [1, 6, 0] : [1, 2, 0];
-    return { id, side: 'H', h, cls: h.cls, ci: 0, name: h.name, lvl: h.lvl, hp: h.hp, max: h.max, ac: sixAC(h, k), thac0: sixThac0(h, k), db: k.dmg + strDmg(h.str), mv: c.mv + k.mv, wd: w ? w.dice : fist, rd: w && w.rdice, range: (w && w.range) || 0, fire: w && w.fire, bane: w && w.bane, regen: k.regen, fly: k.fly, st: {}, sp: Object.assign({}, h.mem, abilities(h)), kill: h.cls === 'assassin' ? 1 : 0, col: c.col, g: c.g, key: figKey(h) };
+    return { id, side: 'H', h, cls: h.cls, ci: 0, name: h.name, lvl: h.lvl, hp: h.hp, max: h.max, ac: sixAC(h, k), thac0: sixThac0(h, k), db: k.dmg + strDmg(h.str), mv: c.mv + k.mv, wd: w ? w.dice : fist, rd: w && w.rdice, range: (w && w.range) || 0, fire: w && w.fire, bane: w && w.bane, regen: k.regen, fly: k.fly, st: {}, sp: Object.assign({}, h.left || Object.assign({}, h.mem, abilities(h))), kill: h.cls === 'assassin' ? 1 : 0, col: c.col, g: c.g, key: figKey(h) };
   }
   return { id, side: 'H', h, cls: h.cls, ci: h.ci, name: h.name, lvl: h.lvl, hp: h.hp, max: h.max, ac: heroAC(h, gr), thac0: heroThac0(h, gr), db: gr.arms + strDmg(h.str), mv: c.mv, range: c.range || 0, st: {}, sp: spellsFor(h), kill: h.cls === 'assassin' ? 1 : 0, col: c.col, g: c.g };
 }
@@ -330,7 +348,7 @@ function nearest(u, list) { let best = null, bd = 1e9; for (const t of list) { c
 function approach(b, u, reach) {
   const fs = foesOf(b, u); if (!fs.length) return;
   const G = new Uint8Array(b.w * b.h);
-  for (const f of fs) for (let y = Math.max(0, f.y - reach); y <= Math.min(b.h - 1, f.y + reach); y++) for (let x = Math.max(0, f.x - reach); x <= Math.min(b.w - 1, f.x + reach); x++) G[idx(b, x, y)] = 1;
+  for (const f of fs) for (let y = Math.max(0, f.y - reach); y <= Math.min(b.h - 1, f.y + reach); y++) for (let x = Math.max(0, f.x - reach); x <= Math.min(b.w - 1, f.x + reach); x++) if (reach < 2 || los(b, x, y, f.x, f.y)) G[idx(b, x, y)] = 1;
   const s = idx(b, u.x, u.y); if (G[s]) return;
   const { d, p, q } = flood(b, u); let tg = -1;
   for (const c of q) if (G[c] && !b.grid[c]) { tg = c; break; }
@@ -371,6 +389,14 @@ function strike(b, a, t, dmg, o) {
   let dm = (dice(dmg) + (a.db || 0) + (o.plus || 0)) * (o.mult || 1); if (t.st.sleep) dm *= 2;
   hurt(b, t, dm, a); return true;
 }
+// Walls block sight in quest rooms; the open arena has none.
+function los(b, x0, y0, x1, y1) {
+  if (!b.room) return true;
+  const dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1; let err = dx - dy, x = x0, y = y0;
+  while (x !== x1 || y !== y1) { const e2 = 2 * err; if (e2 > -dy) { err -= dy; x += sx; } if (e2 < dx) { err += dx; y += sy; } if ((x !== x1 || y !== y1) && b.room.cells[y * b.w + x] === 1) return false; }
+  return true;
+}
+const inShot = (b, a, t) => dist(a, t) <= a.range && los(b, a.x, a.y, t.x, t.y);
 const flanked = (b, t, a) => b.units.some(x => x.hp > 0 && x.side === a.side && x !== a && dist(x, t) === 1);
 
 function heroAttack(b, u, t, ranged) {
@@ -409,7 +435,7 @@ function burst(b, x, y, r, c) { fx(b, { k: 'burst', a: [x, y], r, c }); }
 // Returns true if the spell was cast. Validates range and target.
 function cast(b, u, id, x, y) {
   const sp = SPELLS[id], L = u.lvl; if (!sp || !(u.sp[id] > 0) || u.acted) return false;
-  if (sp.tg !== 'self' && (!inb(b, x, y) || Math.max(Math.abs(u.x - x), Math.abs(u.y - y)) > sp.range)) return false;
+  if (sp.tg !== 'self' && (!inb(b, x, y) || Math.max(Math.abs(u.x - x), Math.abs(u.y - y)) > sp.range || !los(b, u.x, u.y, x, y))) return false;
   const t = sp.tg === 'self' ? null : at(b, x, y);
   if (sp.tg === 'foe' && !(t && t.side === 'E')) return false;
   if (sp.tg === 'ally' && !(t && t.side === 'H' && !t.illusion && t.hp < t.max)) return false;
@@ -450,7 +476,7 @@ function drink(b, u, S) { if (!(S.potions > 0) || u.acted || u.hp >= u.max) retu
 function bestCell(b, u, id, ok) {
   const sp = SPELLS[id]; let best = null, bs = 0;
   for (const f of b.units) {
-    if (f.hp <= 0 || f.side !== 'E' || dist(u, f) > sp.range) continue;
+    if (f.hp <= 0 || f.side !== 'E' || dist(u, f) > sp.range || !los(b, u.x, u.y, f.x, f.y)) continue;
     const us = inRad(b, f.x, f.y, sp.rad); if (sp.ff && us.some(x => x.side === 'H' && !x.illusion)) continue;
     let s = 0; for (const x of us) if (x.side === 'E' && ok(x)) s += x.boss ? 3 : 1;
     if (s > bs) { bs = s; best = f; }
@@ -518,7 +544,7 @@ function heroAct(b, u, S) {
   }
   const reach = u.range || 1;
   if (co.order === 'withdraw') { if (canMove()) flee(b, u); }
-  else if (co.order === 'attack' && canMove() && dist(u, nearest(u, fs)) > reach) approach(b, u, reach);
+  else if (co.order === 'attack' && canMove() && !(reach > 1 ? fs.some(f => inShot(b, u, f)) : dist(u, nearest(u, fs)) <= 1)) approach(b, u, reach);
   if (u.hp <= 0) return;
   fs = foesOf(b, u);
   const adj = fs.filter(f => dist(u, f) === 1);
@@ -527,7 +553,7 @@ function heroAct(b, u, S) {
     if (u.kill && !pick.boss) { const big = adj.filter(f => !f.boss && f.hd >= 2).sort((a, c) => c.hp - a.hp)[0]; if (big && big.hp > 8) { if (!assassinate(b, u, big)) heroAttack(b, u, big, false); return; } }
     heroAttack(b, u, pick, false);
   } else if (u.range) {
-    const t = fs.filter(f => dist(u, f) <= u.range).sort((a, c) => (a.st.sleep ? 1 : 0) - (c.st.sleep ? 1 : 0) || a.hp - c.hp)[0];
+    const t = fs.filter(f => inShot(b, u, f)).sort((a, c) => (a.st.sleep ? 1 : 0) - (c.st.sleep ? 1 : 0) || a.hp - c.hp)[0];
     if (t) heroAttack(b, u, t, true);
   }
   u.acted = true;
@@ -554,21 +580,21 @@ function foeAct(b, e) {
     if (best) { e.cd = 2; burst(b, best.x, best.y, 1, '#f0c56a'); say(b, e.name + ' turns his eye on the legion.'); for (const h of inRad(b, best.x, best.y, 1, 'H')) if (!h.illusion && ri(20) + h.lvl < 16) { h.st.stun = 2; fx(b, { k: 'txt', a: [h.x, h.y], s: 'held', c: '#f0c56a' }); } }
   }
   if (m.summon && b.round % 3 === 0 && e.sum !== b.round) { // more of his guard come through the gates
-    e.sum = b.round; let k = 0;
-    for (const dir of b.doors) for (let j = 0; j < 12 && k < m.summon[1]; j++) {
-      const o = Math.ceil(j / 2) * (j % 2 ? 1 : -1), x = dir === 'E' ? b.w - 1 : dir === 'W' ? 0 : Math.floor(b.w / 2) + o, y = dir === 'N' ? 0 : dir === 'S' ? b.h - 1 : Math.floor(b.h / 2) + o;
+    e.sum = b.round; let k = 0; const sn = b.six && !b.quest ? Math.ceil(m.summon[1] / 2) : m.summon[1];
+    for (const dir of b.quest ? ['Q'] : b.doors) for (let j = 0; j < 12 && k < sn; j++) {
+      const o = Math.ceil(j / 2) * (j % 2 ? 1 : -1), x = dir === 'Q' ? e.x - 1 + j % 3 : dir === 'E' ? b.w - 1 : dir === 'W' ? 0 : Math.floor(b.w / 2) + o, y = dir === 'Q' ? e.y - 2 + Math.floor(j / 3) : dir === 'N' ? 0 : dir === 'S' ? b.h - 1 : Math.floor(b.h / 2) + o;
       if (!inb(b, x, y) || at(b, x, y)) continue;
       const nu = foeUnit(m.summon[0], b.nid++, false, null, b.bl.vet); nu.door = dir; b.units.push(nu); place(b, nu, x, y); burst(b, x, y, 0, '#ff7828'); k++;
-      if (k % Math.ceil(m.summon[1] / b.doors.length) === 0) break;
+      if (!b.quest && k % Math.ceil(sn / b.doors.length) === 0) break;
     }
-    if (k) say(b, e.name + ' calls ' + k + ' more of the Ashen Legion through the gates.');
+    if (k) say(b, b.quest ? e.name + ' calls for help: ' + k + ' more come.' : e.name + ' calls ' + k + ' more of the Ashen Legion through the gates.');
   }
-  if (!rooted && dist(e, nearest(e, hs)) > reach) approach(b, e, reach);
+  if (!rooted && !(reach > 1 ? hs.some(h => inShot(b, e, h)) : dist(e, nearest(e, hs)) <= 1)) approach(b, e, reach);
   if (e.hp <= 0) return;
   for (let i = 0; i < (m.att || 1); i++) {
     hs = foesOf(b, e);
     const adj = hs.filter(h => dist(e, h) === 1); let t = adj.find(h => h.illusion) || adj[ri(adj.length) - 1], ranged = false;
-    if (!t && e.range) { t = nearest(e, hs.filter(h => dist(e, h) <= e.range)); ranged = true; }
+    if (!t && e.range) { t = nearest(e, hs.filter(h => inShot(b, e, h))); ranged = true; }
     if (!t) break;
     if (strike(b, e, t, m.dmg, { ranged }) && t.hp > 0 && !t.illusion) {
       if (e.f.includes('par') && ri(20) + t.lvl < 13) { t.st.stun = ri(2) + 1; fx(b, { k: 'txt', a: [t.x, t.y], s: 'held', c: '#b9f' }); }
@@ -754,4 +780,115 @@ function rollInit(b) {
   b.turn = 0;
 }
 
-if (typeof module !== 'undefined') module.exports = { CL, ORDER, MON, SCHED, SPELLS, TUNE, TIER, TIERCOST, FINAL, ITEMS, SLOTS, BOOK, migrate, redeploy, inZone, veteran, newParty, rollStats, randomName, equip, unequip, kit, sixAC, fillMem, slotsFor, rollInit, foeAct, heroAct, endRound, shopStock, raise, raiseCost, newCampaign, startBattle, autoRound, finishBattle, billing, billingText, budget, gateCap, living, canTrain, trainCost, levelUp, checkOver, xpNeed, roman };
+/* ---------- side quests for The Six: a short crawl through three or four rooms, no rest between ---------- */
+const WALL = { side: 'W', wall: true, hp: 0, st: {}, f: '' };
+const PLACES = {
+  crypt: { n: 'The Sunken Crypt', short: 'Crypt', blurb: 'Cold stone under the arena, older than the games. The dead do not rest there, and someone keeps them walking.',
+    rooms: ['The Guard Room', 'The Crypt', 'The Flooded Cistern', 'The Vault'], boss: 'necromancer', bn: 'The Bone-Speaker',
+    foes: [['cultist', 1], ['rat', 1], ['skeleton', 2], ['zombie', 4], ['slime', 5], ['ghoul', 7], ['cultpriest', 8], ['gargoyle', 12], ['wight', 16]] },
+  tower: { n: 'The Leaning Tower', short: 'Tower', blurb: 'A sorcerer keeps four floors and a roof on the edge of the pits. He does not take visitors, and his servants are not all alive.',
+    rooms: ['The Library', 'The Laboratory', 'The Menagerie', 'The Observatory'], boss: 'sorcerer', bn: 'Master Ilvane',
+    foes: [['apprentice', 1], ['imp', 3], ['armour', 5], ['gargoyle', 10], ['golem', 14]] },
+  slum: { n: 'Gutter Row', short: 'Gutter Row', blurb: 'The crooked street behind the arena where the handlers drink. A gang runs it from the yard at the far end.',
+    rooms: ["Tanner's Row", 'The Narrows', "Ragpicker's Court", "Crake's Yard"], boss: 'gangboss', bn: 'Mother Crake',
+    foes: [['thug', 1], ['cutpurse', 1], ['slinger', 2], ['hound', 3], ['bruiser', 6], ['wererat', 10]] }
+};
+// A room: cells 0 = floor, 1 = wall (blocks sight), 2 = low obstacle, 3 = water. props are drawn things on blocked cells.
+function makeRoom(place, n) {
+  let R; const mk = (w, h, f) => { R = { place, n, name: PLACES[place].rooms[n], w, h, cells: new Uint8Array(w * h).fill(f), props: [], decor: [] }; };
+  const set = (x, y, k, p) => { if (x < 0 || y < 0 || x >= R.w || y >= R.h) return; R.cells[y * R.w + x] = k; if (p) R.props.push({ x, y, k: p }); };
+  const rect = (x0, y0, x1, y1, k, p) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) set(x, y, k, p); };
+  if (place === 'crypt') {
+    mk(15, 11, 0); rect(0, 0, 14, 0, 1); rect(0, 10, 14, 10, 1); rect(0, 0, 0, 10, 1); rect(14, 0, 14, 10, 1);
+    if (n === 0) for (const x of [4, 7, 10]) for (const y of [3, 7]) set(x, y, 1, 'pillar');
+    if (n === 1) for (const x of [5, 8, 11]) for (const y of [2, 3, 7, 8]) set(x, y, 2, y === 2 || y === 7 ? 'sarc' : 'sarc2');
+    if (n === 2) { rect(6, 4, 8, 6, 3, 'water'); for (const [x, y] of [[4, 2], [10, 2], [4, 8], [10, 8]]) set(x, y, 1, 'pillar'); }
+    if (n === 3) { rect(8, 1, 8, 9, 1); set(8, 3, 0); set(8, 7, 0); for (const [x, y] of [[11, 2], [11, 8]]) set(x, y, 2, 'brazier'); set(5, 5, 1, 'pillar'); }
+    R.entry = [[3, 5], [3, 4], [3, 6], [2, 5], [2, 4], [2, 6], [1, 5], [1, 4], [1, 6]]; R.bossAt = [12, 5];
+    for (const [x, y] of [[0, 2], [0, 8], [14, 2], [14, 8], [5, 0], [9, 0], [5, 10], [9, 10]]) R.decor.push({ k: 'torch', x, y });
+    R.decor.push({ k: 'door', x: 0, y: 5 }, { k: 'exit', x: 14, y: 5 });
+  } else if (place === 'tower') {
+    mk(13, 13, 1); for (let y = 0; y < 13; y++) for (let x = 0; x < 13; x++) if ((x - 6) * (x - 6) + (y - 6) * (y - 6) <= 31.5) set(x, y, 0);
+    R.round = 1; R.decor.push({ k: 'rug', x: 6, y: 6 });
+    if (n === 0) { for (const x of [4, 5, 7, 8]) for (const y of [3, 9]) set(x, y, 1, 'shelf'); set(8, 6, 2, 'table'); set(6, 6, 1, 'stair'); }
+    if (n === 1) { for (const [x, y] of [[5, 4], [8, 4], [5, 8], [8, 8]]) set(x, y, 2, 'table'); set(9, 6, 2, 'cauldron'); set(6, 6, 1, 'stair'); }
+    if (n === 2) { for (const [x, y] of [[4, 4], [8, 4], [4, 8], [8, 8], [6, 2], [6, 10]]) set(x, y, 2, 'cage'); set(6, 6, 1, 'stair'); }
+    if (n === 3) { set(6, 6, 2, 'orrery'); for (const [x, y] of [[6, 3], [6, 9], [9, 4], [9, 8]]) set(x, y, 2, 'brazier'); R.roof = 1; }
+    R.entry = [[3, 6], [3, 5], [3, 7], [2, 6], [2, 5], [2, 7], [1, 6], [2, 4], [2, 8]]; R.bossAt = [10, 6];
+    for (const [x, y] of [[6, 0], [6, 12], [12, 6], [2, 2], [10, 2], [2, 10], [10, 10]]) R.decor.push({ k: 'candle', x, y });
+  } else {
+    mk(21, 9, 1); rect(0, 3, 20, 5, 0);
+    if (n === 0) { rect(5, 0, 5, 2, 0); rect(10, 6, 10, 8, 0); rect(15, 0, 16, 2, 0); for (const [x, y, p] of [[4, 3, 'crate'], [8, 5, 'barrel'], [12, 4, 'cart'], [17, 5, 'crate']]) set(x, y, 2, p); }
+    if (n === 1) { rect(9, 3, 12, 3, 1); rect(9, 5, 12, 5, 1); rect(6, 0, 6, 2, 0); rect(14, 6, 15, 8, 0); rect(16, 1, 18, 2, 0); for (const [x, y, p] of [[5, 5, 'barrel'], [15, 3, 'crate'], [18, 5, 'crate']]) set(x, y, 2, p); }
+    if (n === 2) { rect(8, 1, 14, 7, 0); rect(4, 6, 4, 8, 0); rect(17, 0, 17, 2, 0); for (const [x, y, p] of [[11, 4, 'cart'], [9, 2, 'crate'], [13, 6, 'barrel'], [9, 6, 'crate'], [13, 2, 'barrel']]) set(x, y, 2, p); }
+    if (n === 3) { rect(11, 1, 19, 7, 0); rect(20, 0, 20, 8, 1); rect(6, 6, 7, 8, 0); for (const [x, y, p] of [[13, 2, 'crate'], [13, 6, 'crate'], [16, 4, 'brazier'], [8, 3, 'barrel']]) set(x, y, 2, p); }
+    R.entry = [[2, 4], [2, 3], [2, 5], [1, 4], [1, 3], [1, 5], [0, 4], [0, 3], [0, 5]]; R.bossAt = [18, 4];
+    for (const x of [3, 9, 15]) R.decor.push({ k: 'lamp', x, y: n === 2 && x === 9 ? 0 : 2 }, { k: 'wash', x: x + 3, y: 3 });
+    for (const [x, y] of [[6, 4], [14, 5], [10, 4]]) if (!R.cells[y * R.w + x]) R.decor.push({ k: 'puddle', x, y });
+  }
+  const near = (x, y) => R.entry.some(e => Math.max(Math.abs(e[0] - x), Math.abs(e[1] - y)) < 4);
+  R.spawn = []; for (let y = 0; y < R.h; y++) for (let x = 0; x < R.w; x++) if (!R.cells[y * R.w + x] && !near(x, y) && !(x === R.bossAt[0] && y === R.bossAt[1])) R.spawn.push([x, y]);
+  return R;
+}
+function startRoom(S) {
+  const q = S.quest, P = PLACES[q.place], last = q.room === P.rooms.length - 1, d = S.day + 2 * ((S.q || {})[q.place] || 0);
+  const R = makeRoom(q.place, q.room), B0 = budget(d) * 6 / (10 * gateCap(d)) * TUNE.six, vet = 1 + (veteran(d) - 1) * .4;
+  const b = { six: true, quest: true, room: R, day: S.day, w: R.w, h: R.h, units: [], round: 1, log: [], fx: [], over: null, xp: 0, gold: 0, dead: [], cis: [0], doors: [], last };
+  b.grid = new Array(b.w * b.h).fill(null); R.cells.forEach((k, i) => { if (k) b.grid[i] = WALL; });
+  let id = 1;
+  const hs = S.heroes.filter(h => !h.dead && h.hp > 0).map(h => heroUnit(S, h, id++)).sort((a, c) => CL[a.cls].front - CL[c.cls].front);
+  hs.forEach((u, i) => place(b, u, R.entry[i][0], R.entry[i][1]));
+  const want = Math.max(B0 * [.45, .55, .65, .45][q.room], 14 + 6 * q.room), av = P.foes.filter(f => f[1] <= d).map(f => f[0]).sort((a, c) => MON[c].cost - MON[a].cost);
+  const cnt = {}, es = [];
+  for (const mid of [av[ri(Math.min(2, av.length)) - 1], av[ri(av.length) - 1]]) cnt[mid] = (cnt[mid] || 0) + clamp(Math.round(want * .5 / MON[mid].cost), 1, 4);
+  for (const mid in cnt) for (let i = 0; i < cnt[mid]; i++) es.push(foeUnit(mid, id++, false, null, vet));
+  for (let i = R.spawn.length - 1; i > 0; i--) { const j = ri(i + 1) - 1, t = R.spawn[i]; R.spawn[i] = R.spawn[j]; R.spawn[j] = t; }
+  es.forEach((e, i) => place(b, e, R.spawn[i][0], R.spawn[i][1]));
+  if (last) { const boss = foeUnit(P.boss, id++, true, P.bn, vet * (d < 6 ? .55 : d < 12 ? .8 : 1), 1.2); place(b, boss, R.bossAt[0], R.bossAt[1]); es.unshift(boss); }
+  b.bl = { title: P.n + ': ' + R.name, foes: Object.keys(cnt).map(k => ({ id: k, count: cnt[k] })), boss: last ? P.boss : null, bn: P.bn, purse: 0, sides: 1, vet, six: true };
+  const xs = R.entry.map(e => e[0]), ys = R.entry.map(e => e[1]);
+  b.zone = { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) };
+  b.units = hs.concat(es); b.nid = id;
+  say(b, P.n + ', ' + R.name + ': ' + billingText(b.bl) + '.');
+  return b;
+}
+// Settle one room. Wounds and spent spells carry into the next; the downed get back up at 1 hit point.
+function finishRoom(S, b, fled) {
+  const q = S.quest, res = { win: b.over === 'win', fled: !!fled, xp: 0, gold: 0, down: [], dead: [], loot: [], last: b.last };
+  const up = [];
+  for (const u of b.units) {
+    if (u.side !== 'H' || u.illusion) continue;
+    u.h.left = u.sp;
+    if (u.hp <= 0 && u.down) { u.h.hp = 1; res.down.push(u.name); } else if (u.hp <= 0) { u.h.dead = true; u.h.hp = 0; u.h.diedDay = b.day; S.fallen++; res.dead.push(u.name + ' the ' + CL[u.cls].n); } else { u.h.hp = u.hp; up.push(u); }
+  }
+  if (res.win) {
+    res.xp = up.length ? Math.floor(b.xp * .6 / up.length) : 0; for (const u of up) u.h.xp += res.xp;
+    res.gold = b.gold; q.gold += b.gold;
+    if (b.last || ri(100) <= 25) { const top = clamp(1 + Math.floor(b.day / 8), 1, 3), pool = Object.values(ITEMS).filter(i => i.tier > 0 && i.tier <= top); res.loot.push(pool[ri(pool.length) - 1].id); q.loot.push(res.loot[0]); }
+    if (b.last) { res.chest = 40 + 15 * (b.day + 2 * ((S.q || {})[q.place] || 0)); q.gold += res.chest; }
+    q.room++;
+  }
+  return res;
+}
+// Healers spend what cures they have left on the worst hurt. Returns hit points restored.
+function tend(S) {
+  let n = 0; const alive = living(S);
+  for (const c of alive) while (c.left && (c.left.cure > 0 || c.left.loh > 0)) {
+    const t = alive.filter(h => h.hp < h.max).sort((a, d) => a.hp / a.max - d.hp / d.max)[0]; if (!t) return n;
+    if (c.left.cure > 0) c.left.cure--; else c.left.loh--;
+    const k = Math.min(t.max - t.hp, c.left.loh >= 0 && !(c.left.cure >= 0) ? 3 + 2 * c.lvl : dice([1, 8, c.lvl])); t.hp += k; n += k;
+  }
+  return n;
+}
+// how: 'done' (cleared), 'back' (turned back, keeps the takings), 'lost' (beaten or fled: the takings are gone)
+function endQuest(S, how) {
+  const q = S.quest, out = { how, gold: how === 'lost' ? 0 : q.gold, loot: how === 'lost' ? [] : q.loot, place: q.place };
+  S.gold += out.gold; S.inv.push(...out.loot);
+  S.q = S.q || {}; if (how === 'done') S.q[q.place] = (S.q[q.place] || 0) + 1;
+  S.questDay = S.day; delete S.quest;
+  for (const h of S.heroes) { delete h.left; if (!h.dead) h.hp = h.max; }
+  return out;
+}
+function beginQuest(S, place) { S.quest = { place, room: 0, gold: 0, loot: [] }; for (const h of S.heroes) delete h.left; }
+
+if (typeof module !== 'undefined') module.exports = { CL, ORDER, MON, SCHED, SPELLS, TUNE, TIER, TIERCOST, FINAL, ITEMS, SLOTS, BOOK, migrate, redeploy, inZone, veteran, newParty, rollStats, randomName, equip, unequip, kit, sixAC, fillMem, slotsFor, rollInit, foeAct, heroAct, endRound, shopStock, raise, raiseCost, PLACES, makeRoom, startRoom, finishRoom, endQuest, beginQuest, tend, los, newCampaign, startBattle, autoRound, finishBattle, billing, billingText, budget, gateCap, living, canTrain, trainCost, levelUp, checkOver, xpNeed, roman };

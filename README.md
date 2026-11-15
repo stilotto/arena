@@ -11,6 +11,7 @@ Play: https://stilotto.github.io/arena/
 - `arena3d.js`: skycam flyover and title orbit (software 3D on a 2D canvas)
 - `figures.js`: drawn figures for every calling and foe
 - `six.js`: screens for The Six, the party mode
+- `quest.js`: side quests for The Six (crypt, tower, street)
 - `tools/sim.js`: headless balance run (`node tools/sim.js 5 30`)
 
 Developer hook: add `?day=20` to the URL to jump to a later day with a levelled,

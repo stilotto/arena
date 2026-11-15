@@ -180,6 +180,7 @@ function size() {
   cv.width = B.w * cell * dpr; cv.height = B.h * cell * dpr; g.setTransform(dpr, 0, 0, dpr, 0, 0);
   sand = document.createElement('canvas'); sand.width = cv.width; sand.height = cv.height;
   const sg = sand.getContext('2d'); sg.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (B.room) { paintRoom(sg, cell, B.room); return draw(); }
   const c = cell, W2 = B.w * c, H2 = B.h * c, gr = sg.createRadialGradient(W2 / 2, H2 / 2, H2 * .2, W2 / 2, H2 / 2, W2 * .7);
   gr.addColorStop(0, '#dcc592'); gr.addColorStop(1, '#c7ab74'); sg.fillStyle = gr; sg.fillRect(0, 0, W2, H2);
   let sd = 5; const rr = () => (sd = (sd * 1664525 + 1013904223) >>> 0) / 4294967296;
@@ -255,7 +256,7 @@ function refresh() {
   // The Six: the turn belongs to whoever is next in initiative. If the selection was lost, take it back.
   if (B.six && B.order && !B.over && !busy && B.phase !== 'deploy' && !(sel && sel.hp > 0 && !sel.acted)) { const u = B.order[B.turn]; if (u && u.side === 'H' && u.hp > 0 && !u.acted && !u.illusion) pickUnit(u); }
   const hs = B.units.filter(u => u.side === 'H' && u.hp > 0 && !u.illusion), es = B.units.filter(u => u.side === 'E' && u.hp > 0);
-  $('bbar').innerHTML = `<b class="cz gold">Day ${roman(B.day)}</b><span>Round ${B.round}</span><span>${B.six ? 'Party' : 'Legion'} <b>${hs.length}</b></span><span>Foes <b>${es.length}</b></span><span class="sp"></span><span class="mute small">${B.bl.title}</span>`;
+  $('bbar').innerHTML = `<b class="cz gold">${B.quest ? 'Room ' + (S.quest.room + 1) + ' of 4' : 'Day ' + roman(B.day)}</b><span>Round ${B.round}</span><span>${B.six ? 'Party' : 'Legion'} <b>${hs.length}</b></span><span>Foes <b>${es.length}</b></span><span class="sp"></span><span class="mute small">${B.bl.title}</span>`;
   $('chips').innerHTML = B.six ? initStrip() : B.cis.map(ci => { const n = hs.filter(u => u.ci === ci).length, co = S.cohorts[ci]; return `<button class="chip ${csel === ci ? 'on' : ''}" onclick="pickCohort(${ci})"><b>${roman(ci + 1)}</b>${mini(ci)} ${n} · ${co.order}</button>`; }).join('');
   let h = '';
   if (sel && sel.hp > 0) {
@@ -283,7 +284,7 @@ function refresh() {
   if (note) h += `<div class="gold small">${note}</div>`;
   $('panel').innerHTML = h || '<span class="mute">Tap a hero to command them by hand, a foe to inspect it, or a cohort to change its orders. End turn carries out all standing orders.</span>';
   $('bEnd').disabled = busy; $('bEnd').textContent = B.phase === 'deploy' ? 'Begin battle' : 'End turn'; $('bAuto').textContent = B.six ? 'Quick fight: ' + (quick ? 'on' : 'off') : 'Auto: ' + (auto ? 'on' : 'off'); $('bAuto').classList.toggle('on', B.six ? quick : auto);
-  $('bSpeed').textContent = 'Speed: ' + (fast ? 'fast' : 'normal'); $('bYield').disabled = busy;
+  $('bSpeed').textContent = 'Speed: ' + (fast ? 'fast' : 'normal'); $('bYield').disabled = busy; $('bYield').textContent = B.quest ? 'Flee' : 'Plead for mercy';
   $('log').innerHTML = B.log.slice(-3).map(s => `<div>${s}</div>`).join('');
   draw();
 }
@@ -305,7 +306,8 @@ function act(fn) {
 }
 function tap(x, y) {
   if (busy || !B || B.over || !inb(B, x, y)) return;
-  const t = at(B, x, y), u = sel;
+  let t = at(B, x, y); if (t && t.wall) t = null;
+  const u = sel;
   if (B.phase === 'deploy') {
     if (u && (!t || (t.side === 'H' && t !== u))) { if (redeploy(B, u, x, y)) { drop(); csel = u.ci; } else note = 'Outside the deployment zone.'; return refresh(); }
     if (t && t.side === 'H') { if (t === u) drop(); else pickUnit(t); } else if (t) { insp = t; drop(); }
@@ -321,7 +323,7 @@ function tap(x, y) {
   if (t && t.side === 'E') {
     const d = dist(u, t);
     if (d === 1) return act(() => heroAttack(B, u, t, false));
-    if (u.range && d <= u.range) return act(() => heroAttack(B, u, t, true));
+    if (u.range && d <= u.range && los(B, u.x, u.y, t.x, t.y)) return act(() => heroAttack(B, u, t, true));
     if (reach) {
       let best = -1;
       for (let i = 0; i < reach.d.length; i++) if (reach.d[i] > 0 && reach.d[i] <= u.mv && !B.grid[i] && Math.max(Math.abs(i % B.w - t.x), Math.abs(Math.floor(i / B.w) - t.y)) === 1 && (best < 0 || reach.d[i] < reach.d[best])) best = i;
@@ -358,11 +360,12 @@ async function endTurn() {
   if (auto) setTimeout(endTurn, fast ? 60 : 250);
 }
 function yieldDay() {
-  if (busy || !B || !confirm('Plead for mercy? The survivors live, half your gold is forfeit, and these foes return tomorrow.')) return;
+  if (busy || !B || !confirm(B.quest ? 'Flee? The party gets out alive but leaves behind everything found on this quest.' : 'Plead for mercy? The survivors live, half your gold is forfeit, and these foes return tomorrow.')) return;
   B.over = 'lose'; result(true);
 }
 function result(yielded) {
   auto = false; busy = false; sel = null; refresh();
+  if (B.quest) return questResult(yielded);
   const r = finishBattle(S, B, yielded); save();
   const left = living(S).length;
   if (S.mode === 'six') return result6(r, left, yielded);
@@ -396,9 +399,9 @@ function fitCanvas(cnv, ctx, W, H) { const d = Math.min(1.5, window.devicePixelR
 function playFly(ms, intro) {
   if (RM || !B) return;
   const el = $('fly'), W = window.innerWidth, H = window.innerHeight, t0 = performance.now(), units = camUnits(B), bl = B.bl, sides = B.doors.length;
-  const sc = A3.build(B.w, B.h); fitCanvas(flyc, fg, W, H);
+  const sc = B.room ? A3.buildRoom(B.room) : A3.build(B.w, B.h); fitCanvas(flyc, fg, W, H);
   el.classList.remove('hidden', 'out');
-  $('lowA').textContent = 'Day ' + roman(B.day) + ' \u00b7 ' + bl.title; $('lowB').textContent = billingText(bl);
+  $('lowA').textContent = B.quest ? bl.title : 'Day ' + roman(B.day) + ' \u00b7 ' + bl.title; $('lowB').textContent = billingText(bl);
   const stop = () => { if (!flyEnd) return; cancelAnimationFrame(flyRaf); flyEnd = null; el.classList.add('out'); setTimeout(() => el.classList.add('hidden'), 450); };
   flyEnd = stop;
   // on the way in, the foes march from their doors to where they will stand

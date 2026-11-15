@@ -46,23 +46,30 @@ Still open for The Six:
 - Only the first ring slot fills automatically; no drag and drop on the doll.
 - No initiative modifiers from gear, and no ranged-attack penalty in melee.
 
-### Side quests for The Six
+## Side quests for The Six: built
 
-Between arena days the party can leave the arena. These are billed as side
-quests: a way to build up before the next arena battle.
+Vhorax grants leave for one quest before each arena day. Three places, each
+four rooms with no rest between; the last room holds its master.
 
-- **Places.** A dungeon, a tower, a narrow slum street, and more in that vein.
-- **Sense of place.** Each should feel like we are there, as far as the game
-  can manage: its own map shape, scenery, colours and skycam treatment (tight
-  corridors and doors in the dungeon, stacked floors in the tower, a long thin
-  street with alleys and rooftops in the slum).
-- **Enemies.** A good variety, suited to each place, not just the arena roster.
-- **Reward.** Experience, gold and loot that carry back into the arena.
+- **The Sunken Crypt**: flagstones, pillars, sarcophagi, a flooded cistern,
+  torchlight. Cultists, the walking dead, oozes, gargoyles; the Bone-Speaker.
+- **The Leaning Tower**: round wooden floors against a night sky, shelves,
+  cauldron, cages, an open observatory. Apprentices, imps, animated armour,
+  a clay guardian; Master Ilvane.
+- **Gutter Row**: a narrow cobbled street between rooftops, alleys, crates and
+  washing lines, ending in a yard. Thugs, cutpurses, archers, hounds, bruisers,
+  wererats; Mother Crake.
+- Walls block movement and line of sight. Each place has its own board
+  painting and its own skycam scene.
+- Between rooms: tend wounds with leftover healing, drink a potion, press on,
+  or turn back with the takings. Falling or fleeing loses the takings.
+- A cleared place comes back harder next time.
 
-Open questions to settle before building:
+Still open:
 
-- How the party leaves, given Vhorax holds them captive (his leave, a bribed
-  gaoler, a secret way out).
-- Whether a quest is one fight or a chain of rooms with rest in between.
-- Whether quests cost time, so the next arena day arrives regardless.
-- Whether heroes killed on a quest can still be raised.
+- More places (a sewer, a market, a ship) and more than one layout per room.
+- Doors, traps, locked chests and anything for a thief to do outside a fight.
+- Foes start already aware; no sneaking up, no wandering patrols.
+- Quest experience is generous: a party that quests every day reaches about
+  level 13 by day 30, against about level 9 without. Needs hands-on tuning.
+- The skycam can clip through tall props on its way through a room.
