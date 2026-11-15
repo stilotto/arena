@@ -50,6 +50,10 @@ Ideas from the owner. Nothing here is built until the owner says go.
   fights are not all walk up and hit.
 - **More quest places** (a sewer, a market, a ship).
 - **Balance pass**, after hands-on play.
+- **Summoned reinforcements.** Mother Crake, Master Ilvane, the Bone-Speaker
+  and Vhorax call more foes every third round with no limit, so a long fight
+  snowballs. Rebalance it, or give the heroes a way to stop it: for example a
+  master who is engaged in melee cannot call for help. Not yet changed.
 
 ## Still open from sprint 1
 

@@ -24,7 +24,7 @@ function help() {
   modal(`<h2>How to play</h2>
   <p>You command a legion of one hundred in ten cohorts. Each day the gate admits only so many cohorts. Choose who fights; the rest heal faster. In <b>Assembly</b> you can move heroes between cohorts to mix callings.</p>
   <p><b>On the sands</b> every cohort follows a standing order: Attack, Hold or Withdraw. Press <b>End turn</b> and they carry it out. To take a hero in hand, tap them, then tap a lit square to move, a foe to strike, or a spell and then its target.</p>
-  <p><b>Holding the line.</b> A square next to an enemy is in its zone of control: stepping into one ends the move, and walking away from an enemy gives it a free blow. Foes obey the same rule, so a front rank protects the ranks behind it. Thieves and assassins slip away untouched, and flying foes ignore the rule. Before the first turn you may place your heroes by hand. A cohort on <b>Guard</b> holds its place but steps up to meet a foe who comes close. With a mouse, point at a foe to see your chance to hit.</p>
+  <p><b>Holding the line.</b> A square next to an enemy is in its zone of control: stepping into one ends the move, and walking away from an enemy gives it a free blow. Foes obey the same rule, so a front rank protects the ranks behind it. Thieves and assassins slip away untouched, and flying foes ignore the rule. Before the first turn you may place your heroes by hand. A cohort on <b>Guard</b> holds its place but steps up to meet a foe who comes close. With a mouse, point at a foe to see your chance to hit. Keys: <b>+</b> or <b>=</b> steps through your own, <b>-</b> through the foes, and <b>Enter</b> acts on the foe shown.</p>
   <p><b>Sieges.</b> Some days the foes come through two, three or all four gates, and the legion starts in a ring at the centre with its toughest callings outermost.</p>
   <p><b>After the games</b> healers spend their unused spells, everyone rests, and spells return. Spend your purse at the quartermaster on arms, armour and potions. Heroes with enough experience must pay to train before they gain a level.</p>
   <p><b>The Six</b> is the same arena with a party of six. Every hero acts by hand in initiative order, carries their own gear, and casters choose their spells each day. A hero cut down is only out of the fight unless the blow was terrible; the truly dead can be raised for a price.</p>
@@ -214,7 +214,7 @@ function draw() {
   g.save(); g.translate(M * c, M * c);
   if (B.phase === 'deploy') { const z = B.zone, zx = Math.max(0, z.x0), zy = Math.max(0, z.y0); g.fillStyle = 'rgba(240,197,106,.2)'; g.fillRect(zx * c, zy * c, (Math.min(B.w - 1, z.x1) - zx + 1) * c, (Math.min(B.h - 1, z.y1) - zy + 1) * c); }
   if (sel && reach && !mode) { g.fillStyle = 'rgba(60,110,200,.28)'; for (let i = 0; i < reach.d.length; i++) if (reach.d[i] > 0 && reach.d[i] <= sel.mv && !B.grid[i]) g.fillRect((i % B.w) * c + 1, Math.floor(i / B.w) * c + 1, c - 2, c - 2); }
-  if (sel && mode && SPELLS[mode] && SPELLS[mode].range) { const r = SPELLS[mode].range; g.fillStyle = 'rgba(160,80,200,.16)'; g.fillRect(Math.max(0, sel.x - r) * c, Math.max(0, sel.y - r) * c, (Math.min(B.w - 1, sel.x + r) - Math.max(0, sel.x - r) + 1) * c, (Math.min(B.h - 1, sel.y + r) - Math.max(0, sel.y - r) + 1) * c); }
+  if (sel && mode && SPELLS[mSpell(mode)] && SPELLS[mSpell(mode)].range) { const r = SPELLS[mSpell(mode)].range; g.fillStyle = 'rgba(160,80,200,.16)'; g.fillRect(Math.max(0, sel.x - r) * c, Math.max(0, sel.y - r) * c, (Math.min(B.w - 1, sel.x + r) - Math.max(0, sel.x - r) + 1) * c, (Math.min(B.h - 1, sel.y + r) - Math.max(0, sel.y - r) + 1) * c); }
   g.textAlign = 'center'; g.textBaseline = 'middle';
   let wy = 0; // in a quest room, walls and props are laid down row by row between the figures
   for (const u of B.six ? B.units.slice().sort((a, b) => a.y - b.y) : B.units) {
@@ -252,6 +252,7 @@ function draw() {
     hitFlash(g, st, u, x, y, c);
   }
   if (B.room) while (wy < B.h) roomRow(g, c, wy++);
+  if (cur && cur.hp > 0) { g.strokeStyle = cur.side === 'E' ? '#ff8a70' : '#9ad0ff'; g.lineWidth = 2.5; g.setLineDash([c * .16, c * .1]); g.lineDashOffset = -now / 60; g.beginPath(); g.ellipse((cur.x + .5) * c, (cur.y + (B.six ? .86 : .5)) * c, c * .46, c * (B.six ? .2 : .46), 0, 0, 7); g.stroke(); g.setLineDash([]); }
   if (sel && sel.hp > 0 && !B.six) { g.strokeStyle = '#ffe9a0'; g.lineWidth = 2.5; g.beginPath(); g.arc(sel.x * c + c / 2, sel.y * c + c / 2, c * .47, 0, 7); g.stroke(); }
   g.restore();
   roomOverlay(g, c, now);
@@ -281,14 +282,16 @@ function refresh() {
       for (const k in u.sp) if (u.sp[k] > 0) h += `<button class="sm ${mode === k ? 'on' : ''}" onclick="setMode('${k}')">${SPELLS[k].n} ×${u.sp[k]}</button>`;
       if (u.kill) h += `<button class="sm ${mode === 'kill' ? 'on' : ''}" onclick="setMode('kill')">Assassinate</button>`;
       if (S.potions > 0 && u.hp < u.max) h += `<button class="sm" onclick="act(()=>drink(B,sel,S))">Potion (${S.potions})</button>`;
-      h += `${undo && undo.u === u ? '<button class="sm on" onclick="undoMove()">Undo move</button>' : ''}<button class="sm" onclick="act(()=>{sel.acted=true})">${B.six ? 'Pass' : 'Wait'}</button>${B.six ? '' : '<button class="sm" onclick="drop();refresh()">Deselect</button>'}</div>`;
+      h += `${undo && undo.u === u ? '<button class="sm on" onclick="undoMove()">Undo move</button>' : ''}${B.six && S.bag ? Object.keys(S.bag).filter(id => S.bag[id] > 0).map(id => `<button class="sm ${mode === 'scroll:' + id ? 'on' : ''}" onclick="setMode('scroll:${id}')">${SCROLLS[id].n} \u00d7${S.bag[id]}</button>`).join('') : ''}${B.six && !u.delayed && B.order ? '<button class="sm" onclick="delayTurn()">Delay</button>' : `<button class="sm" onclick="act(()=>{sel.acted=true})">${B.six ? 'End turn' : 'Wait'}</button>`}${B.six ? '' : '<button class="sm" onclick="drop();refresh()">Deselect</button>'}</div>`;
     }
   }
-  if (insp && insp.hp > 0 && insp.side === 'H') h += `<div>${fig(insp.key || insp.cls, 40)}<b>${insp.name}</b> · ${CL[insp.cls].n} ${insp.lvl} · HP ${insp.hp}/${insp.max} · AC ${insp.ac}</div>`;
+  if (insp && insp.hp > 0 && insp.side === 'H' && insp === sel) { /* already shown above */ }
+  else if (insp && insp.hp > 0 && insp.side === 'H') h += `<div>${fig(insp.key || insp.cls, 40)}<b>${insp.name}</b> · ${CL[insp.cls].n} ${insp.lvl} · HP ${insp.hp}/${insp.max} · AC ${insp.ac}</div>`;
   else if (insp && insp.hp > 0 && (B.six || !(sel && sel.hp > 0))) {
     const t = insp, tr = [t.boss && 'champion', t.f.includes('u') && 'undead', t.f.includes('par') && 'paralysing touch', t.f.includes('poi') && 'poison', t.f.includes('reg') && 'regenerates', t.m.breath && 'breathes fire', t.range && 'ranged', t.st.sleep && 'asleep', t.st.stun && 'held', t.st.root && 'rooted'].filter(Boolean).join(', ');
     h += `<div>${fig(t.mid, 40)}<b>${t.name}</b> · ${t.hd} HD · HP ${t.hp}/${t.max} · AC ${t.ac} · THAC0 ${t.thac0}${tr ? ' · <span class="mute">' + tr + '</span>' : ''}</div>`;
   }
+  if (cur && cur === insp && cur.side === 'E') { const tt = tipText(cur.x, cur.y).split('<br>')[1]; if (tt) h += `<div class="small">${tt} <span class="mute">(Enter to act)</span></div>`; }
   if (csel != null && B.cis.includes(csel) && !B.six) {
     const co = S.cohorts[csel];
     h += `<div class="row"><span class="mute">${cname(csel)} orders:</span>` + ['attack', 'guard', 'hold', 'withdraw'].map(o => `<button class="sm ${co.order === o ? 'on' : ''}" onclick="setOrder('${o}')">${o[0].toUpperCase() + o.slice(1)}</button>`).join('') +
@@ -303,6 +306,7 @@ function refresh() {
   $('bSnd').textContent = SND.label();
   draw(); saveBattle();
 }
+const mSpell = m => m && m.startsWith('scroll:') ? SCROLLS[m.slice(7)].spell : m; // a scroll is aimed like the spell it holds
 function drop() { sel = null; reach = null; mode = null; note = ''; }
 // take back a move made by hand, as long as nothing came of it
 function undoMove() { if (!undo || busy || undo.u.acted) return; const u = undo.u; B.grid[idx(B, u.x, u.y)] = null; place(B, u, undo.x, undo.y); u.moved = false; undo = null; pickUnit(u); refresh(); }
@@ -311,7 +315,7 @@ function setOrder(o) { S.cohorts[csel].order = o; refresh(); }
 function setMode(k) {
   if (busy || !sel) return;
   if (k === 'turn') return act(() => cast(B, sel, 'turn'));
-  mode = mode === k ? null : k; note = mode ? 'Choose a target for ' + (k === 'kill' ? 'the blade' : SPELLS[k].n) + '.' : ''; refresh();
+  mode = mode === k ? null : k; note = mode ? 'Choose a target for ' + (k === 'kill' ? 'the blade' : k.startsWith('scroll:') ? 'the ' + SCROLLS[k.slice(7)].n : SPELLS[k].n) + '.' : ''; refresh();
 }
 function act(fn) {
   if (busy || !sel) return;
@@ -323,6 +327,11 @@ function act(fn) {
 }
 function tap(x, y) {
   if (busy || !B || B.over || !inb(B, x, y)) return;
+  if (B.room && B.room.doors && B.phase !== 'deploy' && !mode && B.room.doors.some(d => d[0] === x && d[1] === y)) { // a house door
+    if (B.opened && B.opened[x + ',' + y]) { note = 'That door has been tried already.'; return refresh(); }
+    if (!sel || sel.acted || sel.hp <= 0 || Math.max(Math.abs(sel.x - x), Math.abs(sel.y - y)) > 1) { note = 'A door. A hero standing next to it can try it, as their action.'; return refresh(); }
+    let res = null; act(() => { res = openDoor(B, sel, S, x, y); }); if (res) peek(res); return;
+  }
   let t = at(B, x, y); if (t && t.wall) t = null;
   const u = sel;
   if (B.phase === 'deploy') {
@@ -332,7 +341,7 @@ function tap(x, y) {
   }
   if (mode && u) {
     if (mode === 'kill') { if (t && t.side === 'E' && dist(u, t) === 1) return act(() => { if (!assassinate(B, u, t)) heroAttack(B, u, t, false); }); note = 'The blade needs an adjacent foe.'; mode = null; return refresh(); }
-    const m = mode; let ok = false; act(() => { ok = cast(B, u, m, x, y); }); if (!ok) { note = 'Not a valid target.'; refresh(); } return;
+    const m = mode; let ok = false; act(() => { ok = m.startsWith('scroll:') ? readScroll(B, u, S, m.slice(7), x, y) : cast(B, u, m, x, y); }); if (!ok) { note = 'Not a valid target.'; refresh(); } return;
   }
   if (B.six) { if (t && t !== u) { insp = t; if (t.side === 'H' || !u) return refresh(); } else insp = null; }
   else if (t && t.side === 'H' && !t.illusion) { if (t === u) drop(); else pickUnit(t); return refresh(); }
@@ -427,12 +436,30 @@ function resume() {
   } catch (e) { dropBattle(); return false; }
 }
 
+/* ---------- keys: + or = steps through friends, - through foes (nearest first), Enter acts on the foe shown ---------- */
+let cur = null;
+function cycle(side) {
+  if (!B || B.over || busy) return;
+  const from = sel || B.units.find(u => u.side === 'H' && u.hp > 0); if (!from) return;
+  const list = B.units.filter(u => u.hp > 0 && u.side === side && !u.illusion && (side === 'E' || B.six || !u.acted)).sort((a, b) => dist(from, a) - dist(from, b) || a.id - b.id); if (!list.length) return;
+  cur = list[(list.indexOf(cur) + 1) % list.length];
+  if (side === 'H' && !B.six) pickUnit(cur); else insp = cur;
+  refresh();
+}
+// The Six: put this hero at the back of the round instead of spending the turn. Once per round each.
+function delayTurn() { if (busy || !B || !B.six || !B.order) return; const u = B.order[B.turn]; if (!u || u.side !== 'H' || u.delayed || u.acted) return; u.delayed = true; B.order.splice(B.turn, 1); B.order.push(u); drop(); undo = null; sixLoop(); }
+window.addEventListener('keydown', e => {
+  if (!B || flyEnd || !$('modal').classList.contains('hidden') || $('battle').classList.contains('hidden') || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
+  if (e.key === '+' || e.key === '=') { e.preventDefault(); cycle('H'); } else if (e.key === '-' || e.key === '_') { e.preventDefault(); cycle('E'); }
+  else if (e.key === 'Enter' && cur && cur.hp > 0 && cur.side === 'E' && sel && !sel.acted) { e.preventDefault(); tap(cur.x, cur.y); }
+});
+
 /* ---------- what a square offers, shown beside the pointer ---------- */
 function tipText(x, y) {
   if (!B || busy || B.over || !inb(B, x, y)) return '';
-  let t = at(B, x, y); if (t && t.wall) return '';
+  let t = at(B, x, y); if (t && t.wall) return B.room && B.room.doors && B.room.doors.some(d => d[0] === x && d[1] === y) ? (B.opened && B.opened[x + ',' + y] ? 'This door has been tried.' : 'A door. A hero next to it can try it.') : '';
   const u = sel && !sel.acted && sel.hp > 0 && B.phase !== 'deploy' ? sel : null, i = idx(B, x, y);
-  if (mode && u && SPELLS[mode] && SPELLS[mode].rad != null) { const n = inRad(B, x, y, SPELLS[mode].rad, 'E').length, fr = SPELLS[mode].ff ? inRad(B, x, y, SPELLS[mode].rad, 'H').filter(h => !h.illusion).length : 0; return `<b>${SPELLS[mode].n}</b>: ${n} foe${n === 1 ? '' : 's'} caught${fr ? `, <span class="bad">and ${fr} of your own</span>` : ''}`; }
+  if (mode && u && SPELLS[mSpell(mode)] && SPELLS[mSpell(mode)].rad != null) { const n = inRad(B, x, y, SPELLS[mSpell(mode)].rad, 'E').length, fr = SPELLS[mSpell(mode)].ff ? inRad(B, x, y, SPELLS[mSpell(mode)].rad, 'H').filter(h => !h.illusion).length : 0; return `<b>${SPELLS[mSpell(mode)].n}</b>: ${n} foe${n === 1 ? '' : 's'} caught${fr ? `, <span class="bad">and ${fr} of your own</span>` : ''}`; }
   if (t && t.side === 'E') {
     let s = `<b>${t.name}</b> \u00b7 HP ${t.hp}/${t.max} \u00b7 AC ${t.ac}`;
     if (u && !mode) { const d = dist(u, t), how = d === 1 ? 'Strike' : u.range && d <= u.range && los(B, u.x, u.y, t.x, t.y) ? 'Shoot' : reach && [...reach.d].some((dd, k) => dd > 0 && dd <= u.mv && !B.grid[k] && Math.max(Math.abs(k % B.w - t.x), Math.abs(Math.floor(k / B.w) - t.y)) === 1) ? 'Move and strike' : '';

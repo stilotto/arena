@@ -616,7 +616,7 @@ function endRound(b) {
   b.round++;
   for (const u of b.units) {
     if (u.hp <= 0) continue;
-    u.acted = false; u.moved = false; u.opp = false;
+    u.acted = false; u.moved = false; u.opp = false; u.delayed = false;
     if (u.illusion) { u.acted = true; if (--u.fade <= 0) kill(b, u); continue; }
     if (u.regen && u.hp < u.max) u.hp = Math.min(u.max, u.hp + u.regen);
     if (u.side === 'E') { if (u.cd > 0) u.cd--; if (u.f.includes('reg') && u.hp < u.max) u.hp = Math.min(u.max, u.hp + 3); }
@@ -815,6 +815,7 @@ function makeRoom(place, n, seed) {
   for (let t = 0; t < 60; t++) { const R = genRoom(place, n, (seed * 131 + n * 977 + t * 7919 + 5) >>> 0, seed); if (R) return R; }
   return genRoom(place, n, 1, seed, true);
 }
+const rhash = (x, y) => { let v = (x * 374761393 + y * 668265263) >>> 0; v = ((v ^ (v >>> 13)) * 1274126177) >>> 0; return (v >>> 8) / 16777216; }; // the same hash the painters use to put doors on house fronts
 function genRoom(place, n, sd, qseed, plain) {
   let s = sd; const r = () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296, rint = (a, b) => a + Math.floor(r() * (b - a + 1)), pick = a => a[Math.floor(r() * a.length)], TAU = Math.PI * 2;
   let R; const last = n === 3;
@@ -897,6 +898,8 @@ function genRoom(place, n, sd, qseed, plain) {
   const far = queue[queue.length - 1]; R.bossAt = [far % R.w, Math.floor(far / R.w)];
   R.spawn = queue.filter(i => dist[i] >= 5 && i !== far).map(i => [i % R.w, Math.floor(i / R.w)]);
   if (R.spawn.length < 14 || dist[far] < 8) return null;
+  R.doors = []; // house doors on the street that a hero can try
+  if (place === 'slum') for (let y = 0; y < R.h - 1; y++) for (let x = 0; x < R.w; x++) if (get(x, y) === 1 && get(x, y + 1) !== 1 && rhash(x + 7, y + 3) < .28) R.doors.push([x, y]);
   R.kind = plain ? 'plain' : kind; R.name = plain ? PLACES[place].rooms[n] : ROOMNAME[kind];
   return R;
 }
@@ -961,6 +964,33 @@ function endQuest(S, how) {
 }
 function beginQuest(S, place) { S.quest = { place, room: 0, gold: 0, loot: [], seed: ri(999999) }; for (const h of S.heroes) delete h.left; }
 
+/* ---------- one-use scrolls, and the doors they are found behind ---------- */
+const SCROLLS = { sfire: { n: 'Scroll of Fire', spell: 'fireball' }, ssleep: { n: 'Scroll of Slumber', spell: 'sleep' }, smend: { n: 'Scroll of Mending', spell: 'cure' }, sbolt: { n: 'Scroll of Lightning', spell: 'lightning' } };
+// Anyone can read a scroll. It casts as a 5th-level caster would, or better if the reader is.
+function readScroll(b, u, S, id, x, y) {
+  const sc = SCROLLS[id]; if (!sc || !S.bag || !(S.bag[id] > 0) || u.acted) return false;
+  const had = u.sp[sc.spell], lv = u.lvl; u.sp[sc.spell] = (had || 0) + 1; u.lvl = Math.max(lv, 5);
+  const ok = cast(b, u, sc.spell, x, y); u.lvl = lv;
+  if (!ok) { if (had == null) delete u.sp[sc.spell]; else u.sp[sc.spell] = had; return false; }
+  if (had == null && !u.sp[sc.spell]) delete u.sp[sc.spell];
+  S.bag[id]--; return true;
+}
+const DOORTALK = ['"Please. Take what you want and go."', '"They are in the yard. All of them. That is all I know."', '"Crake pays the watch. Nobody is coming."', '"You are from the arena. I saw you fight. I had money on you."', '"Shut the door. They will see the light."'];
+// A hero next to a house door tries it, as their action. Behind it: someone hiding, something worth taking, a trap, or trouble.
+function openDoor(b, u, S, x, y) {
+  const R = b.room; if (!R || !R.doors || !R.doors.some(d => d[0] === x && d[1] === y) || u.acted || Math.max(Math.abs(u.x - x), Math.abs(u.y - y)) > 1) return null;
+  b.opened = b.opened || {}; if (b.opened[x + ',' + y]) return null;
+  b.opened[x + ',' + y] = 1; u.acted = true; b.lag = 2400;
+  const r = ri(100), res = { x, y, who: u.name };
+  if (r <= 35) { res.k = 'citizen'; res.text = DOORTALK[ri(DOORTALK.length) - 1]; if (ri(100) <= 35) { res.gold = ri(10) + 4; S.gold += res.gold; } say(b, u.name + ' opens a door on someone hiding.' + (res.gold ? ' They press ' + res.gold + ' gp into ' + u.name + "'s hand." : '')); }
+  else if (r <= 65) { res.k = 'treasure'; if (ri(100) <= 30) { S.potions++; res.item = 'a healing potion'; } else { const ids = Object.keys(SCROLLS), id = ids[ri(ids.length) - 1]; S.bag = S.bag || {}; S.bag[id] = (S.bag[id] || 0) + 1; res.item = 'a ' + SCROLLS[id].n; } say(b, u.name + ' finds ' + res.item + ' behind a door.'); }
+  else if (r <= 85) { res.k = 'trap'; if (u.cls === 'thief' || u.cls === 'assassin') { res.safe = true; say(b, u.name + ' spots the wire across the doorway and steps over it.'); } else { res.dmg = ri(2); say(b, 'A trap behind the door catches ' + u.name + ' for ' + res.dmg + '.'); hurt(b, u, res.dmg, null); } }
+  else { res.k = 'ambush'; let spot = null;
+    for (let d = 1; d <= 3 && !spot; d++) for (let yy = y - d; yy <= y + d && !spot; yy++) for (let xx = x - d; xx <= x + d; xx++) if (inb(b, xx, yy) && !at(b, xx, yy)) { spot = [xx, yy]; break; }
+    if (spot) { const e = foeUnit(ri(2) === 1 ? 'thug' : 'cutpurse', b.nid++, false, null, b.bl.vet); e.acted = true; b.units.push(e); place(b, e, spot[0], spot[1]); res.foe = e.name; say(b, 'A ' + e.name + ' was waiting behind the door.'); } else { res.k = 'citizen'; res.text = DOORTALK[0]; } }
+  return res;
+}
+
 /* ---------- odds, shown before the player commits ---------- */
 function preview(b, u, t, ranged) {
   const c = CL[u.cls], L = u.lvl, note = []; let n = 1, plus = u.db || 0, mult = 1;
@@ -992,4 +1022,4 @@ function unpackBattle(S, o) {
   return b;
 }
 
-if (typeof module !== 'undefined') module.exports = { CL, ORDER, MON, SCHED, SPELLS, TUNE, TIER, TIERCOST, FINAL, ITEMS, SLOTS, BOOK, migrate, redeploy, inZone, veteran, newParty, rollStats, randomName, equip, unequip, kit, sixAC, fillMem, slotsFor, rollInit, foeAct, heroAct, endRound, shopStock, raise, raiseCost, preview, packBattle, unpackBattle, PLACES, makeRoom, startRoom, finishRoom, endQuest, beginQuest, tend, los, newCampaign, startBattle, autoRound, finishBattle, billing, billingText, budget, gateCap, living, canTrain, trainCost, levelUp, checkOver, xpNeed, roman };
+if (typeof module !== 'undefined') module.exports = { CL, ORDER, MON, SCHED, SPELLS, TUNE, TIER, TIERCOST, FINAL, ITEMS, SLOTS, BOOK, migrate, redeploy, inZone, veteran, newParty, rollStats, randomName, equip, unequip, kit, sixAC, fillMem, slotsFor, rollInit, foeAct, heroAct, endRound, shopStock, raise, raiseCost, preview, packBattle, unpackBattle, SCROLLS, readScroll, openDoor, PLACES, makeRoom, startRoom, finishRoom, endQuest, beginQuest, tend, los, newCampaign, startBattle, autoRound, finishBattle, billing, billingText, budget, gateCap, living, canTrain, trainCost, levelUp, checkOver, xpNeed, roman };

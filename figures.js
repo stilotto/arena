@@ -189,6 +189,7 @@ const FIG = (() => {
 
     vhorax: H(2.3, { skin: '#1a1416', top: '#1a1416', armour: 'plate', metal: '#2e262a', skirt: '#8e2a22', helm: 'full', plume: '#8e2a22', horns: '#d2aa52', eyes: '240,197,106', cloak: '#8e2a22', weapon: 'gsword', steel: '#f0c56a', legs: '#1a1416', w: 1.25, wide: 1.35, tall: 1.5 }),
 
+    citizen: H(.95, { top: '#8a7a5a', legs: '#4a4034', hair: '#6a4a2a', hand: [.2, -.78], lean: -.1, sash: '#5a4a34' }),
     thug: H(1, { top: '#6a5a44', legs: '#3a3228', weapon: 'club', hair: '#3a2a1a', sash: '#3a2a1a' }),
     cutpurse: H(.95, { top: '#4a4a3a', hood: '#33332a', helm: 'hoodup', weapon: 'dagger', lean: .14, stride: .05, legs: '#2a2a22' }),
     slinger: H(1, { top: '#5a4a3a', hood: '#3a3028', helm: 'hoodup', weapon: 'bow', quiver: 1, hand: [.3, -.58], legs: '#2a2420', armour: 'leather' }),

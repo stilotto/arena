@@ -51,6 +51,7 @@ const SND = (() => {
     cheer: t => noise(t, 1.5, .2, 'bandpass', 850, 1500, .6, .45),
     rustle: t => noise(t, .5, .2, 'bandpass', 3000, 1200, 1.5, .05),
     ring: t => { tone('sine', 1320, 1318, t, .6, .08); tone('sine', 1985, 1980, t, .5, .05); },
+    thunder: t => { noise(t, 2.8, .55, 'lowpass', 240, 55, .6, .3); tone('sine', 56, 36, t, 2.4, .4, 0, .25); },
     drip: t => tone('sine', 1500, 880, t, .09, .06),
     sleep: t => chime(t, [660, 554, 440, 370], .1, .08), heal: t => chime(t, [523, 659, 784], .08, .09), bless: t => chime(t, [392, 494, 587, 784], .07, .08),
     turn: t => chime(t, [523, 659, 784, 1047], .04, .1), colours: t => chime(t, [523, 587, 659, 784, 880, 988], .035, .07), level: t => chime(t, [523, 659, 784, 1047], .1, .11)
@@ -84,17 +85,26 @@ const SND = (() => {
     }
   }
   // a quiet bed of sound for wherever the fight is: crowd, crypt, wind, rain
+  // Rain comes in three swells, falls away, and returns after a roll of thunder. The timing is never quite the same twice.
+  const rain = { lv: 1, flash: 0, on: false, t: 0, n: 0,
+    stop() { this.on = false; clearTimeout(this.t); this.lv = 1; },
+    start() { this.stop(); this.on = true; this.n = 0; this.step(); },
+    set(v, secs) { this.lv = v; if (amb && ctx) { try { amb.g.gain.cancelScheduledValues(ctx.currentTime); amb.g.gain.setTargetAtTime(Math.max(.0001, .05 * v), ctx.currentTime, secs / 3); } catch (e) { } } },
+    step() { if (!this.on) return; const r = Math.random;
+      if (this.n < 3) { this.n++; this.set(.75 + r() * .45, 2); this.t = setTimeout(() => { this.set(.45 + r() * .2, 2.5); this.t = setTimeout(() => this.step(), 2200 + r() * 2800); }, 3200 + r() * 4500); }
+      else { this.n = 0; this.set(.1, 4); this.t = setTimeout(() => { this.flash = Date.now() + 350; play('thunder', 700 + r() * 900, 0); this.t = setTimeout(() => this.step(), 2800 + r() * 3600); }, 4500 + r() * 6500); } } };
   function ambient(place) {
+    rain.stop(); if (place === 'slum') rain.start();
     clearInterval(ambTimer); if (amb) { try { amb.g.gain.linearRampToValueAtTime(.0001, ctx.currentTime + .6); amb.s.stop(ctx.currentTime + .7); } catch (e) { } amb = null; }
     if (!place || !level || !init()) return;
     const P = { arena: ['bandpass', 520, .5, .07, .13], crypt: ['lowpass', 150, .7, .1, .05], tower: ['bandpass', 520, 1.5, .05, .09], slum: ['highpass', 2600, .5, .035, .4] }[place] || null; if (!P) return;
     const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(), lfo = ctx.createOscillator(), lg = ctx.createGain();
     s.buffer = buf; s.loop = true; f.type = P[0]; f.frequency.value = P[1]; f.Q.value = P[2]; g.gain.value = .0001; g.gain.linearRampToValueAtTime(P[3], ctx.currentTime + 1.5);
-    lfo.frequency.value = P[4]; lg.gain.value = P[3] * .5; lfo.connect(lg); lg.connect(g.gain); if (place === 'tower') { const l2 = ctx.createGain(); l2.gain.value = 260; lfo.connect(l2); l2.connect(f.frequency); }
+    lfo.frequency.value = P[4]; lg.gain.value = place === 'slum' ? P[3] * .12 : P[3] * .5; lfo.connect(lg); lg.connect(g.gain); if (place === 'tower') { const l2 = ctx.createGain(); l2.gain.value = 260; lfo.connect(l2); l2.connect(f.frequency); }
     s.connect(f); f.connect(g); g.connect(master); s.start(); lfo.start(); amb = { s, g };
     if (place === 'crypt') ambTimer = setInterval(() => { if (Math.random() < .5) play('drip', Math.random() * 900, 300); }, 2300);
     if (place === 'arena') ambTimer = setInterval(() => { if (Math.random() < .25) play('cheer', 0, 3000); }, 5200);
   }
   function cycle() { level = (level + 1) % 3; try { localStorage.setItem('the-hundred-sound', level); } catch (e) { } if (init()) { master.gain.value = VOL[level]; if (ctx.state === 'suspended') ctx.resume(); } if (!level) ambient(null); return level; }
-  return { play, fx, ambient, cycle, label: () => 'Sound: ' + ['off', 'low', 'full'][level], on: () => level > 0 };
+  return { rain: () => rain.lv, flash: () => rain.flash, play, fx, ambient, cycle, label: () => 'Sound: ' + ['off', 'low', 'full'][level], on: () => level > 0 };
 })();

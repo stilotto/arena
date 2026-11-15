@@ -49,6 +49,7 @@ function camp6() {
   });
   h += `<div class="foot"><button onclick="shop6()">Quartermaster</button><button onclick="sheet(sheetAt)">Stash (${S.inv.length})</button>${S.quest ? `<button class="on" onclick="enterRoom()">Resume quest (room ${S.quest.room + 1})</button>` : `<button ${S.questDay === S.day || !alive.length ? 'disabled' : ''} onclick="leave()">${S.questDay === S.day ? 'Leave used today' : 'Ask leave: side quest'}</button>`}
     <button class="go" ${alive.length ? '' : 'disabled'} onclick="toSands()">To the sands</button></div>
+    ${S.bag && Object.keys(S.bag).some(id => S.bag[id] > 0) ? `<p class="small">Scrolls carried: ${Object.keys(S.bag).filter(id => S.bag[id] > 0).map(id => SCROLLS[id].n + ' \u00d7' + S.bag[id]).join(', ')}. Anyone can read one in battle.</p>` : ''}
     <p class="more mute">The party rests fully each night and spells return. <a href="https://stilotto.github.io/">More games from Stilotto</a></p>`;
   $('camp').innerHTML = h;
 }
@@ -109,7 +110,7 @@ function initStrip() {
   return `<div class="strip"><span class="mute small">Round ${B.round}, next:</span>${up.map((u, i) => `<img class="fig ${i ? '' : 'now'}" src="${FIG.url(u.side === 'H' ? u.key : u.mid)}" style="height:${i ? 30 : 40}px" alt="" title="${u.name}">`).join('')}</div>`;
 }
 // after a hero's blow or spell, give it a moment to land before the next in line acts
-function sixNext(acted) { const u = B.order[B.turn], b = B; if (u && u.st.root && !--u.st.root) delete u.st.root; if (u) u.acted = true; B.turn++; drop(); if (!acted || fast || RM) return sixLoop(); busy = true; refresh(); setTimeout(() => { busy = false; if (B === b) sixLoop(); }, Math.min(1100, (B.lag || 0) + 420)); }
+function sixNext(acted) { const u = B.order[B.turn], b = B; if (u && u.st.root && !--u.st.root) delete u.st.root; if (u) u.acted = true; B.turn++; drop(); if (!acted || fast || RM) return sixLoop(); busy = true; refresh(); setTimeout(() => { busy = false; if (B === b) sixLoop(); }, Math.min(B.lag > 2000 ? 3000 : 1100, (B.lag || 0) + 420)); }
 async function sixLoop() {
   if (busy || !B) return;
   busy = true; const b = B, wait = () => sleep(fast || RM ? 30 : Math.min(1200, Math.max(330, (b.lag || 0) + 400)));

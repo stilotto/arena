@@ -14,7 +14,7 @@ function enterRoom() {
   show('battle'); size(); refresh(); SND.ambient(B.room.place); SND.play('door', 200);
   if (S.fly !== false) playFly(7500, false);
 }
-const partyLine = () => S.heroes.map(x => `<span class="${x.dead ? 'mute' : x.hp < x.max * .4 ? 'gold' : ''}">${x.name} ${x.dead ? 'slain' : x.hp + '/' + x.max}</span>`).join(' · ');
+const partyLine = () => S.heroes.map(x => `<span class="${x.dead ? 'mute' : x.hp < x.max ? 'bad' : ''}">${x.name} ${x.dead ? 'slain' : x.hp + '/' + x.max}</span>`).join(' · ');
 function questResult(fled) {
   if (fled) B.over = 'lose';
   const P = PLACES[S.quest.place], name = B.room.name, r = finishRoom(S, B, fled), nm = ids => ids.map(id => ITEMS[id].n).join(', ');
@@ -198,6 +198,24 @@ function lightRig(R, src, amb, rr) {
 function roomRow(g, c, y) { const cv = roomRows[y]; if (cv) g.drawImage(cv, 0, y * c - roomRise, B.w * c, c + roomRise); }
 function roomRowsIn() { return roomRows.length > 0; }
 
+// What was behind the door: a small picture of the entry, shown over the board for a few seconds.
+let peekT = 0;
+function peek(r) {
+  const el = $('peek'); el.innerHTML = '<canvas width="640" height="340"></canvas><div class="cap"></div>'; const g = el.firstChild.getContext('2d'); g.scale(2, 2);
+  const wall = g.createLinearGradient(0, 0, 0, 120); wall.addColorStop(0, '#2a2018'); wall.addColorStop(1, '#4a3828'); g.fillStyle = wall; g.fillRect(0, 0, 320, 120);
+  for (let i = 0; i < 7; i++) { g.fillStyle = i % 2 ? '#5a4028' : '#644830'; g.beginPath(); g.moveTo(160 + (i - 3.5) * 40, 120); g.lineTo(160 + (i - 2.5) * 40, 120); g.lineTo(160 + (i - 2.5) * 110, 170); g.lineTo(160 + (i - 3.5) * 110, 170); g.fill(); }
+  g.fillStyle = '#17120f'; g.fillRect(232, 40, 44, 50); g.fillStyle = '#1a2450'; g.fillRect(236, 44, 36, 42); g.fillStyle = '#17120f'; g.fillRect(253, 44, 2, 42); // a shuttered window
+  const gl = g.createRadialGradient(70, 60, 0, 70, 60, 130); gl.addColorStop(0, 'rgba(255,190,100,.55)'); gl.addColorStop(1, 'rgba(255,190,100,0)'); g.fillStyle = gl; g.fillRect(0, 0, 320, 170);
+  g.fillStyle = '#6a4a2a'; g.fillRect(52, 96, 36, 6); g.fillRect(56, 102, 4, 30); g.fillRect(80, 102, 4, 30); g.fillStyle = '#e8dcc0'; g.fillRect(67, 80, 5, 16); g.fillStyle = '#ffd27a'; g.beginPath(); g.ellipse(69.5, 75, 3, 6, 0, 0, 7); g.fill(); // table and candle
+  if (r.k === 'citizen') FIG.draw(g, 'citizen', 190, 156, 92, -1);
+  if (r.k === 'ambush') { FIG.draw(g, r.foe === 'Thug' ? 'thug' : 'cutpurse', 180, 160, 104, -1); g.fillStyle = 'rgba(255,60,40,.25)'; g.fillRect(0, 0, 320, 170); }
+  if (r.k === 'treasure') { g.fillStyle = '#5a3a1c'; g.fillRect(160, 118, 64, 34); g.fillStyle = '#7a5228'; g.fillRect(156, 106, 72, 16); g.strokeStyle = '#d2aa52'; g.lineWidth = 3; g.strokeRect(160, 118, 64, 34); g.strokeRect(156, 106, 72, 16); g.fillStyle = '#d2aa52'; g.fillRect(187, 116, 10, 12); g.fillStyle = '#e8dcc0'; g.save(); g.translate(250, 140); g.rotate(-.3); g.fillRect(-22, -6, 44, 12); g.restore(); g.fillStyle = '#b3312a'; g.fillRect(246, 134, 6, 12); }
+  if (r.k === 'trap') { g.strokeStyle = '#d8d0c0'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(20, 150); g.lineTo(300, 150); g.stroke(); g.fillStyle = '#4a3020'; g.fillRect(150, 92, 60, 10); g.fillRect(176, 102, 8, 40); g.strokeStyle = '#8a8e96'; g.lineWidth = 3; g.beginPath(); g.arc(180, 97, 34, 3.5, 5.9); g.stroke(); g.fillStyle = '#cfd6de'; g.beginPath(); g.moveTo(180, 97); g.lineTo(120, 120); g.lineTo(124, 112); g.fill(); }
+  g.fillStyle = '#2a1a10'; g.fillRect(0, 0, 14, 170); g.fillRect(306, 0, 14, 170); g.fillRect(0, 0, 320, 10); g.strokeStyle = '#d2aa52'; g.lineWidth = 1.5; g.strokeRect(14, 10, 292, 160); // the doorway we are looking through
+  el.lastChild.innerHTML = r.k === 'citizen' ? `Someone is hiding inside. ${r.text}${r.gold ? ` They press <b class="gold">${r.gold} gp</b> on ${r.who}.` : ''}` : r.k === 'treasure' ? `Nobody home. ${r.who} takes <b class="gold">${r.item}</b>.` : r.k === 'trap' ? (r.safe ? `A wire across the threshold. ${r.who} spots it and steps over.` : `A wire across the threshold. The bolt catches ${r.who} for <b class="bad">${r.dmg}</b>.`) : `A ${r.foe} was waiting behind the door.`;
+  el.classList.remove('hidden'); clearTimeout(peekT); peekT = setTimeout(() => el.classList.add('hidden'), 4600); el.onclick = () => el.classList.add('hidden');
+  SND.play('door'); SND.play(r.k === 'treasure' ? 'coin' : r.k === 'trap' && !r.safe ? 'thunk' : r.k === 'ambush' ? 'thump' : 'tick', 700);
+}
 // Light and shadow, flame, dust, rain. Drawn over everything, several times a second.
 function roomOverlay(g, c, now) {
   const fx = roomFX; if (!fx || !B || fx.owner !== B) return;
@@ -238,9 +256,11 @@ function roomOverlay(g, c, now) {
     if (l.k === 'orrery') { g.strokeStyle = 'rgba(240,200,110,.9)'; g.lineWidth = 1.5; for (let i = 0; i < 3; i++) { const rr2 = c * (.22 + i * .14); g.beginPath(); g.ellipse(x, y - c * .35, rr2, rr2 * .38, .3 * i, 0, 7); g.stroke(); const a = t * (1.1 - i * .3) + i * 2; g.fillStyle = ['#7ad0ff', '#ff9a6a', '#e8e8f0'][i]; g.beginPath(); g.arc(x + Math.cos(a) * rr2, y - c * .35 + Math.sin(a) * rr2 * .38, c * .05, 0, 7); g.fill(); } g.fillStyle = '#ffe9a0'; g.beginPath(); g.arc(x, y - c * .35, c * .08, 0, 7); g.fill(); }
   }
   g.globalCompositeOperation = 'source-over';
+  if (B.opened) for (const k in B.opened) { const [dx, dy] = k.split(',').map(Number); g.fillStyle = '#0a0705'; g.fillRect((dx + .3) * c, (dy + .5) * c, c * .4, c * .5); g.strokeStyle = '#d2aa52'; g.lineWidth = 1; g.strokeRect((dx + .3) * c, (dy + .5) * c, c * .4, c * .5); } // doors that have been tried stand open
   if (!RM) {
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (R.cells[y * w + x] === 3) { const ph = t * .8 + x * 1.7 + y * 2.3; g.strokeStyle = `rgba(150,190,230,${.12 + Math.sin(ph) * .08})`; g.lineWidth = 1; g.beginPath(); g.moveTo(x * c + c * .15, y * c + c * (.35 + Math.sin(ph) * .1)); g.quadraticCurveTo(x * c + c * .5, y * c + c * (.25 + Math.cos(ph) * .1), x * c + c * .85, y * c + c * (.4 + Math.sin(ph + 1) * .1)); g.stroke(); }
-    if (pl === 'slum') { g.strokeStyle = 'rgba(190,205,235,.3)'; g.lineWidth = 1; g.beginPath(); for (let i = 0; i < 70; i++) { const x = (sdv[i % 64] * W * 1.3 + t * 40) % (W + 40) - 20, y = (sdv[(i * 7 + 3) % 64] * Ht + t * (520 + sdv[(i * 3) % 64] * 240) + i * 31) % Ht; g.moveTo(x, y); g.lineTo(x - c * .06, y + c * .32); } g.stroke();
+    if (pl === 'slum') { const lv = fx.rain = (fx.rain == null ? 1 : fx.rain) + (SND.rain() - (fx.rain == null ? 1 : fx.rain)) * .08, fl = Date.now() - SND.flash(); if (fl > 0 && fl < 220) { g.fillStyle = `rgba(215,225,255,${.16 * (1 - fl / 220)})`; g.fillRect(0, 0, W, Ht); }
+      g.strokeStyle = `rgba(190,205,235,${.12 + .2 * Math.min(1.2, lv)})`; g.lineWidth = 1; g.beginPath(); for (let i = 0; i < Math.round(75 * Math.min(1.2, lv)); i++) { const x = (sdv[i % 64] * W * 1.3 + t * 40) % (W + 40) - 20, y = (sdv[(i * 7 + 3) % 64] * Ht + t * (520 + sdv[(i * 3) % 64] * 240) + i * 31) % Ht; g.moveTo(x, y); g.lineTo(x - c * .06, y + c * .32); } g.stroke();
       for (const d of R.decor) if (d.k === 'puddle') { const ph = (t * .9 + d.v * 3) % 1; g.strokeStyle = `rgba(190,205,235,${(1 - ph) * .5})`; g.beginPath(); g.ellipse((d.x + .5 + (d.v - .5) * .4) * c, (d.y + .5) * c, c * ph * .3, c * ph * .14, 0, 0, 7); g.stroke(); } }
     else { for (let i = 0; i < 26; i++) { const x = (sdv[i] * W + Math.sin(t * .3 + i) * c * 1.5 + t * 6) % W, y = (sdv[i + 30] * Ht + Math.cos(t * .23 + i * 2) * c - t * 4 + Ht * 9) % Ht; g.fillStyle = `rgba(255,235,200,${.1 + sdv[(i + 9) % 64] * .22})`; g.fillRect(x, y, 1.6, 1.6); } }
     if (pl === 'crypt') for (let i = 0; i < 4; i++) { const x = (sdv[i + 40] * W + t * (5 + i * 2)) % (W + c * 8) - c * 4, y = sdv[i + 50] * Ht, gr = g.createRadialGradient(x, y, 0, x, y, c * 4); gr.addColorStop(0, 'rgba(150,160,190,.09)'); gr.addColorStop(1, 'rgba(150,160,190,0)'); g.fillStyle = gr; g.fillRect(x - c * 4, y - c * 2, c * 8, c * 4); }
