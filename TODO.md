@@ -24,6 +24,24 @@ Ideas from the owner. Nothing here is built until the owner says go.
 - The foes' march through the doors only shows in the skycam, not on the
   tactical board.
 
+## Next ideas (owner approved for the list, not yet built)
+
+- **A bigger playspace.** On a wide screen, put the board on the left at full
+  height and move the panel, controls and log into a sidebar on the right.
+- **A battle log you can read.** A scrollable history of who hit whom, in
+  place of the three-line log.
+- **Tooltips on the board.** Hovering a square shows hit chance and expected
+  damage before committing.
+- **Undo a move.** In The Six, a hero can take back a move before acting.
+- **Named heroes with history.** A short service record on the sheet: days
+  survived, kills, times cut down, notable foes slain.
+- **Vhorax's commentary.** A line from him before and after each day,
+  reacting to how the day went.
+- **Magic item variety.** Wands, scrolls and potions beyond healing.
+- **Monster abilities.** More foes that grab, charge or call for help, so
+  fights are not all walk up and hit.
+- **Saving mid-battle.** Closing the tab during a fight should not lose it.
+
 ## Sound
 
 - Sound effects throughout: blows, arrows, each spell, deaths, doors, the
