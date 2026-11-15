@@ -122,7 +122,7 @@ async function sixLoop() {
     if (u.side === 'E') { foeAct(b, u); u.acted = true; b.turn++; refresh(); await wait(); continue; }
     if (u.st.sleep || u.st.stun) { skipTurn(b, u); u.acted = true; b.turn++; continue; }
     if (quick) { S.cohorts[0].order = 'attack'; S.cohorts[0].spells = true; heroAct(b, u, S); u.acted = true; b.turn++; refresh(); await wait(); continue; }
-    busy = false; pickUnit(u); refresh(); return; // this hero is yours to command
+    busy = false; u.guard = false; pickUnit(u); refresh(); return; // this hero is yours to command
   }
   busy = false; if (B === b && b.over) result();
 }

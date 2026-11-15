@@ -53,8 +53,8 @@ const SND = (() => {
     ring: t => { tone('sine', 1320, 1318, t, .6, .08); tone('sine', 1985, 1980, t, .5, .05); },
     // the crowd: it only raises its voice when something earns it
     swell: t => noise(t, .7, .13, 'bandpass', 620, 820, .7, .2),
-    hurrah: t => { noise(t, 1.5, .24, 'bandpass', 800, 1250, .7, .35); noise(t + .05, 1.3, .1, 'bandpass', 1900, 2400, 1, .4); },
-    bigroar: t => { noise(t, 2.6, .36, 'bandpass', 700, 1200, .6, .5); noise(t, 2.4, .2, 'lowpass', 300, 420, .7, .6); noise(t + .1, 2.2, .12, 'bandpass', 2000, 2600, 1, .6); },
+    hurrah: t => { noise(t, 3.4, .2, 'bandpass', 900, 960, .8, .55); noise(t + .25, 3, .08, 'bandpass', 1700, 1800, 1.2, .8); noise(t + .1, 2.6, .07, 'bandpass', 500, 520, 1, .7); },
+    bigroar: t => { noise(t, 4.6, .34, 'bandpass', 850, 950, .6, .7); noise(t, 2.4, .2, 'lowpass', 300, 420, .7, .6); noise(t + .1, 2.2, .12, 'bandpass', 2000, 2600, 1, .6); },
     ooh: t => { noise(t, 1.2, .22, 'bandpass', 330, 420, 5, .3); noise(t, 1.2, .14, 'bandpass', 760, 900, 6, .3); },
     groan: t => { noise(t, 1.1, .2, 'bandpass', 420, 260, 4, .2); noise(t, 1.1, .1, 'bandpass', 900, 620, 5, .2); },
     crit: t => { tone('triangle', 1650, 1600, t, .4, .14); tone('sine', 110, 50, t, .3, .5); noise(t, .08, .3, 'highpass', 2600, 2600); },

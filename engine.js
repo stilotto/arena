@@ -219,7 +219,13 @@ function moveTo(b, u, x, y) {
     e.opp = true; strike(b, e, u, e.side === 'H' ? e.wd || CL[e.cls].dmg : e.m.dmg, { bonus: 2 });
     if (u.hp <= 0) return false;
   }
-  b.grid[idx(b, u.x, u.y)] = null; fx(b, { k: 'move', a: [u.x, u.y], b: [x, y], lag: 0 }); place(b, u, x, y); u.moved = true; return true;
+  b.grid[idx(b, u.x, u.y)] = null; fx(b, { k: 'move', a: [u.x, u.y], b: [x, y], lag: 0 }); place(b, u, x, y); u.moved = true;
+  for (const e of b.units) { // anyone standing guard strikes the first enemy to close with them
+    if (!e.guard || e.hp <= 0 || e.side === u.side || helpless(e) || dist(e, u) !== 1) continue;
+    e.guard = false; if (b.six) say(b, e.name + ' was on guard, and strikes as ' + who(u) + ' closes in.');
+    strike(b, e, u, e.side === 'H' ? e.wd || CL[e.cls].dmg : e.m.dmg, { bonus: 2 }); if (u.hp <= 0) return false;
+  }
+  return true;
 }
 
 function deploy(b, list, side) {
@@ -539,6 +545,7 @@ function skipTurn(b, u) {
 // One hero acts on the cohort's standing order. Respects a move the player already made by hand.
 function heroAct(b, u, S) {
   if (u.hp <= 0 || u.acted || u.illusion) return;
+  u.guard = false;
   if (skipTurn(b, u)) { u.acted = true; return; }
   const co = S.cohorts[u.ci], rooted = u.st.root; if (rooted && !--u.st.root) delete u.st.root;
   let fs = foesOf(b, u); if (!fs.length) return;
@@ -566,7 +573,7 @@ function heroAct(b, u, S) {
   } else if (u.range) {
     const t = fs.filter(f => inShot(b, u, f)).sort((a, c) => (a.st.sleep ? 1 : 0) - (c.st.sleep ? 1 : 0) || a.hp - c.hp)[0];
     if (t) heroAttack(b, u, t, true);
-  }
+  } else if (co.order === 'hold' || co.order === 'guard') u.guard = true; // nothing in reach: stand ready for whoever comes
   u.acted = true;
 }
 function foeAct(b, e) {
@@ -1035,7 +1042,6 @@ function preview(b, u, t, ranged) {
   const d = ranged ? u.rd || c.rdmg : u.wd || c.dmg; let lo = d[0] + (d[2] || 0) + plus, hi = d[0] * d[1] + (d[2] || 0) + plus;
   if (u.fire) { lo += u.fire[0]; hi += u.fire[0] * u.fire[1]; }
   const need = u.thac0 - t.ac - (t.st.stun ? 4 : 0) - (u.st.bless ? 1 : 0);
-  note.push('1 in 20 is a critical');
   return { pct: t.st.sleep ? 100 : clamp(Math.round((21 - need) * 5), 5, 95), lo: Math.max(1, lo * mult), hi: Math.max(1, hi * mult), n, note: note.join(', ') };
 }
 /* ---------- a battle in progress, as plain data so it can be saved and picked up again ---------- */
