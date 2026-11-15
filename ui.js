@@ -163,7 +163,7 @@ function freeEnding() {
 
 /* ---------- battle ---------- */
 const cv = $('cv'), g = cv.getContext('2d');
-let cell = 20, raf = 0, sand = null;
+let cell = 20, raf = 0, sand = null, roomTick = 0;
 function toSands() {
   if (S.mode === 'six') S.pick = [0];
   B = startBattle(S, S.pick); quick = false; sel = null; insp = null; csel = S.pick[0]; mode = null; reach = null; busy = false; auto = false; note = '';
@@ -203,8 +203,10 @@ function draw() {
   if (sel && reach && !mode) { g.fillStyle = 'rgba(60,110,200,.28)'; for (let i = 0; i < reach.d.length; i++) if (reach.d[i] > 0 && reach.d[i] <= sel.mv && !B.grid[i]) g.fillRect((i % B.w) * c + 1, Math.floor(i / B.w) * c + 1, c - 2, c - 2); }
   if (sel && mode && SPELLS[mode] && SPELLS[mode].range) { const r = SPELLS[mode].range; g.fillStyle = 'rgba(160,80,200,.16)'; g.fillRect(Math.max(0, sel.x - r) * c, Math.max(0, sel.y - r) * c, (Math.min(B.w - 1, sel.x + r) - Math.max(0, sel.x - r) + 1) * c, (Math.min(B.h - 1, sel.y + r) - Math.max(0, sel.y - r) + 1) * c); }
   g.textAlign = 'center'; g.textBaseline = 'middle';
+  let wy = 0; // in a quest room, walls and props are laid down row by row between the figures
   for (const u of B.six ? B.units.slice().sort((a, b) => a.y - b.y) : B.units) {
     if (u.hp <= 0) continue;
+    if (B.room) while (wy <= u.y) roomRow(g, c, wy++);
     const x = u.x * c + c / 2, y = u.y * c + c / 2;
     if (B.six) { // the party mode shows the figures themselves
       g.fillStyle = 'rgba(40,20,0,.3)'; g.beginPath(); g.ellipse(x, y + c * .36, c * .34, c * .12, 0, 0, 7); g.fill();
@@ -234,6 +236,7 @@ function draw() {
     if (u.hp < u.max) { g.fillStyle = '#2a1a14'; g.fillRect(u.x * c + 2, u.y * c + c - 4, c - 4, 3); g.fillStyle = u.side === 'H' ? '#6fd06a' : '#ffb14a'; g.fillRect(u.x * c + 2, u.y * c + c - 4, (c - 4) * u.hp / u.max, 3); }
     if (u.st.sleep || u.st.stun || u.st.root) { g.fillStyle = u.st.root && !u.st.sleep && !u.st.stun ? '#2f8f3a' : '#fff'; g.font = `700 ${Math.floor(c * .45)}px Georgia,serif`; g.fillText(u.st.sleep ? 'z' : u.st.stun ? '✶' : '#', x + c * .3, y - c * .3); }
   }
+  if (B.room) { while (wy < B.h) roomRow(g, c, wy++); roomOverlay(g, c, now); }
   if (sel && sel.hp > 0 && !B.six) { g.strokeStyle = '#ffe9a0'; g.lineWidth = 2.5; g.beginPath(); g.arc(sel.x * c + c / 2, sel.y * c + c / 2, c * .47, 0, 7); g.stroke(); }
   let live = false;
   for (const f of B.fx) {
@@ -244,7 +247,9 @@ function draw() {
     else if (f.k === 'txt') { g.font = `700 ${Math.max(11, Math.floor(c * .6))}px Georgia,serif`; g.lineWidth = 3; g.strokeStyle = '#1a1410'; const y = f.a[1] * c + c * .3 - k * c * .7; g.strokeText(f.s, f.a[0] * c + c / 2, y); g.fillStyle = f.c; g.fillText(f.s, f.a[0] * c + c / 2, y); }
   }
   g.globalAlpha = 1;
-  cancelAnimationFrame(raf); if (live) raf = requestAnimationFrame(draw);
+  cancelAnimationFrame(raf); clearTimeout(roomTick);
+  if (live) raf = requestAnimationFrame(draw);
+  else if (B.room && !RM && !$('battle').classList.contains('hidden')) roomTick = setTimeout(() => { raf = requestAnimationFrame(draw); }, flyEnd ? 400 : 70);
 }
 const stuck = u => u.st.sleep || u.st.stun;
 function pickUnit(u) {

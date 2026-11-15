@@ -59,17 +59,25 @@ four rooms with no rest between; the last room holds its master.
 - **Gutter Row**: a narrow cobbled street between rooftops, alleys, crates and
   washing lines, ending in a yard. Thugs, cutpurses, archers, hounds, bruisers,
   wererats; Mother Crake.
-- Walls block movement and line of sight. Each place has its own board
-  painting and its own skycam scene.
+- Walls block movement and line of sight.
+- Rooms are generated from a seed: seven kinds of crypt room, six of tower
+  floor and six of street, in varying sizes, plus a final room for each place.
+- The board shows raised walls and props that figures can stand behind, light
+  and shadow from torches and from the party itself, flames, dust, fog and
+  rain. The skycam scene for each place has baked torchlight, pitched roofs,
+  its own sky, and draws far to near by cell so nothing shows through walls.
 - Between rooms: tend wounds with leftover healing, drink a potion, press on,
   or turn back with the takings. Falling or fleeing loses the takings.
 - A cleared place comes back harder next time.
 
 Still open:
 
-- More places (a sewer, a market, a ship) and more than one layout per room.
+- More places (a sewer, a market, a ship).
 - Doors, traps, locked chests and anything for a thief to do outside a fight.
 - Foes start already aware; no sneaking up, no wandering patrols.
 - Quest experience is generous: a party that quests every day reaches about
   level 13 by day 30, against about level 9 without. Needs hands-on tuning.
-- The skycam can clip through tall props on its way through a room.
+- Foes standing in the dark are hard to see on the board until the party's
+  light reaches them. That is atmospheric but may want a toggle.
+- The arena itself still has the older, plainer board; it could get the same
+  lighting treatment.

@@ -794,45 +794,105 @@ const PLACES = {
     foes: [['thug', 1], ['cutpurse', 1], ['slinger', 2], ['hound', 3], ['bruiser', 6], ['wererat', 10]] }
 };
 // A room: cells 0 = floor, 1 = wall (blocks sight), 2 = low obstacle, 3 = water. props are drawn things on blocked cells.
-function makeRoom(place, n) {
-  let R; const mk = (w, h, f) => { R = { place, n, name: PLACES[place].rooms[n], w, h, cells: new Uint8Array(w * h).fill(f), props: [], decor: [] }; };
-  const set = (x, y, k, p) => { if (x < 0 || y < 0 || x >= R.w || y >= R.h) return; R.cells[y * R.w + x] = k; if (p) R.props.push({ x, y, k: p }); };
+// Rooms are generated from a seed, so a quest's rooms differ every time but a resumed quest gets the same ones back.
+const ROOMNAME = { pillars: 'The Pillared Hall', burial: 'The Burial Vault', cistern: 'The Flooded Cistern', catacomb: 'The Catacombs', cross: 'The Crossing', rubble: 'The Collapsed Gallery', partition: 'The Guard Rooms', sanctum: "The Bone-Speaker's Sanctum",
+  library: 'The Library', lab: 'The Laboratory', menagerie: 'The Menagerie', study: 'The Inner Study', gallery: 'The Statue Gallery', armoury: 'The Armoury', observatory: 'The Observatory',
+  row: "Tanner's Row", dogleg: 'Crooked Lane', market: 'The Night Market', narrows: 'The Narrows', canal: 'The Stink Canal', court: "Ragpicker's Court", yard: "Crake's Yard" };
+const ROOMKINDS = { crypt: ['pillars', 'burial', 'cistern', 'catacomb', 'cross', 'rubble', 'partition'], tower: ['library', 'lab', 'menagerie', 'study', 'gallery', 'armoury'], slum: ['row', 'dogleg', 'market', 'narrows', 'canal', 'court'] };
+const ROOMLAST = { crypt: 'sanctum', tower: 'observatory', slum: 'yard' };
+function makeRoom(place, n, seed) {
+  seed = seed || 1;
+  for (let t = 0; t < 60; t++) { const R = genRoom(place, n, (seed * 131 + n * 977 + t * 7919 + 5) >>> 0, seed); if (R) return R; }
+  return genRoom(place, n, 1, seed, true);
+}
+function genRoom(place, n, sd, qseed, plain) {
+  let s = sd; const r = () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296, rint = (a, b) => a + Math.floor(r() * (b - a + 1)), pick = a => a[Math.floor(r() * a.length)], TAU = Math.PI * 2;
+  let R; const last = n === 3;
+  const mk = (w, h, f) => { R = { place, n, w, h, cells: new Uint8Array(w * h).fill(f), props: [], decor: [], lights: [] }; };
+  const get = (x, y) => x < 0 || y < 0 || x >= R.w || y >= R.h ? 1 : R.cells[y * R.w + x];
+  const set = (x, y, k, p) => { if (x < 0 || y < 0 || x >= R.w || y >= R.h) return; R.props = R.props.filter(q => q.x !== x || q.y !== y); R.cells[y * R.w + x] = k; if (p) R.props.push({ x, y, k: p }); };
   const rect = (x0, y0, x1, y1, k, p) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) set(x, y, k, p); };
+  let q = qseed * 7 + 3; const kinds = ROOMKINDS[place].slice(); for (let i = kinds.length - 1; i > 0; i--) { q = (q * 1664525 + 1013904223) >>> 0; const j = (q >>> 9) % (i + 1), t = kinds[i]; kinds[i] = kinds[j]; kinds[j] = t; }
+  const kind = last ? ROOMLAST[place] : kinds[n];
   if (place === 'crypt') {
-    mk(15, 11, 0); rect(0, 0, 14, 0, 1); rect(0, 10, 14, 10, 1); rect(0, 0, 0, 10, 1); rect(14, 0, 14, 10, 1);
-    if (n === 0) for (const x of [4, 7, 10]) for (const y of [3, 7]) set(x, y, 1, 'pillar');
-    if (n === 1) for (const x of [5, 8, 11]) for (const y of [2, 3, 7, 8]) set(x, y, 2, y === 2 || y === 7 ? 'sarc' : 'sarc2');
-    if (n === 2) { rect(6, 4, 8, 6, 3, 'water'); for (const [x, y] of [[4, 2], [10, 2], [4, 8], [10, 8]]) set(x, y, 1, 'pillar'); }
-    if (n === 3) { rect(8, 1, 8, 9, 1); set(8, 3, 0); set(8, 7, 0); for (const [x, y] of [[11, 2], [11, 8]]) set(x, y, 2, 'brazier'); set(5, 5, 1, 'pillar'); }
-    R.entry = [[3, 5], [3, 4], [3, 6], [2, 5], [2, 4], [2, 6], [1, 5], [1, 4], [1, 6]]; R.bossAt = [12, 5];
-    for (const [x, y] of [[0, 2], [0, 8], [14, 2], [14, 8], [5, 0], [9, 0], [5, 10], [9, 10]]) R.decor.push({ k: 'torch', x, y });
-    R.decor.push({ k: 'door', x: 0, y: 5 }, { k: 'exit', x: 14, y: 5 });
+    const w = 13 + 2 * rint(0, 2), h = 9 + 2 * rint(0, 2), my = (h - 1) / 2; mk(w, h, 0);
+    rect(0, 0, w - 1, 0, 1); rect(0, h - 1, w - 1, h - 1, 1); rect(0, 0, 0, h - 1, 1); rect(w - 1, 0, w - 1, h - 1, 1);
+    R.door = [0, my]; set(0, my, 0); R.decor.push({ k: 'door', x: 0, y: my }, { k: 'exit', x: w - 1, y: my });
+    if (!plain) switch (kind) {
+      case 'pillars': { const sx = rint(2, 3), sy = rint(2, 3); for (let x = 3; x <= w - 3; x += sx) for (let y = 2; y <= h - 3; y += sy) if (r() > .18 && y !== my) set(x, y, 1, 'pillar'); break; }
+      case 'burial': for (let x = 4; x <= w - 3; x += 3) for (const y0 of [2, h - 4]) if (r() > .2) { set(x, y0, 2, 'sarc'); set(x, y0 + 1, 2, 'sarc2'); } break;
+      case 'cistern': { const pw = rint(3, 5), ph = rint(2, 3), px = rint(4, Math.max(4, w - 4 - pw)), py = rint(2, Math.max(2, h - 2 - ph)); rect(px, py, px + pw - 1, py + ph - 1, 3, 'water'); const bx = px + rint(0, pw - 1); for (let y = py; y < py + ph; y++) { set(bx, y, 0); R.decor.push({ k: 'bridge', x: bx, y }); }
+        for (const [x, y] of [[px - 1, py - 1], [px + pw, py - 1], [px - 1, py + ph], [px + pw, py + ph]]) if (r() > .3 && x > 1 && y > 0 && x < w - 2 && y < h - 1) set(x, y, 1, 'pillar'); break; }
+      case 'catacomb': for (let x = 3, i = rint(0, 1); x <= w - 3; x += 2, i++) { const len = rint(1, Math.max(1, my - 2)); if (i % 2) rect(x, 1, x, len, 1); else rect(x, h - 1 - len, x, h - 2, 1); } break;
+      case 'cross': { const cx = rint(2, 4), cy = rint(1, Math.max(1, my - 2)); rect(1, 1, cx, cy, 1); rect(1, h - 1 - cy, cx, h - 2, 1); rect(w - 1 - cx, 1, w - 2, cy, 1); rect(w - 1 - cx, h - 1 - cy, w - 2, h - 2, 1);
+        for (const [x, y] of [[Math.floor(w / 2) - 2, my - 2], [Math.floor(w / 2) + 2, my - 2], [Math.floor(w / 2) - 2, my + 2], [Math.floor(w / 2) + 2, my + 2]]) if (!get(x, y) && r() > .3) set(x, y, 1, 'pillar'); break; }
+      case 'rubble': { const g = new Uint8Array(w * h); for (let y = 1; y < h - 1; y++) for (let x = 4; x < w - 1; x++) g[y * w + x] = r() < .34 ? 1 : 0;
+        for (let it = 0; it < 2; it++) { const o = g.slice(); for (let y = 1; y < h - 1; y++) for (let x = 4; x < w - 1; x++) { let c = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (o[(y + dy) * w + x + dx] || x + dx >= w - 1 || y + dy <= 0 || y + dy >= h - 1) c++; g[y * w + x] = c >= 5 ? 1 : 0; } }
+        for (let y = 1; y < h - 1; y++) for (let x = 4; x < w - 1; x++) if (g[y * w + x]) set(x, y, 1, r() < .5 ? 'rubble' : null); break; }
+      case 'partition': for (const px of w >= 15 ? [Math.floor(w / 3), Math.floor(2 * w / 3)] : [Math.floor(w / 2)]) { rect(px, 1, px, h - 2, 1); const g1 = rint(1, h - 2); set(px, g1, 0); if (r() > .35) set(px, 1 + (g1 + rint(2, h - 4)) % (h - 2), 0); } break;
+      case 'sanctum': { const px = Math.floor(w * .52); rect(px, 1, px, h - 2, 1); set(px, rint(1, my - 1), 0); set(px, rint(my + 1, h - 2), 0); set(w - 3, 2, 2, 'brazier'); set(w - 3, h - 3, 2, 'brazier'); R.decor.push({ k: 'dais', x: w - 4, y: my - 1, w: 3, h: 3 });
+        for (const [x, y] of [[3, 2], [3, h - 3], [px - 2, 2], [px - 2, h - 3]]) if (r() > .25) set(x, y, 1, 'pillar'); break; }
+    }
+    for (let x = 2 + rint(0, 2); x < w - 1; x += rint(3, 4)) for (const y of [0, h - 1]) if (r() > .2) R.lights.push({ x: x + .5, y: y ? h - 1.1 : 1.1, cx: x, cy: y ? h - 2 : 1, r: 4.4, c: [1, .6, .26], k: 'torch', wx: x, wy: y });
+    for (let i = rint(6, 10); i > 0; i--) { const x = rint(1, w - 2), y = rint(1, h - 2); if (!get(x, y)) R.decor.push({ k: pick(['bones', 'crack', 'moss', 'skull', 'stain', 'crack', 'moss']), x, y, v: r() }); }
   } else if (place === 'tower') {
-    mk(13, 13, 1); for (let y = 0; y < 13; y++) for (let x = 0; x < 13; x++) if ((x - 6) * (x - 6) + (y - 6) * (y - 6) <= 31.5) set(x, y, 0);
-    R.round = 1; R.decor.push({ k: 'rug', x: 6, y: 6 });
-    if (n === 0) { for (const x of [4, 5, 7, 8]) for (const y of [3, 9]) set(x, y, 1, 'shelf'); set(8, 6, 2, 'table'); set(6, 6, 1, 'stair'); }
-    if (n === 1) { for (const [x, y] of [[5, 4], [8, 4], [5, 8], [8, 8]]) set(x, y, 2, 'table'); set(9, 6, 2, 'cauldron'); set(6, 6, 1, 'stair'); }
-    if (n === 2) { for (const [x, y] of [[4, 4], [8, 4], [4, 8], [8, 8], [6, 2], [6, 10]]) set(x, y, 2, 'cage'); set(6, 6, 1, 'stair'); }
-    if (n === 3) { set(6, 6, 2, 'orrery'); for (const [x, y] of [[6, 3], [6, 9], [9, 4], [9, 8]]) set(x, y, 2, 'brazier'); R.roof = 1; }
-    R.entry = [[3, 6], [3, 5], [3, 7], [2, 6], [2, 5], [2, 7], [1, 6], [2, 4], [2, 8]]; R.bossAt = [10, 6];
-    for (const [x, y] of [[6, 0], [6, 12], [12, 6], [2, 2], [10, 2], [2, 10], [10, 10]]) R.decor.push({ k: 'candle', x, y });
+    const sz = r() < .5 ? 13 : 15, c = (sz - 1) / 2, rad = c - .35; mk(sz, sz, 1); R.round = 1; R.rad = rad; R.c = c;
+    const d2 = (x, y) => (x - c) * (x - c) + (y - c) * (y - c);
+    for (let y = 0; y < sz; y++) for (let x = 0; x < sz; x++) if (d2(x, y) <= rad * rad) set(x, y, 0);
+    R.door = [Math.ceil(c - rad), c];
+    const ring = (rr, step, fn) => { for (let a = r() * step; a < TAU; a += step) { const x = Math.round(c + Math.cos(a) * rr), y = Math.round(c + Math.sin(a) * rr); if (Math.abs(a - Math.PI) > .55 && !get(x, y)) fn(x, y, a); } };
+    const adiff = (a, b) => Math.abs(((a - b) % TAU + TAU + Math.PI) % TAU - Math.PI);
+    if (!plain) switch (kind) {
+      case 'library': for (const rr of [rad - 1.5, rad - 3.3]) if (rr > 1.6) { const gap = r() * TAU, gap2 = r() * TAU; ring(rr, .8 / rr, (x, y, a) => { if (adiff(a, gap) > .5 && adiff(a, gap2) > .4) set(x, y, 1, 'shelf'); }); } break;
+      case 'lab': for (let i = rint(4, 6); i > 0; i--) { const a = r() * TAU, rr = 2 + r() * (rad - 3.5), x = Math.round(c + Math.cos(a) * rr), y = Math.round(c + Math.sin(a) * rr); if (!get(x, y) && x > R.door[0] + 2) set(x, y, 2, i === 1 ? 'cauldron' : 'table'); } break;
+      case 'menagerie': ring(rad - 2, TAU / 8, (x, y) => { if (r() > .2) set(x, y, 2, 'cage'); }); break;
+      case 'study': { const gaps = [Math.PI, r() * TAU, r() * TAU]; for (let y = 0; y < sz; y++) for (let x = 0; x < sz; x++) { const d = Math.sqrt(d2(x, y)); if (d >= 2.2 && d < 3.2 && !gaps.some(g => adiff(Math.atan2(y - c, x - c), g) < .42)) set(x, y, 1); } set(c, c, 2, 'table'); break; }
+      case 'gallery': ring(rad - 1.8, TAU / 6, (x, y) => set(x, y, 1, 'statue')); break;
+      case 'armoury': ring(rad - 1.2, TAU / 10, (x, y) => { if (r() > .3) set(x, y, 2, 'rack'); }); ring(rad - 3.4, TAU / 3, (x, y) => set(x, y, 2, 'crate')); break;
+      case 'observatory': R.roof = 1; set(c, c, 2, 'orrery'); ring(rad - 2, TAU / 4, (x, y) => set(x, y, 2, 'brazier')); R.decor.push({ k: 'chart', x: c, y: c, r: rad - 1 }); break;
+    }
+    if (kind !== 'study' && kind !== 'observatory' && !get(c, c)) set(c, c, 1, 'stair');
+    if (kind !== 'observatory') R.decor.push({ k: 'rug', x: c, y: c, v: rint(0, 2), r: kind === 'study' ? 1.6 : rint(2, 3) + .4 });
+    for (let a = r(), st = TAU / rint(5, 7); a < TAU; a += st) { const x = c + Math.cos(a) * (rad - .5), y = c + Math.sin(a) * (rad - .5); R.lights.push({ x: x + .5, y: y + .5, cx: Math.round(x), cy: Math.round(y), r: R.roof ? 2.6 : 3.8, c: [1, .84, .52], k: 'candle' }); }
+    for (let i = rint(5, 9); i > 0; i--) { const x = rint(1, sz - 2), y = rint(1, sz - 2); if (!get(x, y)) R.decor.push({ k: pick(['books', 'paper', 'paper', 'books', 'stain']), x, y, v: r() }); }
   } else {
-    mk(21, 9, 1); rect(0, 3, 20, 5, 0);
-    if (n === 0) { rect(5, 0, 5, 2, 0); rect(10, 6, 10, 8, 0); rect(15, 0, 16, 2, 0); for (const [x, y, p] of [[4, 3, 'crate'], [8, 5, 'barrel'], [12, 4, 'cart'], [17, 5, 'crate']]) set(x, y, 2, p); }
-    if (n === 1) { rect(9, 3, 12, 3, 1); rect(9, 5, 12, 5, 1); rect(6, 0, 6, 2, 0); rect(14, 6, 15, 8, 0); rect(16, 1, 18, 2, 0); for (const [x, y, p] of [[5, 5, 'barrel'], [15, 3, 'crate'], [18, 5, 'crate']]) set(x, y, 2, p); }
-    if (n === 2) { rect(8, 1, 14, 7, 0); rect(4, 6, 4, 8, 0); rect(17, 0, 17, 2, 0); for (const [x, y, p] of [[11, 4, 'cart'], [9, 2, 'crate'], [13, 6, 'barrel'], [9, 6, 'crate'], [13, 2, 'barrel']]) set(x, y, 2, p); }
-    if (n === 3) { rect(11, 1, 19, 7, 0); rect(20, 0, 20, 8, 1); rect(6, 6, 7, 8, 0); for (const [x, y, p] of [[13, 2, 'crate'], [13, 6, 'crate'], [16, 4, 'brazier'], [8, 3, 'barrel']]) set(x, y, 2, p); }
-    R.entry = [[2, 4], [2, 3], [2, 5], [1, 4], [1, 3], [1, 5], [0, 4], [0, 3], [0, 5]]; R.bossAt = [18, 4];
-    for (const x of [3, 9, 15]) R.decor.push({ k: 'lamp', x, y: n === 2 && x === 9 ? 0 : 2 }, { k: 'wash', x: x + 3, y: 3 });
-    for (const [x, y] of [[6, 4], [14, 5], [10, 4]]) if (!R.cells[y * R.w + x]) R.decor.push({ k: 'puddle', x, y });
+    const w = 19 + 2 * rint(0, 2), h = r() < .5 ? 9 : 11; mk(w, h, 1);
+    let yc = Math.floor(h / 2) + rint(-1, 0); const wd = rint(2, 3), ys = new Int8Array(w), jogs = [];
+    for (let i = kind === 'dogleg' ? 2 : rint(0, 1); i > 0; i--) jogs.push(rint(5, w - 7));
+    const lane = (x, y) => rect(x, y - 1, x, y + wd - 2, 0);
+    for (let x = 0; x < w; x++) { if (jogs.includes(x)) { const ny = clamp(yc + pick([-2, -1, 1, 2]), 2, h - 2 - wd + 1); rect(x, Math.min(yc, ny) - 1, x, Math.max(yc, ny) + wd - 2, 0); yc = ny; } lane(x, yc); ys[x] = yc; }
+    R.door = [0, ys[0]];
+    const x0 = rint(6, w - 12);
+    if (!plain) switch (kind) {
+      case 'market': rect(x0, Math.max(1, ys[x0] - 2), x0 + 6, Math.min(h - 2, ys[x0] + 2), 0); for (let i = 0; i < 3; i++) for (const yy of [Math.max(1, ys[x0] - 2), Math.min(h - 2, ys[x0] + 2)]) if (r() > .2) set(x0 + 1 + 2 * i, yy, 2, 'stall'); break;
+      case 'narrows': for (let x = x0; x < x0 + 4; x++) for (let y = 1; y < h - 1; y++) if (y !== ys[x] && !get(x, y)) set(x, y, 1); break;
+      case 'canal': { for (let y = 0; y < h; y++) { set(x0, y, 3, 'water'); set(x0 + 1, y, 3, 'water'); } const by = ys[x0] - rint(0, 1); for (let y = by; y < by + rint(1, 2); y++) for (const x of [x0, x0 + 1]) { set(x, y, 0); R.decor.push({ k: 'bridge', x, y }); } break; }
+      case 'court': rect(x0, 2, x0 + 5, h - 3, 0); set(x0 + 2 + rint(0, 1), Math.floor(h / 2), 2, 'well'); break;
+      case 'yard': rect(w - 8, 1, w - 2, h - 2, 0); rect(w - 1, 0, w - 1, h - 1, 1); set(w - 3, 2, 2, 'brazier'); set(w - 3, h - 3, 2, 'brazier'); set(w - 6, 2, 2, 'crate'); set(w - 7, h - 3, 2, 'barrel'); break;
+    }
+    for (let i = rint(2, 4); i > 0; i--) { const x = rint(4, w - 4), dir = pick([-1, 1]); let y = dir < 0 ? ys[x] - 2 : ys[x] + wd - 1; const len = rint(1, 4); for (let k = 0; k < len && y > 0 && y < h - 1; k++, y += dir) if (get(x, y) !== 3) set(x, y, 0); if (r() < .35 && y > 1 && y < h - 2) rect(x, Math.min(y, y - dir), x + 1, Math.max(y, y - dir), 0); }
+    for (let i = rint(3, 6); i > 0; i--) { const x = rint(4, w - 2), y = rint(1, h - 2); if (!get(x, y) && ![[1, 0], [-1, 0], [0, 1], [0, -1]].some(d => get(x + d[0], y + d[1]) === 2)) set(x, y, 2, pick(['crate', 'barrel', 'cart', 'crate', 'barrel'])); }
+    for (let x = 2 + rint(0, 2); x < w - 1; x += rint(4, 6)) { let y = ys[x] - 1; while (y > 0 && get(x, y) !== 1) y--; if (get(x, y) === 1 && !get(x, y + 1)) R.lights.push({ x: x + .5, y: y + 1.15, cx: x, cy: y + 1, r: 4.6, c: [1, .7, .34], k: 'lamp', wx: x, wy: y }); }
+    for (let x = 4 + rint(0, 3); x < w - 3; x += rint(5, 8)) { let a = ys[x], b = ys[x]; while (get(x, a - 1) === 0) a--; while (get(x, b + 1) === 0) b++; if (b - a >= 1 && b - a <= 4) R.decor.push({ k: 'wash', x, y0: a, y1: b, v: r() }); }
+    for (let i = rint(6, 10); i > 0; i--) { const x = rint(1, w - 2), y = rint(1, h - 2); if (!get(x, y)) R.decor.push({ k: pick(['puddle', 'puddle', 'refuse', 'crack', 'puddle']), x, y, v: r() }); }
   }
-  const near = (x, y) => R.entry.some(e => Math.max(Math.abs(e[0] - x), Math.abs(e[1] - y)) < 4);
-  R.spawn = []; for (let y = 0; y < R.h; y++) for (let x = 0; x < R.w; x++) if (!R.cells[y * R.w + x] && !near(x, y) && !(x === R.bossAt[0] && y === R.bossAt[1])) R.spawn.push([x, y]);
+  for (const p of R.props) if (p.k === 'brazier' || p.k === 'cauldron' || p.k === 'orrery') R.lights.push({ x: p.x + .5, y: p.y + .5, cx: p.x, cy: p.y, r: p.k === 'cauldron' ? 3.2 : 4.2, c: p.k === 'cauldron' ? [.4, 1, .5] : p.k === 'orrery' ? [1, .86, .5] : [1, .58, .24], k: p.k });
+  R.lights = R.lights.filter(l => get(l.cx, l.cy) !== 1);
+  // everything the party must reach has to be reachable from the door
+  if (get(R.door[0], R.door[1])) return null;
+  const dist = new Int16Array(R.w * R.h).fill(-1), queue = [R.door[1] * R.w + R.door[0]]; dist[queue[0]] = 0;
+  for (let i = 0; i < queue.length; i++) { const cc = queue[i], cx = cc % R.w, cy = (cc - cx) / R.w; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const x = cx + dx, y = cy + dy; if ((dx || dy) && !get(x, y) && dist[y * R.w + x] < 0) { dist[y * R.w + x] = dist[cc] + 1; queue.push(y * R.w + x); } } }
+  if (queue.length < 40) return null;
+  R.entry = queue.slice(0, 9).reverse().map(i => [i % R.w, Math.floor(i / R.w)]);
+  const far = queue[queue.length - 1]; R.bossAt = [far % R.w, Math.floor(far / R.w)];
+  R.spawn = queue.filter(i => dist[i] >= 5 && i !== far).map(i => [i % R.w, Math.floor(i / R.w)]);
+  if (R.spawn.length < 14 || dist[far] < 8) return null;
+  R.kind = plain ? 'plain' : kind; R.name = plain ? PLACES[place].rooms[n] : ROOMNAME[kind];
   return R;
 }
 function startRoom(S) {
   const q = S.quest, P = PLACES[q.place], last = q.room === P.rooms.length - 1, d = S.day + 2 * ((S.q || {})[q.place] || 0);
-  const R = makeRoom(q.place, q.room), B0 = budget(d) * 6 / (10 * gateCap(d)) * TUNE.six, vet = 1 + (veteran(d) - 1) * .4;
+  const R = makeRoom(q.place, q.room, q.seed), B0 = budget(d) * 6 / (10 * gateCap(d)) * TUNE.six, vet = 1 + (veteran(d) - 1) * .4;
   const b = { six: true, quest: true, room: R, day: S.day, w: R.w, h: R.h, units: [], round: 1, log: [], fx: [], over: null, xp: 0, gold: 0, dead: [], cis: [0], doors: [], last };
   b.grid = new Array(b.w * b.h).fill(null); R.cells.forEach((k, i) => { if (k) b.grid[i] = WALL; });
   let id = 1;
@@ -889,6 +949,6 @@ function endQuest(S, how) {
   for (const h of S.heroes) { delete h.left; if (!h.dead) h.hp = h.max; }
   return out;
 }
-function beginQuest(S, place) { S.quest = { place, room: 0, gold: 0, loot: [] }; for (const h of S.heroes) delete h.left; }
+function beginQuest(S, place) { S.quest = { place, room: 0, gold: 0, loot: [], seed: ri(999999) }; for (const h of S.heroes) delete h.left; }
 
 if (typeof module !== 'undefined') module.exports = { CL, ORDER, MON, SCHED, SPELLS, TUNE, TIER, TIERCOST, FINAL, ITEMS, SLOTS, BOOK, migrate, redeploy, inZone, veteran, newParty, rollStats, randomName, equip, unequip, kit, sixAC, fillMem, slotsFor, rollInit, foeAct, heroAct, endRound, shopStock, raise, raiseCost, PLACES, makeRoom, startRoom, finishRoom, endQuest, beginQuest, tend, los, newCampaign, startBattle, autoRound, finishBattle, billing, billingText, budget, gateCap, living, canTrain, trainCost, levelUp, checkOver, xpNeed, roman };
