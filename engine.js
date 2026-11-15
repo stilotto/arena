@@ -597,7 +597,13 @@ function foeAct(b, e) {
     for (const h of hs) { if (dist(e, h) > 8 || h.illusion) continue; const k = inRad(b, h.x, h.y, 1, 'H').filter(x => !x.st.stun).length; if (k > bs) { bs = k; best = h; } }
     if (best) { e.cd = 2; fx(b, { k: 'gaze', a: [e.x, e.y], b: [best.x, best.y], lag: 260 }); burst(b, best.x, best.y, 1, '#f0c56a'); say(b, e.name + ' turns his eye on the legion.'); for (const h of inRad(b, best.x, best.y, 1, 'H')) if (!h.illusion && ri(20) + h.lvl < 16) { h.st.stun = 2; fx(b, { k: 'txt', a: [h.x, h.y], s: 'held', c: '#f0c56a' }); } }
   }
-  if (m.summon && b.round % 3 === 0 && e.sum !== b.round) { // more of his guard come through the gates
+  // A master calls for help every third round, at most twice (Vhorax three times), and not at all with a hero at his throat.
+  const cap = e.mid === 'vhorax' ? 3 : 2, pressed = hs.some(h => !h.illusion && dist(e, h) === 1);
+  if (m.summon && (e.calls || 0) < cap) {
+    if (b.round % 3 === 2 && e.warn !== b.round) { e.warn = b.round; say(b, e.name + ' is about to call for help. A hero in melee with ' + e.name + ' will stop it.'); fx(b, { k: 'txt', a: [e.x, e.y], s: 'calling', c: '#ffb14a' }); }
+    if (b.round % 3 === 0 && pressed && e.sum !== b.round) { e.sum = b.round; say(b, e.name + ' is too hard pressed to call for help.'); fx(b, { k: 'txt', a: [e.x, e.y], s: 'pressed', c: '#7dff8a' }); }
+  }
+  if (m.summon && b.round % 3 === 0 && e.sum !== b.round && (e.calls || 0) < cap && !pressed) { e.calls = (e.calls || 0) + 1; // more of his guard come through the gates
     e.sum = b.round; let k = 0; const sn = b.six && !b.quest ? Math.ceil(m.summon[1] / 2) : m.summon[1];
     for (const dir of b.quest ? ['Q'] : b.doors) for (let j = 0; j < 12 && k < sn; j++) {
       const o = Math.ceil(j / 2) * (j % 2 ? 1 : -1), x = dir === 'Q' ? e.x - 1 + j % 3 : dir === 'E' ? b.w - 1 : dir === 'W' ? 0 : Math.floor(b.w / 2) + o, y = dir === 'Q' ? e.y - 2 + Math.floor(j / 3) : dir === 'N' ? 0 : dir === 'S' ? b.h - 1 : Math.floor(b.h / 2) + o;

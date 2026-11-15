@@ -304,7 +304,7 @@ function refresh() {
   $('bEnd').disabled = busy; $('bEnd').textContent = B.phase === 'deploy' ? 'Begin battle' : 'End turn'; $('bAuto').textContent = B.six ? 'Quick fight: ' + (quick ? 'on' : 'off') : 'Auto: ' + (auto ? 'on' : 'off'); $('bAuto').classList.toggle('on', B.six ? quick : auto);
   $('bSpeed').textContent = 'Speed: ' + (fast ? 'fast' : 'normal'); $('bYield').disabled = busy; $('bYield').textContent = B.quest ? 'Flee' : 'Plead for mercy';
   $('log').innerHTML = B.log.slice(-90).map(s => `<div${s[0] === '\u2020' || s.includes(' is down') || s.includes('slain') ? ' class="bad"' : ''}>${s}</div>`).join(''); $('log').scrollTop = 1e6;
-  $('bSnd').textContent = SND.label();
+  $('bSnd').textContent = SND.label(); $('bLit').textContent = 'Light: ' + ['moody', 'soft', 'bright'][lightLv];
   draw(); saveBattle();
 }
 const THING = { door: 'door', shelf: 'bookshelf', sarc: 'sarcophagus' };

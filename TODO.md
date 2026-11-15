@@ -58,10 +58,9 @@ Ideas from the owner. Nothing here is built until the owner says go.
   fights are not all walk up and hit.
 - **More quest places** (a sewer, a market, a ship).
 - **Balance pass**, after hands-on play.
-- **Summoned reinforcements.** Mother Crake, Master Ilvane, the Bone-Speaker
-  and Vhorax call more foes every third round with no limit, so a long fight
-  snowballs. Rebalance it, or give the heroes a way to stop it: for example a
-  master who is engaged in melee cannot call for help. Not yet changed.
+- **Summoned reinforcements: done.** A master now calls at most twice
+  (Vhorax three times), warns the round before, and cannot call with a hero
+  in melee with them. Check by play whether that is enough.
 
 ## Still open from sprint 1
 
@@ -123,5 +122,3 @@ Still open:
 - Foes start already aware; no sneaking up, no wandering patrols.
 - Quest experience is generous: a party that quests every day reaches about
   level 13 by day 30, against about level 9 without. Needs hands-on tuning.
-- Foes standing in the dark are hard to see on the board until the party's
-  light reaches them. That is atmospheric but may want a toggle.

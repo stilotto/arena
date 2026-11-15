@@ -222,6 +222,9 @@ function peek(r) {
   el.classList.remove('hidden'); clearTimeout(peekT); peekT = setTimeout(() => el.classList.add('hidden'), 4600); el.onclick = () => el.classList.add('hidden');
   SND.play('door'); SND.play(r.k === 'treasure' || r.k === 'gold' ? 'coin' : r.k === 'page' ? 'heal' : r.k === 'curse' ? 'bolt' : r.k === 'trap' && !r.safe ? 'thunk' : r.k === 'ambush' ? 'thump' : 'tick', 700);
 }
+// How dark the unlit parts are: moody (as designed), soft, or bright for anyone who wants to see every foe.
+let lightLv = 0; try { lightLv = +localStorage.getItem('the-hundred-light') || 0; } catch (e) { }
+function cycleLight() { lightLv = (lightLv + 1) % 3; try { localStorage.setItem('the-hundred-light', lightLv); } catch (e) { } refresh(); }
 // Light and shadow, flame, dust, rain. Drawn over everything, several times a second.
 function roomOverlay(g, c, now) {
   const fx = roomFX; if (!fx || !B || fx.owner !== B) return;
@@ -235,7 +238,7 @@ function roomOverlay(g, c, now) {
   const fake = B;
   if (pl !== 'arena') for (const u of B.units) if (u.side === 'H' && u.hp > 0) lights.push({ x: u.x + .5, y: u.y + .5, r: u === sel ? 3.8 : 3.2, c: [.95, .86, .7], f: .72, u });
   for (const l of fxLights(now)) lights.push({ x: l.x + fx.off, y: l.y + fx.off, r: l.r, c: l.c, f: l.f, u: { x: Math.floor(l.x), y: Math.floor(l.y) } }); // spells and fire light the place up
-  const SW = w * 2, SH = h * 2, dk = fx.dkd.data, lt = fx.ltd.data, D = fx.amb[0], dc = fx.amb[1], acc = new Float32Array(SW * SH * 3);
+  const SW = w * 2, SH = h * 2, dk = fx.dkd.data, lt = fx.ltd.data, D = fx.amb[0] * [1, .62, .3][lightLv], dc = fx.amb[1], acc = new Float32Array(SW * SH * 3);
   for (const l of lights) {
     const x0 = Math.max(0, Math.floor((l.x - l.r) * 2)), x1 = Math.min(SW - 1, Math.ceil((l.x + l.r) * 2)), y0 = Math.max(0, Math.floor((l.y - l.r) * 2)), y1 = Math.min(SH - 1, Math.ceil((l.y + l.r) * 2));
     for (let j = y0; j <= y1; j++) for (let i = x0; i <= x1; i++) {
