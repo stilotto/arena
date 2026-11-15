@@ -33,6 +33,9 @@ the Iron Plane who is forging a new legion.
   phones get the new code.
 - Balance check: `node tools/sim.js [runs] [days]` plays the campaign on
   standing orders and prints deaths per day.
+- `NOTES.md` is the handoff: how the pieces fit, mistakes already made, and
+  what is agreed next. Read it at the start of a session and keep it current.
+- `sh tools/check.sh` runs the headless browser checks in `tools/tests/`.
 - `TODO.md` is the owner's running list of ideas. Add to it when asked; do
   not build an item until the owner says to.
 - Day 31 is Vhorax (`FINAL` in `engine.js`); later days repeat days 21 to 30.

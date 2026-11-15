@@ -1,0 +1,20 @@
+const URL0 = 'file://' + require('path').resolve(__dirname, '../../index.html');
+const { chromium } = require('playwright');
+(async () => { const out = process.argv[2] + '/'; const br = await chromium.launch(); const errs = [];
+  const P = async url => { const p = await br.newPage({ viewport: { width: 1100, height: 760 } }); p.on('pageerror', e => errs.push(url + ': ' + e.message)); p.on('console', m => m.type() === 'error' && errs.push(m.text())); await p.goto(URL0 + url); return p; };
+  // freeze time so an effect can be photographed at a chosen moment
+  const snap = async (p, name, setup, ms) => { await p.evaluate(setup); await p.evaluate(ms => { const t0 = B.fx.length ? Math.min(...B.fx.filter(f => f._n).map(f => f.t)) : Date.now(); const real = Date.now; Date.now = () => t0 + ms; draw(); Date.now = real; }, ms); await p.locator('#cv').screenshot({ path: out + name + '.png' }); };
+  const mark = `B.fx.forEach(f => f._n = 0); const n0 = B.fx.length; const done = () => B.fx.slice(n0).forEach(f => f._n = 1);`;
+  let p = await P('?six=1&day=17'); await p.evaluate(() => { S.fly = false; toSands(); B.phase = null; rollInit(B); });
+  await p.locator('#cv').screenshot({ path: out + 'a_arena6.png' });
+  await snap(p, 'a_arrow', `(() => { ${mark} const u = B.units.find(x => x.cls === 'ranger'), t = B.units.find(x => x.side === 'E'); u.acted = false; heroAttack(B, u, t, true); done(); })()`, 200);
+  await snap(p, 'a_missile', `(() => { ${mark} const u = B.units.find(x => x.cls === 'mage'), t = B.units.find(x => x.side === 'E' && x.hp > 0); u.acted = false; u.sp.missile = 2; cast(B, u, 'missile', t.x, t.y); done(); })()`, 430);
+  await snap(p, 'a_fireball', `(() => { ${mark} const u = B.units.find(x => x.cls === 'mage'), t = B.units.find(x => x.side === 'E' && x.hp > 0); u.acted = false; u.sp.fireball = 2; cast(B, u, 'fireball', t.x, t.y); done(); })()`, 760);
+  await snap(p, 'a_slash', `(() => { ${mark} const u = B.units.find(x => x.cls === 'fighter'), t = B.units.find(x => x.side === 'E' && x.hp > 0) || B.units.find(x => x.side === 'E'); if (t.hp <= 0) { t.hp = 20; } B.grid[idx(B, u.x, u.y)] = null; place(B, u, t.x - 1, t.y); u.acted = false; heroAttack(B, u, t, false); done(); })()`, 170);
+  await snap(p, 'a_cure', `(() => { ${mark} const u = B.units.find(x => x.cls === 'cleric'), t = B.units.find(x => x.cls === 'thief'); t.hp = 3; u.acted = false; u.sp.cure = 2; cast(B, u, 'cure', t.x, t.y); done(); })()`, 620);
+  p = await P('?day=20'); await p.evaluate(() => { S.fly = false; toSands(); B.phase = null; }); await p.locator('#cv').screenshot({ path: out + 'a_arena100.png' });
+  await snap(p, 'a_bolt', `(() => { ${mark} const u = B.units.find(x => x.cls === 'druid'), t = B.units.find(x => x.side === 'E'); u.acted = false; u.sp.lightning = 2; B.grid[idx(B, u.x, u.y)] = null; place(B, u, t.x - 5, t.y); cast(B, u, 'lightning', t.x, t.y); done(); })()`, 380);
+  const r = await p.evaluate(async () => { fast = true; for (let i = 0; i < 4; i++) await endTurn(); const e = B.units.find(u => u.side === 'E' && u.hp > 0); const rc = cv.getBoundingClientRect(); cv.dispatchEvent(new MouseEvent('click', { clientX: rc.left + cv.clientLeft + (e.x + 1.5) * cell, clientY: rc.top + cv.clientTop + (e.y + 1.5) * cell })); return [B.round, insp === e]; });
+  p = await P('?six=1&day=9'); await p.evaluate(() => { S.fly = false; beginQuest(S, 'tower'); S.quest.seed = 4; enterRoom(); $('fly').classList.remove('hidden', 'out'); A3.buildRoom(B.room); fitCanvas(flyc, fg, innerWidth, innerHeight); A3.render(fg, innerWidth, innerHeight, A3.fly(.3, innerWidth / innerHeight, 1), 3.3, camUnits(B), { doors: {} }); });
+  await p.screenshot({ path: out + 'a_towerfloor.png' });
+  console.log(r, errs); await br.close(); })();
