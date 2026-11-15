@@ -207,7 +207,10 @@ const at = (b, x, y) => inb(b, x, y) ? b.grid[idx(b, x, y)] : null;
 const dist = (a, c) => Math.max(Math.abs(a.x - c.x), Math.abs(a.y - c.y));
 const foesOf = (b, u) => b.units.filter(x => x.hp > 0 && x.side !== u.side);
 const alliesOf = (b, u) => b.units.filter(x => x.hp > 0 && x.side === u.side && !x.illusion);
-function fx(b, o) { if (b.nofx) return; o.t = Date.now(); b.fx.push(o); if (b.fx.length > 300) b.fx.splice(0, 150); }
+// Effects for the board to draw. An event with a lag (an arrow in flight, a spell being cast) holds back
+// the numbers and deaths that follow it, so they appear when the blow lands.
+function fx(b, o) { if (b.nofx) return; const now = Date.now(); if (o.lag != null) { b.lag = o.lag; o.t = now; } else o.t = now + (b.lag || 0); b.fx.push(o); if (b.fx.length > 300) b.fx.splice(0, 150); }
+const BOLTERS = { cultpriest: 1, necromancer: 1, apprentice: 1, sorcerer: 1 };
 function say(b, s) { b.log.push(s); if (b.log.length > 200) b.log.shift(); }
 function place(b, u, x, y) { u.x = x; u.y = y; b.grid[idx(b, x, y)] = u; }
 function moveTo(b, u, x, y) {
@@ -216,7 +219,7 @@ function moveTo(b, u, x, y) {
     e.opp = true; strike(b, e, u, e.side === 'H' ? e.wd || CL[e.cls].dmg : e.m.dmg, { bonus: 2 });
     if (u.hp <= 0) return false;
   }
-  b.grid[idx(b, u.x, u.y)] = null; fx(b, { k: 'move', a: [u.x, u.y], b: [x, y] }); place(b, u, x, y); u.moved = true; return true;
+  b.grid[idx(b, u.x, u.y)] = null; fx(b, { k: 'move', a: [u.x, u.y], b: [x, y], lag: 0 }); place(b, u, x, y); u.moved = true; return true;
 }
 
 function deploy(b, list, side) {
@@ -368,7 +371,7 @@ function flee(b, u) {
 }
 
 function kill(b, t, src) {
-  const was = t.hp; t.hp = 0; b.grid[idx(b, t.x, t.y)] = null;
+  const was = t.hp; t.hp = 0; b.grid[idx(b, t.x, t.y)] = null; fx(b, { k: 'die', a: [t.x, t.y], u: t });
   if (t.illusion) return;
   // The Six: a hero cut down is only out of the fight unless the blow was a terrible one. Win, and they get up again.
   if (t.side === 'H' && b.six && was > -10) { t.down = true; say(b, t.name + ' is down.'); }
@@ -382,12 +385,13 @@ function hurt(b, t, dm, src, col) {
 }
 function heal(b, t, n) { n = Math.min(n, t.max - t.hp); t.hp += n; fx(b, { k: 'txt', a: [t.x, t.y], s: '+' + n, c: '#7dff8a' }); return n; }
 function strike(b, a, t, dmg, o) {
-  o = o || {}; fx(b, { k: 'line', a: [a.x, a.y], b: [t.x, t.y], c: o.ranged ? '#f5e9c0' : a.side === 'H' ? '#ffffff' : '#ff8a70' });
+  o = o || {}; const ev = { k: o.ranged ? 'shot' : 'slash', a: [a.x, a.y], b: [t.x, t.y], side: a.side, hit: false, w: !o.ranged ? a.cls || a.mid : BOLTERS[a.mid] ? 'bolt' : a.cls === 'mage' || a.cls === 'illusionist' ? 'dart' : 'arrow', lag: o.ranged ? Math.min(520, 110 + Math.hypot(a.x - t.x, a.y - t.y) * 36) : 120 };
+  fx(b, ev);
   if (t.illusion) { if (ri(20) >= 12) { kill(b, t); fx(b, { k: 'txt', a: [t.x, t.y], s: 'poof', c: '#c77be0' }); } return false; }
   const roll = ri(20), need = a.thac0 - t.ac - (t.st.stun ? 4 : 0) - (o.bonus || 0) - (a.st.bless ? 1 : 0);
   if (!(t.st.sleep || roll === 20 || (roll !== 1 && roll >= need))) return false;
   let dm = (dice(dmg) + (a.db || 0) + (o.plus || 0)) * (o.mult || 1); if (t.st.sleep) dm *= 2;
-  hurt(b, t, dm, a); return true;
+  ev.hit = true; hurt(b, t, dm, a); return true;
 }
 // Walls block sight in quest rooms; the open arena has none.
 function los(b, x0, y0, x1, y1) {
@@ -422,7 +426,7 @@ function heroAttack(b, u, t, ranged) {
 function assassinate(b, u, t) {
   u.kill = 0; u.acted = true;
   const ch = clamp(40 + 5 * u.lvl - 6 * t.hd, 5, 90);
-  fx(b, { k: 'line', a: [u.x, u.y], b: [t.x, t.y], c: '#222' });
+  fx(b, { k: 'slash', a: [u.x, u.y], b: [t.x, t.y], side: 'H', hit: true, w: 'assassin', crit: 1, lag: 140 });
   if (!t.boss && !t.illusion && ri(100) <= ch) { say(b, u.name + ' assassinates a ' + t.name + '.'); fx(b, { k: 'txt', a: [t.x, t.y], s: 'slain', c: '#fff' }); kill(b, t, u); return true; }
   return false;
 }
@@ -441,6 +445,7 @@ function cast(b, u, id, x, y) {
   if (sp.tg === 'ally' && !(t && t.side === 'H' && !t.illusion && t.hp < t.max)) return false;
   if (sp.tg === 'empty' && t) return false;
   u.sp[id]--; u.acted = true;
+  { const far = sp.tg === 'self' ? 0 : Math.hypot(u.x - x, u.y - y); fx(b, { k: 'spell', id, a: [u.x, u.y], b: sp.tg === 'self' ? [u.x, u.y] : [x, y], r: id === 'turn' ? 4 : id === 'bless' ? 2 : sp.rad || 0, n: id === 'missile' ? 1 + Math.floor((L - 1) / 2) : 0, lag: 250 + (id === 'missile' || id === 'fireball' || id === 'hold' || id === 'cure' ? Math.min(420, far * 44) : id === 'lightning' ? 70 : 0) }); }
   switch (id) {
     case 'sleep': {
       let pool = dice([2, 4, 0]) + L, n = 0; burst(b, x, y, 1, '#8fb0ff');
@@ -568,7 +573,7 @@ function foeAct(b, e) {
     let best = null, bs = 1;
     for (const h of hs) { if (dist(e, h) > 6) continue; const n = inRad(b, h.x, h.y, 1, 'H').length; if (n > bs) { bs = n; best = h; } }
     if (best) {
-      e.cd = 3; burst(b, best.x, best.y, 1, '#ff7a2a'); say(b, e.name + ' breathes fire!');
+      e.cd = 3; fx(b, { k: 'breath', a: [e.x, e.y], b: [best.x, best.y], lag: 430 }); burst(b, best.x, best.y, 1, '#ff7a2a'); say(b, e.name + ' breathes fire!');
       for (const h of inRad(b, best.x, best.y, 1, 'H')) { if (h.illusion) { kill(b, h); continue; } let dm = dice(m.breath) * (b.six ? .6 : 1); if (ri(20) + h.lvl >= 14) dm /= 2; hurt(b, h, dm, e, '#ff9a3a'); }
       return;
     }
@@ -577,7 +582,7 @@ function foeAct(b, e) {
   if (m.gaze && e.cd <= 0) { // the Editor's eye holds a knot of heroes where they stand; it costs him nothing
     let best = null, bs = 1;
     for (const h of hs) { if (dist(e, h) > 8 || h.illusion) continue; const k = inRad(b, h.x, h.y, 1, 'H').filter(x => !x.st.stun).length; if (k > bs) { bs = k; best = h; } }
-    if (best) { e.cd = 2; burst(b, best.x, best.y, 1, '#f0c56a'); say(b, e.name + ' turns his eye on the legion.'); for (const h of inRad(b, best.x, best.y, 1, 'H')) if (!h.illusion && ri(20) + h.lvl < 16) { h.st.stun = 2; fx(b, { k: 'txt', a: [h.x, h.y], s: 'held', c: '#f0c56a' }); } }
+    if (best) { e.cd = 2; fx(b, { k: 'gaze', a: [e.x, e.y], b: [best.x, best.y], lag: 260 }); burst(b, best.x, best.y, 1, '#f0c56a'); say(b, e.name + ' turns his eye on the legion.'); for (const h of inRad(b, best.x, best.y, 1, 'H')) if (!h.illusion && ri(20) + h.lvl < 16) { h.st.stun = 2; fx(b, { k: 'txt', a: [h.x, h.y], s: 'held', c: '#f0c56a' }); } }
   }
   if (m.summon && b.round % 3 === 0 && e.sum !== b.round) { // more of his guard come through the gates
     e.sum = b.round; let k = 0; const sn = b.six && !b.quest ? Math.ceil(m.summon[1] / 2) : m.summon[1];

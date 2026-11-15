@@ -24,6 +24,12 @@ Ideas from the owner. Nothing here is built until the owner says go.
 - The foes' march through the doors only shows in the skycam, not on the
   tactical board.
 
+## Sound
+
+- Sound effects throughout: blows, arrows, each spell, deaths, doors, the
+  crowd, footsteps, the quartermaster's till, level-up. A mute button and a
+  volume setting, off under reduced-motion only if asked. No sound exists yet.
+
 ## The Six: built
 
 The party mode is in: party creation, hand control in initiative order, a
@@ -79,5 +85,3 @@ Still open:
   level 13 by day 30, against about level 9 without. Needs hands-on tuning.
 - Foes standing in the dark are hard to see on the board until the party's
   light reaches them. That is atmospheric but may want a toggle.
-- The arena itself still has the older, plainer board; it could get the same
-  lighting treatment.

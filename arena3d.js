@@ -219,8 +219,8 @@ const A3 = (() => {
           const WH = R.roof ? ((x + y) % 2 ? 1.25 : .85) : pl === 'crypt' ? 2.3 : 2.6, cS = pl === 'crypt' ? [150, 156, 178] : [176, 166, 190], cT = pl === 'crypt' ? [120, 124, 142] : [150, 142, 162];
           const out = (nx, ny) => pl === 'tower' && (!inside(nx, ny) || (K(nx, ny) === 1 && !edge(nx, ny) && !propAt[ny * w + nx]));
           const s = [[x, y - 1], [x, y + 1], [x - 1, y], [x + 1, y]].map(q => !edge(q[0], q[1]) && (pl === 'tower' || inside(q[0], q[1])));
-          box(x, y, [0, 0, 0, 0], 0, WH, cT, cS, s, { tex: 'brick', kt: .75 });
-          if (pl === 'tower') [[x, y - 1, 0], [x, y + 1, 1], [x - 1, y, 2], [x + 1, y, 3]].forEach(([nx, ny, i]) => { if (!out(nx, ny)) return; const f = faces.slice(-5).find(f2 => f2.n && Math.abs(f2.n[1]) < .1 && Math.round(f2.n[0]) === (i === 2 ? -1 : i === 3 ? 1 : 0) && Math.round(f2.n[2]) === (i === 0 ? -1 : i === 1 ? 1 : 0)); if (f) { f.p[0][1] = f.p[1][1] = -26; f.c = [58, 56, 78]; f.tex = 'tall'; f.far = 1; } });
+          const f0 = faces.length; box(x, y, [0, 0, 0, 0], 0, WH, cT, cS, s, { tex: 'brick', kt: .75 });
+          if (pl === 'tower') [[x, y - 1, 0], [x, y + 1, 1], [x - 1, y, 2], [x + 1, y, 3]].forEach(([nx, ny, i]) => { if (!out(nx, ny)) return; const f = faces.slice(f0).find(f2 => f2.n && Math.abs(f2.n[1]) < .1 && Math.round(f2.n[0]) === (i === 2 ? -1 : i === 3 ? 1 : 0) && Math.round(f2.n[2]) === (i === 0 ? -1 : i === 1 ? 1 : 0)); if (f) { f.p[0][1] = f.p[1][1] = -26; f.c = [58, 56, 78]; f.tex = 'tall'; f.far = 1; } });
           if (pl === 'tower' && !R.roof && hash2(x, y + 40) > .6) for (const [nx, ny, i] of [[x, y + 1, 1], [x, y - 1, 0], [x + 1, y, 3], [x - 1, y, 2]]) if (inside(nx, ny) && !isWall(nx, ny)) { const e = .013, pts = i === 1 ? [[X + .32, .7, Z + 1 + e], [X + .68, .7, Z + 1 + e], [X + .68, 2, Z + 1 + e], [X + .32, 2, Z + 1 + e]] : i === 0 ? [[X + .68, .7, Z - e], [X + .32, .7, Z - e], [X + .32, 2, Z - e], [X + .68, 2, Z - e]] : i === 3 ? [[X + 1 + e, .7, Z + .68], [X + 1 + e, .7, Z + .32], [X + 1 + e, 2, Z + .32], [X + 1 + e, 2, Z + .68]] : [[X - e, .7, Z + .32], [X - e, .7, Z + .68], [X - e, 2, Z + .68], [X - e, 2, Z + .32]]; quad(pts, [34, 46, 104], x, y, { over: 1, glowq: 1 }); break; }
         }
         continue;
@@ -263,6 +263,7 @@ const A3 = (() => {
       if (l.k === 'lamp') { const z = l.wy + 1.3 - hh; extras.push({ k: 'lines', pts: [[[X, 2.9, l.wy + 1 - hh], [X, 2.9, z]], [[X, 2.9, z], [X, 2.6, z]]], c: '#17120f', p: [X, 2.6, z] }); emit.push({ k: 'flame', p: [X, 2.35, z], s: .16 }, { k: 'glow', p: [X, 2.45, z], r: 1.7, c: '255,180,90', a: .8 }); }
       if (l.k === 'candle') emit.push({ k: 'flame', p: [X, R.roof ? .95 : 1.5, Z], s: .1 }, { k: 'glow', p: [X, R.roof ? 1 : 1.55, Z], r: .9, c: '255,220,150', a: .6 });
     }
+    flats.unshift({ p: R.round ? Array.from({ length: 36 }, (_, i) => [Math.cos(i / 36 * TAU) * (R.rad + 1.3) + R.c + .5 - hw, -.03, Math.sin(i / 36 * TAU) * (R.rad + 1.3) + R.c + .5 - hh]) : [[-hw, -.03, -hh], [hw, -.03, -hh], [hw, -.03, hh], [-hw, -.03, hh]], c: pl === 'crypt' ? [16, 16, 22] : pl === 'slum' ? [26, 24, 22] : [34, 24, 16] }); // nothing shows between the tiles
     const lane = new Float32Array(w); let ly = R.door ? R.door[1] : hh;
     for (let x = 0; x < w; x++) { let s = 0, n = 0; for (let y = Math.max(0, Math.floor(ly) - 3); y <= Math.min(h - 1, Math.ceil(ly) + 3); y++) if (!R.cells[y * w + x]) { s += y + .5; n++; } if (n) ly = s / n; lane[x] = pl === 'slum' ? ly - hh : 0; }
     sc = { room: R, w, h, a: hw + 1, b: hh + 1, out: 3, faces, flats, extras, emit, L, lane, flyH: pl === 'slum' ? 5.4 : pl === 'crypt' ? 4.6 : R.roof ? 3.6 : 4.8, fog: pl === 'crypt' ? [6, 6, 10] : pl === 'slum' ? [38, 28, 44] : [16, 20, 44] };

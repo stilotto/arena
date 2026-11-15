@@ -174,48 +174,41 @@ function toSands() {
 function size() {
   if (!B) return;
   const W = Math.min(window.innerWidth, 1100) - 24, H = Math.max(170, window.innerHeight - 270);
-  cell = Math.max(9, Math.floor(Math.min(W / B.w, H / B.h)));
+  const M = B.room ? 0 : 1, GW = B.w + 2 * M, GH = B.h + 2 * M; // the arena shows its wall, one square deep, all round
+  cell = Math.max(9, Math.floor(Math.min(W / GW, H / GH)));
   const dpr = window.devicePixelRatio || 1;
-  cv.style.width = B.w * cell + 'px'; cv.style.height = B.h * cell + 'px';
-  cv.width = B.w * cell * dpr; cv.height = B.h * cell * dpr; g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  cv.style.width = GW * cell + 'px'; cv.style.height = GH * cell + 'px';
+  cv.width = GW * cell * dpr; cv.height = GH * cell * dpr; g.setTransform(dpr, 0, 0, dpr, 0, 0);
   sand = document.createElement('canvas'); sand.width = cv.width; sand.height = cv.height;
   const sg = sand.getContext('2d'); sg.setTransform(dpr, 0, 0, dpr, 0, 0);
-  if (B.room) { paintRoom(sg, cell, B.room); return draw(); }
-  const c = cell, W2 = B.w * c, H2 = B.h * c, gr = sg.createRadialGradient(W2 / 2, H2 / 2, H2 * .2, W2 / 2, H2 / 2, W2 * .7);
-  gr.addColorStop(0, '#dcc592'); gr.addColorStop(1, '#c7ab74'); sg.fillStyle = gr; sg.fillRect(0, 0, W2, H2);
-  let sd = 5; const rr = () => (sd = (sd * 1664525 + 1013904223) >>> 0) / 4294967296;
-  for (let i = 0; i < B.w * B.h * 14; i++) { sg.fillStyle = rr() < .5 ? 'rgba(90,60,20,.10)' : 'rgba(255,240,200,.14)'; sg.fillRect(rr() * W2, rr() * H2, 1 + rr() * 1.5, 1); }
-  sg.strokeStyle = 'rgba(90,60,20,.13)'; sg.lineWidth = 1; sg.beginPath();
-  for (let x = 1; x < B.w; x++) { sg.moveTo(x * c + .5, 0); sg.lineTo(x * c + .5, H2); } for (let y = 1; y < B.h; y++) { sg.moveTo(0, y * c + .5); sg.lineTo(W2, y * c + .5); } sg.stroke();
+  if (B.room) paintRoom(sg, cell, B.room); else paintArena(sg, cell, B);
+  roomFX.owner = B;
   draw();
 }
 function draw() {
   if (!B) return;
   const c = cell, now = Date.now();
-  if (sand) g.drawImage(sand, 0, 0, B.w * c, B.h * c); else { g.fillStyle = '#d8c08c'; g.fillRect(0, 0, B.w * c, B.h * c); }
+  const M = B.room ? 0 : 1, st = fxPre(now);
+  g.drawImage(sand, 0, 0, (B.w + 2 * M) * c, (B.h + 2 * M) * c);
+  g.save(); g.translate(M * c, M * c);
   if (B.phase === 'deploy') { const z = B.zone, zx = Math.max(0, z.x0), zy = Math.max(0, z.y0); g.fillStyle = 'rgba(240,197,106,.2)'; g.fillRect(zx * c, zy * c, (Math.min(B.w - 1, z.x1) - zx + 1) * c, (Math.min(B.h - 1, z.y1) - zy + 1) * c); }
-  for (const dr of B.doors) { // the great doors the foes come through
-    const v = dr === 'E' || dr === 'W', len = Math.min(5, (v ? B.h : B.w) - 2) * c, t = Math.max(4, c * .22);
-    const x = dr === 'E' ? B.w * c - t : dr === 'W' ? 0 : (B.w * c - len) / 2, y = dr === 'N' ? 0 : dr === 'S' ? B.h * c - t : (B.h * c - len) / 2;
-    g.fillStyle = '#6b4a2a'; g.fillRect(x, y, v ? t : len, v ? len : t); g.strokeStyle = '#d2aa52'; g.lineWidth = 1.5; g.strokeRect(x + .5, y + .5, (v ? t : len) - 1, (v ? len : t) - 1);
-    g.beginPath(); if (v) { g.moveTo(x, y + len / 2); g.lineTo(x + t, y + len / 2); } else { g.moveTo(x + len / 2, y); g.lineTo(x + len / 2, y + t); } g.stroke();
-  }
   if (sel && reach && !mode) { g.fillStyle = 'rgba(60,110,200,.28)'; for (let i = 0; i < reach.d.length; i++) if (reach.d[i] > 0 && reach.d[i] <= sel.mv && !B.grid[i]) g.fillRect((i % B.w) * c + 1, Math.floor(i / B.w) * c + 1, c - 2, c - 2); }
   if (sel && mode && SPELLS[mode] && SPELLS[mode].range) { const r = SPELLS[mode].range; g.fillStyle = 'rgba(160,80,200,.16)'; g.fillRect(Math.max(0, sel.x - r) * c, Math.max(0, sel.y - r) * c, (Math.min(B.w - 1, sel.x + r) - Math.max(0, sel.x - r) + 1) * c, (Math.min(B.h - 1, sel.y + r) - Math.max(0, sel.y - r) + 1) * c); }
   g.textAlign = 'center'; g.textBaseline = 'middle';
   let wy = 0; // in a quest room, walls and props are laid down row by row between the figures
   for (const u of B.six ? B.units.slice().sort((a, b) => a.y - b.y) : B.units) {
-    if (u.hp <= 0) continue;
+    if (u.hp <= 0 && !st.ghost.has(u)) continue;
     if (B.room) while (wy <= u.y) roomRow(g, c, wy++);
-    const x = u.x * c + c / 2, y = u.y * c + c / 2;
+    let x = u.x * c + c / 2, y = u.y * c + c / 2; const mv = st.off.get(u.x + ',' + u.y); if (mv) { x += mv[0] * c; y += mv[1] * c; }
     if (B.six) { // the party mode shows the figures themselves
       g.fillStyle = 'rgba(40,20,0,.3)'; g.beginPath(); g.ellipse(x, y + c * .36, c * .34, c * .12, 0, 0, 7); g.fill();
       if (u === sel || u.boss) { g.strokeStyle = u === sel ? '#ffe9a0' : '#f0c56a'; g.lineWidth = 2.5; g.beginPath(); g.ellipse(x, y + c * .36, c * .42, c * .16, 0, 0, 7); g.stroke(); }
       if (u.illusion) g.globalAlpha = .5;
       FIG.draw(g, u.side === 'H' ? u.key || u.cls || 'fighter' : u.mid, x, y + c * .38, c * .7 * (u.boss ? 1.25 : 1), u.side === 'H' ? 1 : -1);
       g.globalAlpha = 1;
-      g.fillStyle = '#2a1a14'; g.fillRect(u.x * c + 4, u.y * c + c - 5, c - 8, 4); g.fillStyle = u.side === 'H' ? '#6fd06a' : '#ffb14a'; g.fillRect(u.x * c + 4, u.y * c + c - 5, (c - 8) * u.hp / u.max, 4);
+      g.fillStyle = '#2a1a14'; g.fillRect(u.x * c + 4, u.y * c + c - 5, c - 8, 4); g.fillStyle = u.side === 'H' ? '#6fd06a' : '#ffb14a'; g.fillRect(u.x * c + 4, u.y * c + c - 5, (c - 8) * Math.max(0, u.hp) / u.max, 4);
       if (u.st.sleep || u.st.stun || u.st.root) { g.fillStyle = u.st.root && !u.st.sleep && !u.st.stun ? '#2f8f3a' : '#fff'; g.font = `700 ${Math.floor(c * .4)}px Georgia,serif`; g.fillText(u.st.sleep ? 'z' : u.st.stun ? '✶' : '#', x + c * .34, y - c * .3); }
+      hitFlash(g, st, u, x, y, c);
       continue;
     }
     g.fillStyle = 'rgba(40,20,0,.28)'; g.beginPath(); g.ellipse(x + c * .04, y + c * .14, c * .42, c * .36, 0, 0, 7); g.fill();
@@ -235,21 +228,16 @@ function draw() {
     g.globalAlpha = 1;
     if (u.hp < u.max) { g.fillStyle = '#2a1a14'; g.fillRect(u.x * c + 2, u.y * c + c - 4, c - 4, 3); g.fillStyle = u.side === 'H' ? '#6fd06a' : '#ffb14a'; g.fillRect(u.x * c + 2, u.y * c + c - 4, (c - 4) * u.hp / u.max, 3); }
     if (u.st.sleep || u.st.stun || u.st.root) { g.fillStyle = u.st.root && !u.st.sleep && !u.st.stun ? '#2f8f3a' : '#fff'; g.font = `700 ${Math.floor(c * .45)}px Georgia,serif`; g.fillText(u.st.sleep ? 'z' : u.st.stun ? '✶' : '#', x + c * .3, y - c * .3); }
+    hitFlash(g, st, u, x, y, c);
   }
-  if (B.room) { while (wy < B.h) roomRow(g, c, wy++); roomOverlay(g, c, now); }
+  if (B.room) while (wy < B.h) roomRow(g, c, wy++);
   if (sel && sel.hp > 0 && !B.six) { g.strokeStyle = '#ffe9a0'; g.lineWidth = 2.5; g.beginPath(); g.arc(sel.x * c + c / 2, sel.y * c + c / 2, c * .47, 0, 7); g.stroke(); }
-  let live = false;
-  for (const f of B.fx) {
-    const a = now - f.t; if (a > 520) continue; live = true;
-    const k = RM ? 0 : a / 520; g.globalAlpha = 1 - k * .8;
-    if (f.k === 'line') { if (a > 200) continue; g.strokeStyle = f.c; g.lineWidth = 2; g.beginPath(); g.moveTo(f.a[0] * c + c / 2, f.a[1] * c + c / 2); g.lineTo(f.b[0] * c + c / 2, f.b[1] * c + c / 2); g.stroke(); }
-    else if (f.k === 'burst') { g.fillStyle = f.c; g.globalAlpha = .45 * (1 - k); g.fillRect((f.a[0] - f.r) * c, (f.a[1] - f.r) * c, (2 * f.r + 1) * c, (2 * f.r + 1) * c); }
-    else if (f.k === 'txt') { g.font = `700 ${Math.max(11, Math.floor(c * .6))}px Georgia,serif`; g.lineWidth = 3; g.strokeStyle = '#1a1410'; const y = f.a[1] * c + c * .3 - k * c * .7; g.strokeText(f.s, f.a[0] * c + c / 2, y); g.fillStyle = f.c; g.fillText(f.s, f.a[0] * c + c / 2, y); }
-  }
-  g.globalAlpha = 1;
+  g.restore();
+  roomOverlay(g, c, now);
+  g.save(); g.translate(M * c, M * c); const live = drawFx(g, c, now); g.restore();
   cancelAnimationFrame(raf); clearTimeout(roomTick);
   if (live) raf = requestAnimationFrame(draw);
-  else if (B.room && !RM && !$('battle').classList.contains('hidden')) roomTick = setTimeout(() => { raf = requestAnimationFrame(draw); }, flyEnd ? 400 : 70);
+  else if (!RM && !$('battle').classList.contains('hidden')) roomTick = setTimeout(() => { raf = requestAnimationFrame(draw); }, flyEnd ? 400 : 70);
 }
 const stuck = u => u.st.sleep || u.st.stun;
 function pickUnit(u) {
@@ -305,7 +293,7 @@ function act(fn) {
   if (busy || !sel) return;
   fn(); mode = null; note = '';
   if (checkOver(B)) return result();
-  if (B.six && (sel.acted || sel.hp <= 0)) return sixNext();
+  if (B.six && (sel.acted || sel.hp <= 0)) return sixNext(true);
   if (sel.hp <= 0) sel = null; else pickUnit(sel);
   refresh();
 }
@@ -339,7 +327,7 @@ function tap(x, y) {
   if (!t && reach) { const i = idx(B, x, y); if (reach.d[i] > 0 && reach.d[i] <= u.mv) return act(() => moveTo(B, u, x, y)); }
   if (!t && !B.six) { drop(); refresh(); }
 }
-cv.addEventListener('click', e => { const r = cv.getBoundingClientRect(); tap(Math.floor((e.clientX - r.left - cv.clientLeft) / cell), Math.floor((e.clientY - r.top - cv.clientTop) / cell)); });
+cv.addEventListener('click', e => { const r = cv.getBoundingClientRect(); const M = B && !B.room ? 1 : 0; tap(Math.floor((e.clientX - r.left - cv.clientLeft) / cell) - M, Math.floor((e.clientY - r.top - cv.clientTop) / cell) - M); });
 
 async function endTurn() {
   if (busy || !B || B.over) return;

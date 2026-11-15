@@ -184,17 +184,20 @@ function paintRoom(g, c, R) {
   const fake = { room: R, w };
   const src = R.lights.map(l => ({ l, vis: new Uint8Array(w * h) })).concat((R._win || []).map(p => ({ l: { x: p[0], y: p[1], cx: Math.floor(p[0]), cy: Math.floor(p[1]), r: 2.2, c: [1, .78, .4], k: 'window' }, vis: new Uint8Array(w * h) })));
   for (const s of src) { const l = s.l, rad = Math.ceil(l.r); for (let y = Math.max(0, l.cy - rad); y <= Math.min(h - 1, l.cy + rad); y++) for (let x = Math.max(0, l.cx - rad); x <= Math.min(w - 1, l.cx + rad); x++) if (los(fake, l.cx, l.cy, x, y)) s.vis[y * w + x] = 1; }
-  const mk = () => { const cnv = document.createElement('canvas'); cnv.width = w * 2; cnv.height = h * 2; return cnv; };
-  const dk = mk(), lt = mk();
-  roomFX = { R, src, dk, lt, dkc: dk.getContext('2d'), ltc: lt.getContext('2d'), dkd: dk.getContext('2d').createImageData(w * 2, h * 2), ltd: lt.getContext('2d').createImageData(w * 2, h * 2),
-    amb: pl === 'crypt' ? [.62, [5, 5, 14]] : pl === 'slum' ? [.6, [8, 8, 24]] : R.roof ? [.4, [8, 10, 34]] : [.5, [12, 8, 22]], seed: [...Array(64)].map(() => rr()) };
+  roomFX = lightRig(R, src, pl === 'crypt' ? [.62, [5, 5, 14]] : pl === 'slum' ? [.6, [8, 8, 24]] : R.roof ? [.4, [8, 10, 34]] : [.5, [12, 8, 22]], rr);
+}
+// What the lighting overlay needs: the light sources, two small canvases to compose darkness and glow, and some random numbers.
+function lightRig(R, src, amb, rr) {
+  const mk = () => { const cnv = document.createElement('canvas'); cnv.width = R.w * 2; cnv.height = R.h * 2; return cnv; }, dk = mk(), lt = mk();
+  return { R, src, dk, lt, dkc: dk.getContext('2d'), ltc: lt.getContext('2d'), dkd: dk.getContext('2d').createImageData(R.w * 2, R.h * 2), ltd: lt.getContext('2d').createImageData(R.w * 2, R.h * 2), amb, off: 0, seed: [...Array(64)].map(() => rr()) };
 }
 // Lay one row of walls and props over the board. Called row by row so figures further back are drawn first.
 function roomRow(g, c, y) { const cv = roomRows[y]; if (cv) g.drawImage(cv, 0, y * c - roomRise, B.w * c, c + roomRise); }
+function roomRowsIn() { return roomRows.length > 0; }
 
 // Light and shadow, flame, dust, rain. Drawn over everything, several times a second.
 function roomOverlay(g, c, now) {
-  const fx = roomFX; if (!fx || !B || fx.R !== B.room) return;
+  const fx = roomFX; if (!fx || !B || fx.owner !== B) return;
   const R = fx.R, w = R.w, h = R.h, W = w * c, Ht = h * c, t = RM ? 0 : now / 1000, pl = R.place, sdv = fx.seed;
   for (const d of R.decor) if (d.k === 'wash') { // washing hung across the street
     const x = (d.x + .5) * c, y0 = d.y0 * c - c * .2, y1 = (d.y1 + 1) * c - c * .5; g.strokeStyle = '#d8d0c0'; g.lineWidth = 1; g.beginPath(); g.moveTo(x, y0); g.quadraticCurveTo(x + c * .12, (y0 + y1) / 2, x, y1); g.stroke();
@@ -203,20 +206,21 @@ function roomOverlay(g, c, now) {
   // gather lights: the room's own, and a lantern's worth around each hero
   const lights = fx.src.map(s => { const l = s.l, f = l.k === 'window' ? .55 : l.k === 'candle' ? .92 + Math.sin(t * 7 + l.x * 5) * .05 : 1 + Math.sin(t * 11 + l.x * 7) * .07 + Math.sin(t * 23 + l.y * 3) * .05; return { x: l.x, y: l.y, r: l.r, c: l.c, f, vis: s.vis }; });
   const fake = B;
-  for (const u of B.units) if (u.side === 'H' && u.hp > 0) lights.push({ x: u.x + .5, y: u.y + .5, r: u === sel ? 3.8 : 3.2, c: [.95, .86, .7], f: .72, u });
+  if (pl !== 'arena') for (const u of B.units) if (u.side === 'H' && u.hp > 0) lights.push({ x: u.x + .5, y: u.y + .5, r: u === sel ? 3.8 : 3.2, c: [.95, .86, .7], f: .72, u });
+  for (const l of fxLights(now)) lights.push({ x: l.x + fx.off, y: l.y + fx.off, r: l.r, c: l.c, f: l.f, u: { x: Math.floor(l.x), y: Math.floor(l.y) } }); // spells and fire light the place up
   const SW = w * 2, SH = h * 2, dk = fx.dkd.data, lt = fx.ltd.data, D = fx.amb[0], dc = fx.amb[1], acc = new Float32Array(SW * SH * 3);
   for (const l of lights) {
     const x0 = Math.max(0, Math.floor((l.x - l.r) * 2)), x1 = Math.min(SW - 1, Math.ceil((l.x + l.r) * 2)), y0 = Math.max(0, Math.floor((l.y - l.r) * 2)), y1 = Math.min(SH - 1, Math.ceil((l.y + l.r) * 2));
     for (let j = y0; j <= y1; j++) for (let i = x0; i <= x1; i++) {
       const px = (i + .5) / 2, py = (j + .5) / 2, d = Math.hypot(px - l.x, py - l.y); if (d >= l.r) continue;
-      const cx = i >> 1, cy = j >> 1; if (l.vis ? !l.vis[cy * w + cx] : !los(fake, l.u.x, l.u.y, cx, cy)) continue;
+      const cx = i >> 1, cy = j >> 1; if (l.vis ? !l.vis[cy * w + cx] : !los(fake, l.u.x, l.u.y, cx - fx.off, cy - fx.off)) continue;
       const k = (1 - d / l.r) * (1 - d / l.r) * l.f, o = (j * SW + i) * 3; acc[o] += l.c[0] * k; acc[o + 1] += l.c[1] * k; acc[o + 2] += l.c[2] * k;
     }
   }
   for (let i = 0, n = SW * SH; i < n; i++) {
     const r = acc[i * 3], gg = acc[i * 3 + 1], b = acc[i * 3 + 2], lum = Math.min(1, Math.max(r, gg, b) * 1.25), m = Math.max(r, gg, b, .001);
     dk[i * 4] = dc[0]; dk[i * 4 + 1] = dc[1]; dk[i * 4 + 2] = dc[2]; dk[i * 4 + 3] = 255 * D * (1 - lum);
-    lt[i * 4] = 255 * r / m; lt[i * 4 + 1] = 255 * gg / m; lt[i * 4 + 2] = 255 * b / m; lt[i * 4 + 3] = 255 * Math.min(1, m) * .2;
+    lt[i * 4] = 255 * r / m; lt[i * 4 + 1] = 255 * gg / m; lt[i * 4 + 2] = 255 * b / m; lt[i * 4 + 3] = 255 * Math.min(1, m) * (fx.glow || .2);
   }
   fx.dkc.putImageData(fx.dkd, 0, 0); fx.ltc.putImageData(fx.ltd, 0, 0);
   g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';

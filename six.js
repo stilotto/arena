@@ -108,14 +108,16 @@ function initStrip() {
   const up = B.order.slice(B.turn).filter(u => u.hp > 0 && !u.acted).slice(0, 14);
   return `<div class="strip"><span class="mute small">Round ${B.round}, next:</span>${up.map((u, i) => `<img class="fig ${i ? '' : 'now'}" src="${FIG.url(u.side === 'H' ? u.key : u.mid)}" style="height:${i ? 30 : 40}px" alt="" title="${u.name}">`).join('')}</div>`;
 }
-function sixNext() { const u = B.order[B.turn]; if (u && u.st.root && !--u.st.root) delete u.st.root; if (u) u.acted = true; B.turn++; drop(); sixLoop(); }
+// after a hero's blow or spell, give it a moment to land before the next in line acts
+function sixNext(acted) { const u = B.order[B.turn], b = B; if (u && u.st.root && !--u.st.root) delete u.st.root; if (u) u.acted = true; B.turn++; drop(); if (!acted || fast || RM) return sixLoop(); busy = true; refresh(); setTimeout(() => { busy = false; if (B === b) sixLoop(); }, Math.min(1100, (B.lag || 0) + 420)); }
 async function sixLoop() {
   if (busy || !B) return;
-  busy = true; const b = B, wait = () => sleep(fast || RM ? 30 : 330);
+  busy = true; const b = B, wait = () => sleep(fast || RM ? 30 : Math.min(1200, Math.max(330, (b.lag || 0) + 400)));
   while (B === b && !checkOver(b)) {
     if (b.turn >= b.order.length) { endRound(b); if (checkOver(b)) break; rollInit(b); continue; }
     const u = b.order[b.turn];
     if (u.hp <= 0 || u.acted) { b.turn++; continue; }
+    b.lag = 0;
     if (u.side === 'E') { foeAct(b, u); u.acted = true; b.turn++; refresh(); await wait(); continue; }
     if (u.st.sleep || u.st.stun) { skipTurn(b, u); u.acted = true; b.turn++; continue; }
     if (quick) { S.cohorts[0].order = 'attack'; S.cohorts[0].spells = true; heroAct(b, u, S); u.acted = true; b.turn++; refresh(); await wait(); continue; }

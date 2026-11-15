@@ -25,8 +25,10 @@ the Iron Plane who is forging a new legion.
   Node); `ui.js` is screens, canvas and input; `arena3d.js` is the skycam (a
   software 3D view on a 2D canvas, no libraries); `figures.js` draws one
   sprite per calling and per foe; `six.js` is the screens for the party mode
-  (The Six); `quest.js` is its side quests (screens and room painting); `index.html` holds the CSS.
-- Bump the `?v=` on all six script tags in `index.html` with every change so
+  (The Six); `quest.js` is its side quests (screens, room painting and the
+  lighting overlay); `board.js` paints the arena floor and wall; `fx.js` draws
+  blows, arrows, spells and deaths from the events the engine records; `index.html` holds the CSS.
+- Bump the `?v=` on all eight script tags in `index.html` with every change so
   phones get the new code.
 - Balance check: `node tools/sim.js [runs] [days]` plays the campaign on
   standing orders and prints deaths per day.
@@ -43,6 +45,9 @@ the Iron Plane who is forging a new legion.
 - Side quests: `PLACES` and `makeRoom` in `engine.js` define the three places
   and their rooms (cells: 0 floor, 1 wall, 2 obstacle, 3 water). A new place
   needs a layout there, painting in `quest.js` and a style in `arena3d.js`.
+- Effects: the engine pushes events to `b.fx` (`slash`, `shot`, `spell`, `die`,
+  `txt`...). An event with a `lag` delays the numbers and deaths after it until
+  it lands. `fx.js` decides how each looks and what light it throws.
 - Original rules and names only. Use folklore monsters; never use the name,
   text or signature creatures of any published tabletop game.
 - Must work at phone width and honor prefers-reduced-motion.
