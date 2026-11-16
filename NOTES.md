@@ -84,6 +84,8 @@ works and is on `main`. Nothing has had a proper human balance pass.
 - A global function called `alert` would shadow the browser's. Hence `rouse`.
 - A move can now stop short (a trap), so never assume a hero arrived:
   check the distance before the follow-up blow.
+- Rain, window arches and battlements are keyed on `real`, not the family,
+  or the market gets rain and the ship gets a castle wall.
 - A test that leaves the party at the door no longer starts a fight. Call
   `rouse(B, foe, 99, true)` first.
 
@@ -108,9 +110,13 @@ How it fits:
   through `readScroll`, as scrolls do. `gain(S, id)` adds any of them.
 - Monster abilities are flags in `MON[..].f`: `rsh`, `clt`, `cry`.
 
-**2b, places**: the sewer, the market and the ship, all three. Each needs a
-layout in `genRoom`, foes and a master in `PLACES` and `MON`, figures,
-painting in `quest.js` and a style in `arena3d.js`.
+**2b, places: built.** The sewer, the market and the ship are in `PLACES`,
+with layouts in `genRoom`. `FAM` in `engine.js` maps each to the older place
+whose drawing it borrows (`sewer: crypt`, `market: slum`, `ship: tower`). In
+`quest.js` and `arena3d.js`, `pl` is that family and `real` is the place
+itself: branch on `pl` for structure, on `real` for colour, props and
+weather. The ship is a hull of floor cells in a field of wall cells; wall
+cells that touch no floor are drawn as water, as the tower draws sky.
 
 **Then** a balance pass after the owner has played. Known soft spots: quest
 experience is generous; crits made The Hundred deadlier; the automated party

@@ -46,9 +46,10 @@ the Iron Plane who is forging a new legion.
   (`S.mode === 'six'`, heroes carry `eq` and `mem`). Each has its own save.
   `node tools/sim.js 5 31 six` plays a party on quick fight; add `quest` to
   have it run a side quest before every arena day.
-- Side quests: `PLACES` and `makeRoom` in `engine.js` define the three places
+- Side quests: `PLACES` and `makeRoom` in `engine.js` define the six places
   and their rooms (cells: 0 floor, 1 wall, 2 obstacle, 3 water). A new place
-  needs a layout there, painting in `quest.js` and a style in `arena3d.js`.
+  needs a layout there, and either an entry in `FAM` to borrow an older
+  place's drawing or its own painting in `quest.js` and style in `arena3d.js`.
 - Effects: the engine pushes events to `b.fx` (`slash`, `shot`, `spell`, `die`,
   `txt`...). An event with a `lag` delays the numbers and deaths after it until
   it lands. `fx.js` decides how each looks and what light it throws.

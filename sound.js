@@ -107,7 +107,7 @@ const SND = (() => {
     where = place; rain.stop(); if (place === 'slum') rain.start();
     clearInterval(ambTimer); if (amb) { try { amb.g.gain.linearRampToValueAtTime(.0001, ctx.currentTime + .6); amb.s.stop(ctx.currentTime + .7); } catch (e) { } amb = null; }
     if (!place || !level || !init()) return;
-    where = place; const P = { arena: ['lowpass', 260, .9, .045, .09], crypt: ['lowpass', 150, .7, .1, .05], tower: ['bandpass', 520, 1.5, .05, .09], slum: ['highpass', 2600, .5, .035, .4] }[place] || null; if (!P) return;
+    where = place; place = { sewer: 'crypt', market: 'arena', ship: 'tower' }[place] || place; const P = { arena: ['lowpass', 260, .9, .045, .09], crypt: ['lowpass', 150, .7, .1, .05], tower: ['bandpass', 520, 1.5, .05, .09], slum: ['highpass', 2600, .5, .035, .4] }[place] || null; if (!P) return;
     const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(), lfo = ctx.createOscillator(), lg = ctx.createGain();
     s.buffer = buf; s.loop = true; f.type = P[0]; f.frequency.value = P[1]; f.Q.value = P[2]; g.gain.value = .0001; g.gain.linearRampToValueAtTime(P[3], ctx.currentTime + 1.5);
     lfo.frequency.value = P[4]; lg.gain.value = place === 'slum' ? P[3] * .12 : P[3] * .5; lfo.connect(lg); lg.connect(g.gain); if (place === 'tower') { const l2 = ctx.createGain(); l2.gain.value = 260; lfo.connect(l2); l2.connect(f.frequency); }

@@ -100,6 +100,20 @@ const MON = {
   armour:    { n: 'Animated Armour', pl: 'Animated Armours', hd: 3,  ac: 2, dmg: [1, 8, 0], mv: 4, cost: 60,  g: 'A', f: 'u' },
   golem:     { n: 'Clay Guardian',   pl: 'Clay Guardians',   hd: 7,  ac: 5, dmg: [2, 8, 0], mv: 3, cost: 200, g: 'C', f: 'u clt' },
   sorcerer:  { n: 'Sorcerer',        pl: 'Sorcerers',        hd: 6,  ac: 5, dmg: [1, 8, 2], mv: 4, cost: 220, g: 'S', range: 8, summon: ['imp', 2] },
+  // the sewer, the market and the ship
+  leech:     { n: 'Giant Leech',     pl: 'Giant Leeches',    hd: 2,  ac: 8, dmg: [1, 6, 0], mv: 3, cost: 24,  g: 'l', f: 'clt' },
+  drowned:   { n: 'Drowned One',     pl: 'Drowned Ones',     hd: 3,  ac: 6, dmg: [1, 8, 0], mv: 4, cost: 50,  g: 'D', f: 'u' },
+  croc:      { n: 'Sewer Crocodile', pl: 'Sewer Crocodiles', hd: 4,  ac: 5, dmg: [2, 6, 0], mv: 4, cost: 85,  g: 'K', f: 'rsh' },
+  piper:     { n: 'Piper',           pl: 'Pipers',           hd: 5,  ac: 5, dmg: [1, 6, 2], mv: 5, cost: 160, g: 'P', summon: ['rat', 4] },
+  sellsword: { n: 'Sellsword',       pl: 'Sellswords',       hd: 2,  ac: 5, dmg: [1, 8, 0], mv: 4, cost: 26,  g: 's' },
+  mountebank: { n: 'Mountebank',     pl: 'Mountebanks',      hd: 2,  ac: 8, dmg: [1, 6, 1], mv: 4, cost: 32,  g: 'm', range: 5 },
+  duellist:  { n: 'Duellist',        pl: 'Duellists',        hd: 4,  ac: 3, dmg: [1, 8, 1], att: 2, mv: 6, cost: 100, g: 'd' },
+  fence:     { n: 'Fence',           pl: 'Fences',           hd: 5,  ac: 4, dmg: [1, 6, 2], att: 2, mv: 6, cost: 160, g: 'F', summon: ['sellsword', 2] },
+  deckhand:  { n: 'Deckhand',        pl: 'Deckhands',        hd: 1,  ac: 8, dmg: [1, 6, 0], mv: 5, cost: 9,   g: 'h', f: 'cry' },
+  corsair:   { n: 'Corsair',         pl: 'Corsairs',         hd: 2,  ac: 6, dmg: [1, 8, 0], mv: 5, cost: 24,  g: 'c' },
+  harpooner: { n: 'Harpooner',       pl: 'Harpooners',       hd: 2,  ac: 7, dmg: [1, 8, 0], mv: 4, cost: 30,  g: 'j', range: 5 },
+  bosun:     { n: 'Bosun',           pl: 'Bosuns',           hd: 4,  ac: 5, dmg: [1, 8, 2], mv: 4, cost: 80,  g: 'B', f: 'clt' },
+  captain:   { n: 'Corsair Captain', pl: 'Corsair Captains', hd: 6,  ac: 3, dmg: [1, 8, 2], att: 2, mv: 5, cost: 210, g: 'C', summon: ['corsair', 2] },
   vhorax:    { n: 'Vhorax',          pl: 'Vhorax',           hd: 16, ac: -2, dmg: [2, 10, 4], att: 3, mv: 6, cost: 1500, g: '@', gaze: 1, summon: ['legionary', 4] }
 };
 
@@ -212,7 +226,7 @@ const alliesOf = (b, u) => b.units.filter(x => x.hp > 0 && x.side === u.side && 
 // Effects for the board to draw. An event with a lag (an arrow in flight, a spell being cast) holds back
 // the numbers and deaths that follow it, so they appear when the blow lands.
 function fx(b, o) { if (b.nofx) return; const now = Date.now(); if (o.lag != null) { b.lag = o.lag; o.t = now; } else o.t = now + (b.lag || 0); b.fx.push(o); if (b.fx.length > 300) b.fx.splice(0, 150); }
-const BOLTERS = { cultpriest: 1, necromancer: 1, apprentice: 1, sorcerer: 1 };
+const BOLTERS = { cultpriest: 1, necromancer: 1, apprentice: 1, sorcerer: 1, mountebank: 1 };
 function say(b, s) { b.log.push(s); if (b.log.length > 200) b.log.shift(); }
 function place(b, u, x, y) { u.x = x; u.y = y; b.grid[idx(b, x, y)] = u; }
 function moveTo(b, u, x, y) {
@@ -873,15 +887,30 @@ const PLACES = {
     foes: [['apprentice', 1], ['imp', 3], ['armour', 5], ['gargoyle', 10], ['golem', 14]] },
   slum: { n: 'Gutter Row', short: 'Gutter Row', blurb: 'The crooked street behind the arena where the handlers drink. A gang runs it from the yard at the far end.',
     rooms: ["Tanner's Row", 'The Narrows', "Ragpicker's Court", "Crake's Yard"], boss: 'gangboss', bn: 'Mother Crake',
-    foes: [['thug', 1], ['cutpurse', 1], ['slinger', 2], ['hound', 3], ['bruiser', 6], ['wererat', 10]] }
+    foes: [['thug', 1], ['cutpurse', 1], ['slinger', 2], ['hound', 3], ['bruiser', 6], ['wererat', 10]] },
+  sewer: { n: 'The Under-Drains', short: 'Drains', blurb: 'Everything the arena washes away runs down here. Something has been calling the rats together, and they are not the worst of it.',
+    rooms: ['The Outfall', 'The Long Drain', 'The Settling Tanks', "The Piper's Den"], boss: 'piper', bn: 'The Rat Piper',
+    foes: [['rat', 1], ['leech', 1], ['cutpurse', 2], ['slime', 4], ['drowned', 5], ['wererat', 8], ['croc', 9]] },
+  market: { n: 'The Lantern Market', short: 'Market', blurb: 'It opens at dusk and sells what the day market cannot. A fence keeps the peace there with hired swords, and takes a share of everything.',
+    rooms: ['The Stalls', 'The Arcade', 'The Beast Pens', 'The Counting Yard'], boss: 'fence', bn: 'Madam Sable',
+    foes: [['thug', 1], ['cutpurse', 1], ['sellsword', 2], ['mountebank', 3], ['hound', 4], ['bruiser', 6], ['duellist', 10]] },
+  ship: { n: 'The Black Gull', short: 'Black Gull', blurb: 'A corsair galley lies at the river wharf, waiting on the tide with a hold full of other people\'s goods. Her captain does not expect company.',
+    rooms: ['The Main Deck', 'The Gun Deck', 'The Hold', 'The Foredeck'], boss: 'captain', bn: 'Captain Marrow',
+    foes: [['deckhand', 1], ['corsair', 2], ['harpooner', 3], ['bosun', 7], ['drowned', 9]] }
 };
+// Each new place is drawn in the manner of an older one: brick drains like the crypt, the market like the street, the ship like the tower.
+const FAM = { sewer: 'crypt', market: 'slum', ship: 'tower' };
 // A room: cells 0 = floor, 1 = wall (blocks sight), 2 = low obstacle, 3 = water. props are drawn things on blocked cells.
 // Rooms are generated from a seed, so a quest's rooms differ every time but a resumed quest gets the same ones back.
 const ROOMNAME = { pillars: 'The Pillared Hall', burial: 'The Burial Vault', cistern: 'The Flooded Cistern', catacomb: 'The Catacombs', cross: 'The Crossing', rubble: 'The Collapsed Gallery', partition: 'The Guard Rooms', sanctum: "The Bone-Speaker's Sanctum",
   library: 'The Library', lab: 'The Laboratory', menagerie: 'The Menagerie', study: 'The Inner Study', gallery: 'The Statue Gallery', armoury: 'The Armoury', observatory: 'The Observatory',
-  row: "Tanner's Row", dogleg: 'Crooked Lane', market: 'The Night Market', narrows: 'The Narrows', canal: 'The Stink Canal', court: "Ragpicker's Court", yard: "Crake's Yard" };
-const ROOMKINDS = { crypt: ['pillars', 'burial', 'cistern', 'catacomb', 'cross', 'rubble', 'partition'], tower: ['library', 'lab', 'menagerie', 'study', 'gallery', 'armoury'], slum: ['row', 'dogleg', 'market', 'narrows', 'canal', 'court'] };
-const ROOMLAST = { crypt: 'sanctum', tower: 'observatory', slum: 'yard' };
+  row: "Tanner's Row", dogleg: 'Crooked Lane', market: 'The Night Market', narrows: 'The Narrows', canal: 'The Stink Canal', court: "Ragpicker's Court", yard: "Crake's Yard",
+  channel: 'The Long Drain', junction: 'The Meeting of Waters', tanks: 'The Settling Tanks', pipes: 'The Outfall', weir: 'The Weir', den: "The Piper's Den",
+  stalls: 'The Stalls', fountain: 'Fountain Square', arcade: 'The Arcade', pens: 'The Beast Pens', cloth: 'The Cloth Hall', counting: 'The Counting Yard',
+  deck: 'The Main Deck', gundeck: 'The Gun Deck', hold: 'The Hold', galley: 'The Galley', berths: 'The Berths', foredeck: 'The Foredeck' };
+const ROOMKINDS = { crypt: ['pillars', 'burial', 'cistern', 'catacomb', 'cross', 'rubble', 'partition'], tower: ['library', 'lab', 'menagerie', 'study', 'gallery', 'armoury'], slum: ['row', 'dogleg', 'market', 'narrows', 'canal', 'court'],
+  sewer: ['channel', 'junction', 'tanks', 'pipes', 'weir'], market: ['stalls', 'fountain', 'arcade', 'pens', 'cloth'], ship: ['deck', 'gundeck', 'hold', 'galley', 'berths'] };
+const ROOMLAST = { crypt: 'sanctum', tower: 'observatory', slum: 'yard', sewer: 'den', market: 'counting', ship: 'foredeck' };
 function makeRoom(place, n, seed) {
   seed = seed || 1;
   for (let t = 0; t < 60; t++) { const R = genRoom(place, n, (seed * 131 + n * 977 + t * 7919 + 5) >>> 0, seed); if (R) return R; }
@@ -938,6 +967,56 @@ function genRoom(place, n, sd, qseed, plain) {
     if (kind !== 'observatory') R.decor.push({ k: 'rug', x: c, y: c, v: rint(0, 2), r: kind === 'study' ? 1.6 : rint(2, 3) + .4 });
     for (let a = r(), st = TAU / rint(5, 7); a < TAU; a += st) { const x = c + Math.cos(a) * (rad - .5), y = c + Math.sin(a) * (rad - .5); R.lights.push({ x: x + .5, y: y + .5, cx: Math.round(x), cy: Math.round(y), r: R.roof ? 2.6 : 3.8, c: [1, .84, .52], k: 'candle' }); }
     for (let i = rint(5, 9); i > 0; i--) { const x = rint(1, sz - 2), y = rint(1, sz - 2); if (!get(x, y)) R.decor.push({ k: pick(['books', 'paper', 'paper', 'books', 'stain']), x, y, v: r() }); }
+  } else if (place === 'sewer') { // brick drains: a walled room like the crypt's, cut up by channels of water
+    const w = 15 + 2 * rint(0, 2), h = r() < .5 ? 9 : 11, my = (h - 1) / 2; mk(w, h, 0);
+    rect(0, 0, w - 1, 0, 1); rect(0, h - 1, w - 1, h - 1, 1); rect(0, 0, 0, h - 1, 1); rect(w - 1, 0, w - 1, h - 1, 1);
+    R.door = [0, my]; set(0, my, 0); R.decor.push({ k: 'door', x: 0, y: my }, { k: 'exit', x: w - 1, y: my });
+    const span = (x, y) => { set(x, y, 0); R.decor.push({ k: 'bridge', x, y }); };
+    if (!plain) switch (kind) {
+      case 'channel': { rect(3, my + 1, w - 2, my + 2, 3, 'water'); for (const bx of [rint(4, 6), rint(w - 6, w - 4)]) { span(bx, my + 1); span(bx, my + 2); }
+        for (let x = 4; x < w - 2; x += rint(3, 4)) if (r() > .3) set(x, 1 + rint(0, Math.max(0, my - 3)), 1, 'pillar'); break; }
+      case 'junction': { const x0 = rint(5, w - 7); rect(2, my + 1, w - 2, my + 1, 3, 'water'); rect(x0, 1, x0 + 1, h - 2, 3, 'water'); span(x0, my); span(x0 + 1, my); span(x0, h - 2); span(x0 + 1, h - 2);
+        span(rint(2, x0 - 1), my + 1); span(rint(x0 + 2, w - 3), my + 1); break; }
+      case 'tanks': for (let x = 3; x < w - 4; x += rint(4, 5)) for (const y0 of [1, my + 1]) if (r() > .2) { const pw = rint(2, 3), ph = Math.min(rint(2, 3), my - 1); rect(x, y0 + (y0 === 1 ? 0 : 1), Math.min(w - 3, x + pw - 1), y0 + (y0 === 1 ? 0 : 1) + ph - 1, 3, 'water'); } break;
+      case 'pipes': for (let x = 3; x <= w - 3; x += rint(2, 3)) for (let y = 2; y <= h - 3; y += rint(2, 3)) if (y !== my && r() > .35) { if (r() < .3) set(x, y, 3, 'water'); else set(x, y, 1, 'pillar'); } break;
+      case 'weir': for (const px of w >= 17 ? [Math.floor(w / 3), Math.floor(2 * w / 3)] : [Math.floor(w / 2)]) { rect(px, 1, px, h - 2, 1); rect(px + 1, 1, px + 1, h - 2, 3, 'water'); const g1 = rint(1, h - 2), g2 = 1 + (g1 + rint(2, h - 4)) % (h - 2); for (const gy of [g1, g2]) { set(px, gy, 0); span(px + 1, gy); } } break;
+      case 'den': { const px = Math.floor(w * .5); rect(px, 1, px + 1, h - 2, 3, 'water'); for (const by of [rint(1, my - 1), rint(my + 1, h - 2)]) { span(px, by); span(px + 1, by); } set(w - 3, 2, 2, 'brazier'); set(w - 3, h - 3, 2, 'brazier'); R.decor.push({ k: 'dais', x: w - 4, y: my - 1, w: 3, h: 3 });
+        for (const [x, y] of [[3, 2], [3, h - 3], [px - 2, 2], [px - 2, h - 3]]) if (r() > .25) set(x, y, 1, 'pillar'); for (let i = 0; i < 3; i++) { const x = rint(px + 3, w - 5), y = rint(1, h - 2); if (!get(x, y) && Math.abs(y - my) > 1) set(x, y, 2, r() < .5 ? 'barrel' : 'crate'); } break; }
+    }
+    for (let x = 2 + rint(0, 2); x < w - 1; x += rint(3, 4)) for (const y of [0, h - 1]) if (r() > .3) R.lights.push({ x: x + .5, y: y ? h - 1.1 : 1.1, cx: x, cy: y ? h - 2 : 1, r: 4, c: [.86, .7, .3], k: 'torch', wx: x, wy: y });
+    for (let i = rint(8, 12); i > 0; i--) { const x = rint(1, w - 2), y = rint(1, h - 2); if (!get(x, y)) R.decor.push({ k: pick(['grate', 'moss', 'puddle', 'moss', 'crack', 'bones', 'grate', 'stain']), x, y, v: r() }); }
+  } else if (place === 'market') { // a square between house fronts, filled with stalls
+    const w = 19 + 2 * rint(0, 2), h = r() < .5 ? 9 : 11, my = (h - 1) / 2; mk(w, h, 1);
+    rect(1, 1, w - 2, h - 2, 0); R.door = [0, my]; set(0, my, 0);
+    const free = (x, y) => !get(x, y) && Math.abs(y - my) > 0;
+    if (!plain) switch (kind) {
+      case 'stalls': for (const y of [2, h - 3]) for (let x = 3; x <= w - 3; x++) if (x % 4 !== 1 && r() > .15) set(x, y, 2, 'stall'); if (h > 9) for (let x = 5; x <= w - 5; x += 3) if (r() > .4) set(x, my + pick([-1, 1]), 2, pick(['cart', 'crate', 'barrel'])); break;
+      case 'fountain': { const cx = Math.floor(w / 2); set(cx, my, 2, 'well'); for (const [dx, dy] of [[-3, -2], [3, -2], [-3, 2], [3, 2], [-6, -2], [6, 2], [-6, 2], [6, -2]]) if (r() > .2 && free(cx + dx, my + dy)) set(cx + dx, my + dy, 2, 'stall'); for (const x of [3, w - 4]) if (r() > .3) set(x, pick([1, h - 2]), 2, 'cart'); break; }
+      case 'arcade': for (let x = 4; x < w - 5; x += rint(5, 6)) for (const y0 of [2, my + 2]) if (y0 + 1 <= h - 3 || y0 === 2) rect(x, y0, x + rint(1, 2), Math.min(h - 3, y0 + (h > 9 ? 1 : 0) + (y0 === 2 ? Math.max(0, my - 4) : 0)), 1); break;
+      case 'pens': for (const y of [2, h - 3]) for (let x = 3; x <= w - 4; x++) if (x % 5 !== 0 && r() > .25) set(x, y, 2, 'cage'); for (let i = 0; i < 3; i++) { const x = rint(4, w - 4), y = pick([1, h - 2]); if (!get(x, y)) set(x, y, 2, 'barrel'); } break;
+      case 'cloth': for (let x = 4; x <= w - 4; x += 3) { const gap = rint(1, h - 2); for (let y = 1; y <= h - 2; y++) if (y !== my && Math.abs(y - gap) > 0 && r() > .25) set(x, y, 2, r() < .25 ? 'table' : 'rack'); } break;
+      case 'counting': { const px = w - 8; for (let y = 1; y <= h - 2; y++) if (Math.abs(y - my) > 1 && r() > .2) set(px, y, 2, pick(['stall', 'crate', 'crate'])); set(w - 3, 2, 2, 'brazier'); set(w - 3, h - 3, 2, 'brazier'); set(w - 5, my - 2, 2, 'table'); set(w - 5, my + 2, 2, 'table'); set(w - 2, 1, 2, 'crate'); set(w - 2, h - 2, 2, 'barrel');
+        for (let x = 4; x < px - 1; x += 3) if (r() > .3) set(x, pick([2, h - 3]), 2, 'stall'); break; }
+    }
+    for (let i = rint(2, 5); i > 0; i--) { const x = rint(3, w - 3), y = rint(1, h - 2); if (free(x, y) && ![[1, 0], [-1, 0], [0, 1], [0, -1]].some(d => get(x + d[0], y + d[1]) === 2)) set(x, y, 2, pick(['crate', 'barrel', 'crate'])); }
+    for (let x = 2 + rint(0, 2); x < w - 1; x += rint(4, 5)) R.lights.push({ x: x + .5, y: 1.15, cx: x, cy: 1, r: 4.8, c: [1, .74, .36], k: 'lamp', wx: x, wy: 0 });
+    for (let x = 4 + rint(0, 3); x < w - 3; x += rint(5, 7)) if (!get(x, 1) && !get(x, h - 2)) R.decor.push({ k: 'wash', x, y0: 1, y1: h - 2, v: r(), lamps: 1 });
+    for (let i = rint(5, 8); i > 0; i--) { const x = rint(1, w - 2), y = rint(1, h - 2); if (!get(x, y)) R.decor.push({ k: pick(['refuse', 'crack', 'puddle', 'refuse', 'stain']), x, y, v: r() }); }
+  } else if (place === 'ship') { // a hull, blunt at the stern where the party boards and narrowing to the bow
+    const w = r() < .5 ? 21 : 23, h = 9, my = 4; mk(w, h, 1); R.hull = 1;
+    const half = x => x < 1 || x > w - 2 ? -1 : x === 1 ? 2 : x <= w - 8 ? 3 : 3 - Math.ceil((x - (w - 8)) / 2);
+    for (let x = 1; x < w - 1; x++) for (let y = my - half(x); y <= my + half(x); y++) set(x, y, 0);
+    R.door = [0, my]; set(0, my, 0); const m1 = 6, m2 = w - 10;
+    if (!plain) switch (kind) {
+      case 'deck': R.roof = 1; set(m1, my, 2, 'mast'); set(m2, my, 2, 'mast'); for (const x of [rint(3, 4), m1 + rint(3, 4), m2 + rint(2, 3)]) R.decor.push({ k: 'hatch', x, y: my + pick([-1, 1]) }); for (let x = 3; x <= w - 9; x += rint(2, 4)) if (r() > .35) set(x, pick([1, 7]), 2, pick(['barrel', 'crate', 'barrel'])); break;
+      case 'gundeck': set(m1, my, 2, 'mast'); set(m2, my, 2, 'mast'); for (let x = 3; x <= w - 9; x += 3) for (const y of [1, 7]) if (r() > .15) set(x, y, 2, 'cannon'); for (let i = 0; i < 3; i++) { const x = rint(4, w - 9), y = pick([3, 5]); if (!get(x, y)) set(x, y, 2, 'barrel'); } break;
+      case 'hold': set(m1, my, 2, 'mast'); set(m2, my, 2, 'mast'); for (let x = 3; x <= w - 7; x++) for (let y = 1; y <= 7; y++) if (y !== my && !get(x, y) && r() < (x % 4 < 2 ? .42 : .08)) set(x, y, 2, pick(['crate', 'crate', 'barrel'])); break;
+      case 'galley': set(m1, my, 2, 'mast'); set(m2, my, 2, 'mast'); for (let x = 4; x <= w - 9; x += 2) if (r() > .25) set(x, pick([2, 6]), 2, 'table'); set(w - 8, my - 2, 2, 'brazier'); for (const y of [1, 7]) for (let x = 3; x < 9; x += 2) if (r() > .4) set(x, y, 2, 'barrel'); break;
+      case 'berths': set(m2, my, 2, 'mast'); for (const px of [Math.floor(w / 3), Math.floor(w * .58)]) { for (let y = 1; y <= 7; y++) set(px, y, 1); const g1 = rint(1, 7); set(px, g1, 0); set(px, 1 + (g1 + rint(2, 5)) % 7, 0); } for (let i = 0; i < 4; i++) { const x = rint(3, w - 9), y = pick([1, 7]); if (!get(x, y)) set(x, y, 2, 'crate'); } break;
+      case 'foredeck': R.roof = 1; set(m1, my, 2, 'mast'); set(m2 - 1, my, 2, 'wheel'); set(w - 7, my - 2, 2, 'brazier'); set(w - 7, my + 2, 2, 'brazier'); for (const y of [1, 7]) { set(w - 10, y, 2, 'cannon'); if (r() > .3) set(m1 + 3, y, 2, 'cannon'); } for (let i = 0; i < 3; i++) { const x = rint(3, m2 - 3), y = pick([2, 6]); if (!get(x, y)) set(x, y, 2, pick(['crate', 'barrel'])); } R.decor.push({ k: 'hatch', x: 4, y: my - 1 }); break;
+    }
+    for (let x = 3 + rint(0, 1); x < w - 3; x += rint(3, 4)) for (const s2 of [-1, 1]) { const y = my + s2 * half(x); if (r() > .25 && !get(x, y)) R.lights.push({ x: x + .5, y: y + .5 + s2 * .3, cx: x, cy: y, r: R.roof ? 3 : 3.8, c: [1, .82, .5], k: 'candle' }); }
+    for (let i = rint(5, 8); i > 0; i--) { const x = rint(2, w - 4), y = rint(1, 7); if (!get(x, y)) R.decor.push({ k: pick(['rope', 'stain', 'rope', 'puddle', 'paper']), x, y, v: r() }); }
   } else {
     const w = 19 + 2 * rint(0, 2), h = r() < .5 ? 9 : 11; mk(w, h, 1);
     let yc = Math.floor(h / 2) + rint(-1, 0); const wd = rint(2, 3), ys = new Int8Array(w), jogs = [];
@@ -971,7 +1050,7 @@ function genRoom(place, n, sd, qseed, plain) {
   R.spawn = queue.filter(i => dist[i] >= 5 && i !== far).map(i => [i % R.w, Math.floor(i / R.w)]);
   if (R.spawn.length < 14 || dist[far] < 8) return null;
   R.doors = []; // house doors on the street that a hero can try
-  if (place === 'slum') for (let y = 0; y < R.h - 1; y++) for (let x = 0; x < R.w; x++) if (get(x, y) === 1 && get(x, y + 1) !== 1 && rhash(x + 7, y + 3) < .28) R.doors.push([x, y]);
+  if (place === 'slum' || place === 'market') for (let y = 0; y < R.h - 1; y++) for (let x = 0; x < R.w; x++) if (get(x, y) === 1 && get(x, y + 1) !== 1 && rhash(x + 7, y + 3) < .28) R.doors.push([x, y]);
   R.kind = plain ? 'plain' : kind; R.name = plain ? PLACES[place].rooms[n] : ROOMNAME[kind];
   return R;
 }
@@ -1136,7 +1215,7 @@ function openDoor(b, u, S, x, y) {
   b.opened = b.opened || {}; if (b.opened[x + ',' + y]) return null;
   b.opened[x + ',' + y] = 1; u.acted = true; b.lag = 2400;
   const r = ri(100), res = { x, y, who: u.name };
-  if (r <= 35) { res.k = 'citizen'; res.text = DOORTALK[ri(DOORTALK.length) - 1]; if (ri(100) <= 35) { res.gold = ri(10) + 4; S.gold += res.gold; } say(b, u.name + ' opens a door on someone hiding.' + (res.gold ? ' They press ' + res.gold + ' gp into ' + u.name + "'s hand." : '')); }
+  if (r <= 35) { res.k = 'citizen'; res.text = R.place === 'slum' ? DOORTALK[ri(DOORTALK.length) - 1] : DOORTALK[[0, 3, 4][ri(3) - 1]]; if (ri(100) <= 35) { res.gold = ri(10) + 4; S.gold += res.gold; } say(b, u.name + ' opens a door on someone hiding.' + (res.gold ? ' They press ' + res.gold + ' gp into ' + u.name + "'s hand." : '')); }
   else if (r <= 65) { res.k = 'treasure'; if (ri(100) <= 30) res.item = 'a ' + gain(S, ri(2) === 1 ? 'potion' : anyOf(POTS)); else { const ids = Object.keys(SCROLLS), id = ids[ri(ids.length) - 1]; S.bag = S.bag || {}; S.bag[id] = (S.bag[id] || 0) + 1; res.item = 'a ' + SCROLLS[id].n; } say(b, u.name + ' finds ' + res.item + ' behind a door.'); }
   else if (r <= 85) { res.k = 'trap'; if (u.cls === 'thief' || u.cls === 'assassin') { res.safe = true; say(b, u.name + ' spots the wire across the doorway and steps over it.'); } else { res.dmg = ri(2); say(b, 'A trap behind the door catches ' + u.name + ' for ' + res.dmg + '.'); hurt(b, u, res.dmg, null); } }
   else { res.k = 'ambush'; let spot = null;
@@ -1212,4 +1291,4 @@ function unpackBattle(S, o) {
   return b;
 }
 
-if (typeof module !== 'undefined') module.exports = { CL, ORDER, MON, SCHED, SPELLS, TUNE, TIER, TIERCOST, FINAL, ITEMS, SLOTS, BOOK, migrate, redeploy, inZone, veteran, newParty, rollStats, randomName, equip, unequip, kit, sixAC, fillMem, slotsFor, rollInit, foeAct, heroAct, endRound, shopStock, raise, raiseCost, preview, packBattle, unpackBattle, SCROLLS, WANDS, POTS, USE, quaff, gain, readScroll, trapAt, spot, disarm, openChest, rouse, moveTo, heroAttack, flood, cast, openDoor, thingAt, interact, PLACES, makeRoom, startRoom, finishRoom, endQuest, beginQuest, tend, los, newCampaign, startBattle, autoRound, finishBattle, billing, billingText, budget, gateCap, living, canTrain, trainCost, levelUp, checkOver, xpNeed, roman };
+if (typeof module !== 'undefined') module.exports = { CL, ORDER, MON, SCHED, SPELLS, TUNE, TIER, TIERCOST, FINAL, ITEMS, SLOTS, BOOK, migrate, redeploy, inZone, veteran, newParty, rollStats, randomName, equip, unequip, kit, sixAC, fillMem, slotsFor, rollInit, foeAct, heroAct, endRound, shopStock, raise, raiseCost, preview, packBattle, unpackBattle, FAM, SCROLLS, WANDS, POTS, USE, quaff, gain, readScroll, trapAt, spot, disarm, openChest, rouse, moveTo, heroAttack, flood, cast, openDoor, thingAt, interact, PLACES, makeRoom, startRoom, finishRoom, endQuest, beginQuest, tend, los, newCampaign, startBattle, autoRound, finishBattle, billing, billingText, budget, gateCap, living, canTrain, trainCost, levelUp, checkOver, xpNeed, roman };

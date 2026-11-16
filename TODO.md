@@ -82,9 +82,38 @@ Open after 2a:
 - Chests and traps are not shown in the skycam.
 - Foes ignore traps altogether.
 
-## Sprint 2b and after (not yet built)
+## Sprint 2b: places (built)
 
-- **More quest places** (a sewer, a market, a ship).
+Three more quests, six in all. Each has six kinds of room and a master.
+
+- **The Under-Drains**: brick tunnels cut up by channels of green water, with
+  plank crossings, settling tanks and a weir. Rats, giant leeches (grab),
+  cutpurses, oozes, the drowned, wererats, sewer crocodiles (charge); the
+  Rat Piper, who calls rats four at a time.
+- **The Lantern Market**: a square between house fronts under strings of
+  paper lanterns: stalls, a fountain, an arcade, beast pens, a cloth hall.
+  No rain. Thugs, cutpurses, sellswords, mountebanks (who throw from five
+  squares), hounds, bruisers, duellists; Madam Sable the fence and her hired
+  swords. House doors can be tried here too.
+- **The Black Gull**: a corsair galley at the wharf. The room is the hull,
+  with the river round it: main deck with masts and yards, gun deck, hold,
+  galley, berths, and the foredeck. Deckhands (call for help), corsairs,
+  harpooners, bosuns (grab), the drowned; Captain Marrow.
+
+Open after 2b:
+
+- Each new place borrows an older one's way of drawing (drains: crypt;
+  market: street; ship: tower), with its own colours and props. They could
+  each take more of their own art.
+- The new places have no sound of their own: drains use the crypt's drips,
+  the market the crowd murmur, the ship the tower's wind.
+- Foes and masters are priced by guess. The party sim clears them at about
+  the same rate as the old three.
+- No bookshelves or sarcophagi in the new places; chests, traps and (in the
+  market) doors only.
+
+## Next (not yet built)
+
 - **Balance pass**, after hands-on play.
 - **Summoned reinforcements: done.** A master now calls at most twice
   (Vhorax three times), warns the round before, and cannot call with a hero
@@ -121,7 +150,8 @@ Still open for The Six:
 
 ## Side quests for The Six: built
 
-Vhorax grants leave for one quest before each arena day. Three places, each
+Vhorax grants leave for one quest before each arena day. Three places at
+first (three more came in sprint 2b), each
 four rooms with no rest between; the last room holds its master.
 
 - **The Sunken Crypt**: flagstones, pillars, sarcophagi, a flooded cistern,
@@ -145,6 +175,5 @@ four rooms with no rest between; the last room holds its master.
 
 Still open:
 
-- More places (a sewer, a market, a ship).
 - Quest experience is generous: a party that quests every day reaches about
   level 13 by day 30, against about level 9 without. Needs hands-on tuning.

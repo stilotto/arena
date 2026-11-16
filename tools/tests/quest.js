@@ -5,7 +5,7 @@ const { chromium } = require('playwright');
   const still = (p, k) => p.evaluate(k => { flyEnd && flyEnd(); $('fly').classList.remove('hidden', 'out'); A3.buildRoom(B.room); fitCanvas(flyc, fg, innerWidth, innerHeight); A3.render(fg, innerWidth, innerHeight, A3.fly(k, innerWidth / innerHeight, 1), 1, camUnits(B), { doors: {} }); }, k);
   const p = await P('?six=1&day=9'); await p.evaluate(() => { S.fly = false; leave(); }); await p.screenshot({ path: out + 'q_leave.png' });
   let n = 0;
-  for (const [pl, rooms] of [['crypt', [0, 2, 3]], ['tower', [0, 3]], ['slum', [0, 2, 3]]]) for (const rm of rooms) {
+  for (const [pl, rooms] of [['crypt', [0, 2, 3]], ['tower', [0, 3]], ['slum', [0, 2, 3]], ['sewer', [0, 3]], ['market', [0, 3]], ['ship', [0, 3]]]) for (const rm of rooms) {
     await p.evaluate(([pl, rm]) => { closeModal(); beginQuest(S, pl); S.quest.room = rm; enterRoom(); }, [pl, rm]);
     await p.screenshot({ path: out + 'q_' + pl + rm + '.png' });
     if (rm === 0 || rm === 3) { await still(p, .42); await p.screenshot({ path: out + 'q_' + pl + rm + '_fly.png' }); await p.evaluate(() => $('fly').classList.add('hidden')); }

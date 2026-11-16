@@ -171,7 +171,7 @@ const A3 = (() => {
   const BLD3 = [{ wall: [179, 162, 132], roof: [128, 70, 52] }, { wall: [140, 122, 98], roof: [84, 72, 70] }, { wall: [160, 138, 92], roof: [112, 92, 54] }, { wall: [156, 140, 132], roof: [70, 74, 92] }, { wall: [176, 142, 106], roof: [136, 96, 56] }];
   const canFilter = (() => { try { return 'filter' in document.createElement('canvas').getContext('2d'); } catch (e) { return false; } })();
   function buildRoom(R) {
-    const w = R.w, h = R.h, pl = R.place, hw = w / 2, hh = h / 2, faces = [], flats = [], extras = [], emit = [];
+    const w = R.w, h = R.h, real = R.place, pl = FAM[real] || real, hw = w / 2, hh = h / 2, faces = [], flats = [], extras = [], emit = []; // pl: the manner it is built in; real: the place itself
     const K = (x, y) => x < 0 || y < 0 || x >= w || y >= h ? 1 : R.cells[y * w + x];
     const propAt = {}; for (const p of R.props) propAt[p.y * w + p.x] = p;
     const isWall = (x, y) => K(x, y) === 1 && !(x >= 0 && y >= 0 && x < w && y < h && propAt[y * w + x]);
@@ -200,8 +200,8 @@ const A3 = (() => {
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
       const k = R.cells[y * w + x], p = propAt[y * w + x], v = hash2(x, y), X = x - hw, Z = y - hh;
       if (!isWall(x, y)) { // floor
-        const base = k === 3 ? (pl === 'slum' ? [34, 52, 44] : [26, 44, 70]) : pl === 'crypt' ? [150 + v * 40, 154 + v * 40, 176 + v * 40] : pl === 'slum' ? [150 + v * 30, 142 + v * 28, 130 + v * 24] : R.roof ? [150 + v * 20, 154 + v * 20, 184 + v * 20] : [200 + v * 30, 150 + v * 22, 96 + v * 16];
-        flat([[X, 0, Z], [X + 1, 0, Z], [X + 1, 0, Z + 1], [X, 0, Z + 1]], lit(base, x, y, k === 3 ? 1 : .62), { line: k === 3 ? null : pl === 'tower' && !R.roof ? 'plank' : 'tile', lum: lum(x, y) });
+        const base = k === 3 ? (pl === 'slum' || real === 'sewer' ? [34, 52, 44] : [26, 44, 70]) : real === 'sewer' ? [176 + v * 40, 146 + v * 30, 118 + v * 26] : pl === 'crypt' ? [150 + v * 40, 154 + v * 40, 176 + v * 40] : real === 'market' ? [176 + v * 30, 152 + v * 28, 122 + v * 24] : pl === 'slum' ? [150 + v * 30, 142 + v * 28, 130 + v * 24] : R.roof && real === 'tower' ? [150 + v * 20, 154 + v * 20, 184 + v * 20] : [200 + v * 30, 150 + v * 22, 96 + v * 16];
+        flat([[X, 0, Z], [X + 1, 0, Z], [X + 1, 0, Z + 1], [X, 0, Z + 1]], lit(base, x, y, k === 3 ? 1 : .62), { line: k === 3 ? null : pl === 'tower' && !(R.roof && real === 'tower') ? 'plank' : 'tile', lum: lum(x, y) });
       }
       if (isWall(x, y)) {
         if (pl === 'slum') {
@@ -216,12 +216,12 @@ const A3 = (() => {
           }
           if (v > .86 && di > 0) { const cy0 = (hs[0] + hs[1]) / 2; box(x, y, [.3, .3, .4, .4], cy0 - .3, cy0 + .9, [70, 56, 50], [90, 70, 62], null, { self: 1 }); emit.push({ k: 'smoke', p: [X + .45, cy0 + .9, Z + .45] }); }
         } else if (edge(x, y)) {
-          const WH = R.roof ? ((x + y) % 2 ? 1.25 : .85) : pl === 'crypt' ? 2.3 : 2.6, cS = pl === 'crypt' ? [150, 156, 178] : [176, 166, 190], cT = pl === 'crypt' ? [120, 124, 142] : [150, 142, 162];
+          const WH = real === 'ship' ? (R.roof ? .7 : 1.9) : R.roof ? ((x + y) % 2 ? 1.25 : .85) : pl === 'crypt' ? 2.3 : 2.6, cS = real === 'ship' ? [170, 118, 68] : real === 'sewer' ? [176, 132, 108] : pl === 'crypt' ? [150, 156, 178] : [176, 166, 190], cT = real === 'ship' ? [140, 98, 58] : real === 'sewer' ? [140, 108, 90] : pl === 'crypt' ? [120, 124, 142] : [150, 142, 162];
           const out = (nx, ny) => pl === 'tower' && (!inside(nx, ny) || (K(nx, ny) === 1 && !edge(nx, ny) && !propAt[ny * w + nx]));
           const s = [[x, y - 1], [x, y + 1], [x - 1, y], [x + 1, y]].map(q => !edge(q[0], q[1]) && (pl === 'tower' || inside(q[0], q[1])));
-          const f0 = faces.length; box(x, y, [0, 0, 0, 0], 0, WH, cT, cS, s, { tex: 'brick', kt: .75 });
-          if (pl === 'tower') [[x, y - 1, 0], [x, y + 1, 1], [x - 1, y, 2], [x + 1, y, 3]].forEach(([nx, ny, i]) => { if (!out(nx, ny)) return; const f = faces.slice(f0).find(f2 => f2.n && Math.abs(f2.n[1]) < .1 && Math.round(f2.n[0]) === (i === 2 ? -1 : i === 3 ? 1 : 0) && Math.round(f2.n[2]) === (i === 0 ? -1 : i === 1 ? 1 : 0)); if (f) { f.p[0][1] = f.p[1][1] = -26; f.c = [58, 56, 78]; f.tex = 'tall'; f.far = 1; } });
-          if (pl === 'tower' && !R.roof && hash2(x, y + 40) > .6) for (const [nx, ny, i] of [[x, y + 1, 1], [x, y - 1, 0], [x + 1, y, 3], [x - 1, y, 2]]) if (inside(nx, ny) && !isWall(nx, ny)) { const e = .013, pts = i === 1 ? [[X + .32, .7, Z + 1 + e], [X + .68, .7, Z + 1 + e], [X + .68, 2, Z + 1 + e], [X + .32, 2, Z + 1 + e]] : i === 0 ? [[X + .68, .7, Z - e], [X + .32, .7, Z - e], [X + .32, 2, Z - e], [X + .68, 2, Z - e]] : i === 3 ? [[X + 1 + e, .7, Z + .68], [X + 1 + e, .7, Z + .32], [X + 1 + e, 2, Z + .32], [X + 1 + e, 2, Z + .68]] : [[X - e, .7, Z + .32], [X - e, .7, Z + .68], [X - e, 2, Z + .68], [X - e, 2, Z + .32]]; quad(pts, [34, 46, 104], x, y, { over: 1, glowq: 1 }); break; }
+          const f0 = faces.length; box(x, y, [0, 0, 0, 0], 0, WH, cT, cS, s, { tex: real === 'ship' ? 'beam' : 'brick', kt: .75 });
+          if (pl === 'tower') [[x, y - 1, 0], [x, y + 1, 1], [x - 1, y, 2], [x + 1, y, 3]].forEach(([nx, ny, i]) => { if (!out(nx, ny)) return; const f = faces.slice(f0).find(f2 => f2.n && Math.abs(f2.n[1]) < .1 && Math.round(f2.n[0]) === (i === 2 ? -1 : i === 3 ? 1 : 0) && Math.round(f2.n[2]) === (i === 0 ? -1 : i === 1 ? 1 : 0)); if (f && real === 'ship') { f.p[0][1] = f.p[1][1] = -.8; f.c = [84, 58, 36]; f.far = 1; } else if (f) { f.p[0][1] = f.p[1][1] = -26; f.c = [58, 56, 78]; f.tex = 'tall'; f.far = 1; } });
+          if (real === 'tower' && !R.roof && hash2(x, y + 40) > .6) for (const [nx, ny, i] of [[x, y + 1, 1], [x, y - 1, 0], [x + 1, y, 3], [x - 1, y, 2]]) if (inside(nx, ny) && !isWall(nx, ny)) { const e = .013, pts = i === 1 ? [[X + .32, .7, Z + 1 + e], [X + .68, .7, Z + 1 + e], [X + .68, 2, Z + 1 + e], [X + .32, 2, Z + 1 + e]] : i === 0 ? [[X + .68, .7, Z - e], [X + .32, .7, Z - e], [X + .32, 2, Z - e], [X + .68, 2, Z - e]] : i === 3 ? [[X + 1 + e, .7, Z + .68], [X + 1 + e, .7, Z + .32], [X + 1 + e, 2, Z + .32], [X + 1 + e, 2, Z + .68]] : [[X - e, .7, Z + .32], [X - e, .7, Z + .68], [X - e, 2, Z + .68], [X - e, 2, Z + .32]]; quad(pts, [34, 46, 104], x, y, { over: 1, glowq: 1 }); break; }
         }
         continue;
       }
@@ -244,6 +244,9 @@ const A3 = (() => {
         case 'barrel': box(x, y, [.2, .2, .2, .2], 0, .95, [160, 116, 66], [124, 84, 46], null, { self: 1 }); break;
         case 'cart': box(x, y, [.04, .2, .04, .2], .35, .95, [170, 122, 70], [136, 94, 54], null, { self: 1 }); box(x, y, [.12, .14, .12, .14], 0, .35, [40, 32, 26], [40, 32, 26], null, { self: 1 }); break;
         case 'stall': { const c2 = [[179, 49, 42], [42, 90, 142], [58, 122, 74], [184, 134, 42]][(hash2(x + 50, y + 9) * 4) | 0]; box(x, y, [.04, .25, .04, .25], 0, .8, [170, 122, 70], [136, 94, 54], null, { self: 1 }); for (let i = 0; i < 4; i++) quad([[X + i / 4, 2.1, Z + .1], [X + i / 4, 1.6, Z + 1.05], [X + (i + 1) / 4, 1.6, Z + 1.05], [X + (i + 1) / 4, 2.1, Z + .1]], lit(i % 2 ? [232, 220, 192] : c2, x, y), x, y, { two: 1 }); extras.push({ k: 'lines', pts: [[[X + .05, 0, Z + .1], [X + .05, 2.1, Z + .1]], [[X + .95, 0, Z + .1], [X + .95, 2.1, Z + .1]], [[X + .05, 0, Z + 1], [X + .05, 1.6, Z + 1]], [[X + .95, 0, Z + 1], [X + .95, 1.6, Z + 1]]], c: '#4a2e18', p: [X + .5, 0, Z + .5] }); break; }
+        case 'mast': box(x, y, [.36, .36, .36, .36], 0, R.roof ? 5.4 : 1.9, wood, wood, null, { self: 1 }); if (R.roof) { box(x, y, [.44, -1.3, .44, -1.3], 3.9, 4.05, wood, dwood, null, { self: 1 }); for (const sgn of [-1, 1]) extras.push({ k: 'lines', pts: [[[X + .5, 5.2, Z + .5], [X + .5, .7, Z + .5 + sgn * 3.2]], [[X + .5, 3.9, Z + .5 + sgn * 1.7], [X + .5, .7, Z + .5 + sgn * 3.2]]], c: '#b89a62', p: [X + .5, 2.5, Z + .5 + sgn * 2] }); } break;
+        case 'cannon': box(x, y, [.24, .2, .24, .2], 0, .34, wood, dwood, null, { self: 1 }); box(x, y, [.38, y < h / 2 ? -.12 : .2, .38, y < h / 2 ? .2 : -.12], .34, .6, [70, 76, 86], [50, 54, 62], null, { self: 1 }); break;
+        case 'wheel': box(x, y, [.43, .43, .43, .43], 0, .9, dwood, dwood, null, { self: 1 }); box(x, y, [.44, .12, .44, .12], .6, 1.4, wood, wood, null, { self: 1 }); break;
         case 'well': box(x, y, [.1, .1, .1, .1], 0, .6, [20, 34, 56], stone, null, { self: 1 }); extras.push({ k: 'lines', pts: [[[X + .12, 0, Z + .5], [X + .12, 1.7, Z + .5]], [[X + .88, 0, Z + .5], [X + .88, 1.7, Z + .5]], [[X + .05, 1.7, Z + .5], [X + .95, 1.7, Z + .5]]], c: '#4a2e18', p: [X + .5, 0, Z + .5] }); break;
       }
     }
@@ -253,6 +256,8 @@ const A3 = (() => {
       if (d.k === 'chart') for (const f of [1, .72, .44, .2]) flat(ring(d.r * f, 40), [210, 170, 82], { stroke: 1 });
       if (d.k === 'dais') flat([[X, .02, Z], [X + d.w, .02, Z], [X + d.w, .02, Z + d.h], [X, .02, Z + d.h]], lit([210, 214, 230], d.x + 1, d.y + 1, .7), { gold: 1 });
       if (d.k === 'bridge') flat([[X + .08, .05, Z], [X + .92, .05, Z], [X + .92, .05, Z + 1], [X + .08, .05, Z + 1]], lit([150, 104, 60], d.x, d.y, .8), { line: 'plank' });
+      if (d.k === 'grate') flat([[X + .18, .012, Z + .18], [X + .82, .012, Z + .18], [X + .82, .012, Z + .82], [X + .18, .012, Z + .82]], [12, 14, 12], { line: 'tile' });
+      if (d.k === 'hatch') flat([[X + .06, .02, Z + .06], [X + .94, .02, Z + .06], [X + .94, .02, Z + .94], [X + .06, .02, Z + .94]], lit([96, 62, 34], d.x, d.y, .8), { line: 'plank' });
       if (d.k === 'puddle') flat(ring(.42, 12).map(q => [q[0], .012, Z + .5 + (q[2] - Z - .5) * .55]), [16, 24, 40]);
       if (d.k === 'wash') extras.push({ k: 'wash', p: [X + .5, 2.5, (d.y0 + d.y1 + 1) / 2 - hh], z0: d.y0 - hh, z1: d.y1 + 1 - hh, x: X + .5, v: d.v });
       if (d.k === 'door' || d.k === 'exit') { const xx = d.k === 'door' ? X + 1.02 - (pl === 'crypt' ? 1 : 0) : X - .02 + (pl === 'crypt' ? 1 : 0); if (pl === 'crypt') quad(d.k === 'door' ? [[xx, 0, Z + 1.3], [xx, 0, Z - .3], [xx, 2, Z - .3], [xx, 2, Z + 1.3]] : [[xx, 0, Z - .3], [xx, 0, Z + 1.3], [xx, 2, Z + 1.3], [xx, 2, Z - .3]], [10, 8, 6], d.x, d.y, { over: 1 }); }
@@ -263,14 +268,15 @@ const A3 = (() => {
       if (l.k === 'lamp') { const z = l.wy + 1.3 - hh; extras.push({ k: 'lines', pts: [[[X, 2.9, l.wy + 1 - hh], [X, 2.9, z]], [[X, 2.9, z], [X, 2.6, z]]], c: '#17120f', p: [X, 2.6, z] }); emit.push({ k: 'flame', p: [X, 2.35, z], s: .16 }, { k: 'glow', p: [X, 2.45, z], r: 1.7, c: '255,180,90', a: .8 }); }
       if (l.k === 'candle') emit.push({ k: 'flame', p: [X, R.roof ? .95 : 1.5, Z], s: .1 }, { k: 'glow', p: [X, R.roof ? 1 : 1.55, Z], r: .9, c: '255,220,150', a: .6 });
     }
-    flats.unshift({ p: R.round ? Array.from({ length: 36 }, (_, i) => [Math.cos(i / 36 * TAU) * (R.rad + 1.3) + R.c + .5 - hw, -.03, Math.sin(i / 36 * TAU) * (R.rad + 1.3) + R.c + .5 - hh]) : [[-hw, -.03, -hh], [hw, -.03, -hh], [hw, -.03, hh], [-hw, -.03, hh]], c: pl === 'crypt' ? [16, 16, 22] : pl === 'slum' ? [26, 24, 22] : [34, 24, 16] }); // nothing shows between the tiles
+    if (real === 'ship') flats.unshift({ p: [[-hw - 30, -.8, -hh - 30], [hw + 30, -.8, -hh - 30], [hw + 30, -.8, hh + 30], [-hw - 30, -.8, hh + 30]], c: [14, 30, 50] }); // the river she lies in
+    else flats.unshift({ p: R.round ? Array.from({ length: 36 }, (_, i) => [Math.cos(i / 36 * TAU) * (R.rad + 1.3) + R.c + .5 - hw, -.03, Math.sin(i / 36 * TAU) * (R.rad + 1.3) + R.c + .5 - hh]) : [[-hw, -.03, -hh], [hw, -.03, -hh], [hw, -.03, hh], [-hw, -.03, hh]], c: real === 'sewer' ? [20, 16, 12] : pl === 'crypt' ? [16, 16, 22] : pl === 'slum' ? [26, 24, 22] : [34, 24, 16] }); // nothing shows between the tiles
     const lane = new Float32Array(w); let ly = R.door ? R.door[1] : hh;
     for (let x = 0; x < w; x++) { let s = 0, n = 0; for (let y = Math.max(0, Math.floor(ly) - 3); y <= Math.min(h - 1, Math.ceil(ly) + 3); y++) if (!R.cells[y * w + x]) { s += y + .5; n++; } if (n) ly = s / n; lane[x] = pl === 'slum' ? ly - hh : 0; }
-    sc = { room: R, w, h, a: hw + 1, b: hh + 1, out: 3, faces, flats, extras, emit, L, lane, flyH: pl === 'slum' ? 5.4 : pl === 'crypt' ? 4.6 : R.roof ? 3.6 : 4.8, fog: pl === 'crypt' ? [6, 6, 10] : pl === 'slum' ? [38, 28, 44] : [16, 20, 44] };
+    sc = { room: R, w, h, a: hw + 1, b: hh + 1, out: 3, faces, flats, extras, emit, L, lane, flyH: pl === 'slum' ? 5.4 : pl === 'crypt' ? 4.6 : R.roof ? 3.6 : 4.8, fog: real === 'sewer' ? [8, 11, 7] : pl === 'crypt' ? [6, 6, 10] : pl === 'slum' ? [38, 28, 44] : [16, 20, 44] };
     return sc;
   }
   function renderRoom(g, W, H, cam, time, units, t) {
-    const s = sc, R = s.room, pl = R.place, { V, D, X, Y, trace, F, f } = t, hw = s.w / 2, hh = s.h / 2, fog = s.fog, cx0 = cam.pos[0], cz0 = cam.pos[2];
+    const s = sc, R = s.room, real = R.place, pl = FAM[real] || real, { V, D, X, Y, trace, F, f } = t, hw = s.w / 2, hh = s.h / 2, fog = s.fog, cx0 = cam.pos[0], cz0 = cam.pos[2];
     const hl = Math.hypot(f[0], f[2]); let hy = f[1] < 0 ? -H : 2 * H;
     if (hl > .02) { const v = D([f[0] / hl, 0, f[2] / hl]); if (v[2] > .02) hy = Math.max(-H, Math.min(2 * H, Y(v))); }
     let sd = 9; const rr = () => (sd = (sd * 1664525 + 1013904223) >>> 0) / 4294967296;
@@ -278,10 +284,10 @@ const A3 = (() => {
     if (pl === 'crypt') { const gr = g.createRadialGradient(W / 2, H * .45, 0, W / 2, H * .45, Math.max(W, H) * .7); gr.addColorStop(0, '#12121c'); gr.addColorStop(1, '#030305'); g.fillStyle = gr; g.fillRect(0, 0, W, H); }
     else if (pl === 'tower') {
       const gr = g.createLinearGradient(0, hy - H * 1.1, 0, hy); gr.addColorStop(0, '#03050d'); gr.addColorStop(.7, '#16204a'); gr.addColorStop(1, '#3a4884'); g.fillStyle = gr; g.fillRect(0, 0, W, Math.max(0, hy));
-      const lo = g.createLinearGradient(0, hy, 0, hy + H * .9); lo.addColorStop(0, '#46548e'); lo.addColorStop(.25, '#232c58'); lo.addColorStop(1, '#0a0e22'); g.fillStyle = lo; g.fillRect(0, Math.max(0, hy), W, H);
+      const lo = g.createLinearGradient(0, hy, 0, hy + H * .9); if (real === 'ship') { lo.addColorStop(0, '#1c2c4c'); lo.addColorStop(.3, '#101e34'); lo.addColorStop(1, '#0a1626'); } else { lo.addColorStop(0, '#46548e'); lo.addColorStop(.25, '#232c58'); lo.addColorStop(1, '#0a0e22'); } g.fillStyle = lo; g.fillRect(0, Math.max(0, hy), W, H);
       for (let i = 0; i < 140; i++) { const d = D(norm([rr() * 2 - 1, rr() * .95 + .03, rr() * 2 - 1])), tw = .5 + rr() * .5; if (d[2] > .05) { g.fillStyle = `rgba(225,232,255,${tw * (time ? .75 + Math.sin(time * 2 + i) * .25 : 1)})`; g.fillRect(X(d), Y(d), 1 + rr() * 1.2, 1 + rr() * 1.2); } }
       const m = D(norm([.35, .3, -1])); if (m[2] > .05) { const x = X(m), y = Y(m), r0 = F * .075, hg = g.createRadialGradient(x, y, r0 * .8, x, y, r0 * 5); hg.addColorStop(0, 'rgba(190,205,255,.35)'); hg.addColorStop(1, 'rgba(190,205,255,0)'); g.fillStyle = hg; g.fillRect(x - r0 * 5, y - r0 * 5, r0 * 10, r0 * 10); g.fillStyle = '#f2f4ff'; g.beginPath(); g.arc(x, y, r0, 0, TAU); g.fill(); g.fillStyle = 'rgba(170,180,215,.5)'; for (const [a, b, c] of [[-.3, -.2, .22], [.25, .3, .16], [.1, -.4, .1]]) { g.beginPath(); g.arc(x + a * r0, y + b * r0, c * r0, 0, TAU); g.fill(); } }
-      for (let i = 0; i < 26; i++) { const az = rr() * TAU + (time || 0) * .004, el = -.03 - rr() * .5, d = D(norm([Math.cos(az), el, Math.sin(az)])), sz = F * (.25 + rr() * .5); if (d[2] > .05) { const cg = g.createRadialGradient(0, 0, 0, 0, 0, sz); cg.addColorStop(0, 'rgba(150,165,220,.3)'); cg.addColorStop(1, 'rgba(150,165,220,0)'); g.save(); g.translate(X(d), Y(d)); g.scale(1, .3); g.fillStyle = cg; g.beginPath(); g.arc(0, 0, sz, 0, TAU); g.fill(); g.restore(); } }
+      if (real !== 'ship') for (let i = 0; i < 26; i++) { const az = rr() * TAU + (time || 0) * .004, el = -.03 - rr() * .5, d = D(norm([Math.cos(az), el, Math.sin(az)])), sz = F * (.25 + rr() * .5); if (d[2] > .05) { const cg = g.createRadialGradient(0, 0, 0, 0, 0, sz); cg.addColorStop(0, 'rgba(150,165,220,.3)'); cg.addColorStop(1, 'rgba(150,165,220,0)'); g.save(); g.translate(X(d), Y(d)); g.scale(1, .3); g.fillStyle = cg; g.beginPath(); g.arc(0, 0, sz, 0, TAU); g.fill(); g.restore(); } }
     } else {
       const gr = g.createLinearGradient(0, hy - H * .9, 0, hy); gr.addColorStop(0, '#0e0a16'); gr.addColorStop(.55, '#3c2a44'); gr.addColorStop(.85, '#8a5048'); gr.addColorStop(1, '#d08a4a'); g.fillStyle = gr; g.fillRect(0, 0, W, Math.max(0, hy)); g.fillStyle = '#17131a'; g.fillRect(0, Math.max(0, hy), W, H);
       for (let i = 0; i < 60; i++) { const az = i / 60 * TAU + rr() * .05, hgt = 3 + rr() * 9, wd = .035 + rr() * .03, a = D([Math.cos(az) * 70, 0, Math.sin(az) * 70]), b = D([Math.cos(az) * 70, hgt, Math.sin(az) * 70]), c = D([Math.cos(az + wd) * 70, 0, Math.sin(az + wd) * 70]); const lw = rr();
@@ -337,7 +343,7 @@ const A3 = (() => {
     }
     /* air */
     if (time && pl !== 'slum') for (let i = 0; i < 50; i++) { const p = V([(rr() - .5) * s.w + Math.sin(time * .3 + i) * .5, .3 + rr() * 2.4 + Math.sin(time * .2 + i * 2) * .3, (rr() - .5) * s.h]); if (p[2] > NEAR) { g.fillStyle = `rgba(255,235,200,${.12 + rr() * .2})`; g.fillRect(X(p), Y(p), Math.max(1, F / p[2] * .02), Math.max(1, F / p[2] * .02)); } }
-    if (time && pl === 'slum') { g.strokeStyle = 'rgba(190,205,235,.28)'; g.lineWidth = 1; g.beginPath(); for (let i = 0; i < 90; i++) { const x = rr() * W, y = (rr() * H + time * (700 + rr() * 300)) % H, l = 10 + rr() * 14; g.moveTo(x, y); g.lineTo(x - l * .2, y + l); } g.stroke(); }
+    if (time && real === 'slum') { g.strokeStyle = 'rgba(190,205,235,.28)'; g.lineWidth = 1; g.beginPath(); for (let i = 0; i < 90; i++) { const x = rr() * W, y = (rr() * H + time * (700 + rr() * 300)) % H, l = 10 + rr() * 14; g.moveTo(x, y); g.lineTo(x - l * .2, y + l); } g.stroke(); }
     if (pl === 'crypt' && time) for (let i = 0; i < 5; i++) { const p = V([(rr() - .5) * s.w + Math.sin(time * .1 + i) * 2, .4, (rr() - .5) * s.h]); if (p[2] > NEAR) { const r0 = F / p[2] * 3, gr = g.createRadialGradient(X(p), Y(p), 0, X(p), Y(p), r0); gr.addColorStop(0, 'rgba(150,160,200,.07)'); gr.addColorStop(1, 'rgba(150,160,200,0)'); g.fillStyle = gr; g.fillRect(X(p) - r0, Y(p) - r0 * .4, r0 * 2, r0 * .8); } }
     const vg = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .32, W / 2, H / 2, Math.max(W, H) * .75); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, pl === 'crypt' ? 'rgba(0,0,0,.82)' : 'rgba(6,4,12,.55)'); g.fillStyle = vg; g.fillRect(0, 0, W, H);
   }

@@ -8,7 +8,7 @@ const { chromium } = require('playwright');
     // every foe starts unaware, traps and chests are plain data, and a chest never walls the room off
     o.start = [es().every(e => e.una), Array.isArray(B.traps), Array.isArray(B.chests), JSON.stringify(packBattle(B)).includes('"una":true')];
     let walled = 0, chests = 0, traps = 0, beats = 0;
-    for (let i = 0; i < 90; i++) { S.quest.place = ['crypt', 'tower', 'slum'][i % 3]; S.quest.room = i % 4; S.quest.seed = 500 + i; const b = startRoom(S); chests += b.chests.length; traps += b.traps.length; beats += b.units.filter(u => u.pat).length;
+    for (let i = 0; i < 90; i++) { S.quest.place = ['crypt', 'tower', 'slum', 'sewer', 'market', 'ship'][i % 6]; S.quest.room = i % 4; S.quest.seed = 500 + i; const b = startRoom(S); chests += b.chests.length; traps += b.traps.length; beats += b.units.filter(u => u.pat).length;
       const R = b.room, seen = new Uint8Array(b.w * b.h), qu = [R.door[1] * b.w + R.door[0]]; seen[qu[0]] = 1; // walk the floor from the door, round the chests
       for (let k = 0; k < qu.length; k++) { const cx = qu[k] % b.w, cy = (qu[k] - cx) / b.w; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const x = cx + dx, y = cy + dy, n = y * b.w + x; if (inb(b, x, y) && !seen[n] && !R.cells[n] && !b.chests.some(c => c.x === x && c.y === y)) { seen[n] = 1; qu.push(n); } } }
       for (const u of b.units) if (!seen[idx(b, u.x, u.y)]) walled++; for (const c of b.chests) if (R.cells[idx(b, c.x, c.y)] || ![-1, 0, 1].some(dy => [-1, 0, 1].some(dx => seen[idx(b, c.x + dx, c.y + dy)]))) walled++; }
